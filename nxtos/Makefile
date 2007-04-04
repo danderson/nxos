@@ -25,10 +25,10 @@ LDFLAGS=-N -Map $@.map -nostdlib $(OPTIMIZE) -cref --gc-sections -L$(BUILD)
 all: $(ROM_TARGET) $(SAMBA_TARGET)
 
 $(SAMBA_LDSCRIPT): $(SOURCE_LDSCRIPT)
-	cat $< | sed -E -e 's/^ *SAMBA_ONLY//' -e '/^ *ROM_ONLY/d' >$@
+	cat $< | sed -re 's/^ *SAMBA_ONLY//' -e '/^ *ROM_ONLY/d' >$@
 
 $(ROM_LDSCRIPT): $(SOURCE_LDSCRIPT)
-	cat $< | sed -E -e 's/^ *ROM_ONLY//' -e '/^ *SAMBA_ONLY/d' >$@
+	cat $< | sed -re 's/^ *ROM_ONLY//' -e '/^ *SAMBA_ONLY/d' >$@
 
 $(SAMBA_TARGET): $(BUILD)/$(SAMBA_TARGET)_elf
 	$(OBJCOPY) -O binary $< $@
