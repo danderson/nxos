@@ -162,7 +162,7 @@ void twi_read_async(U32 dev_id, U8 *data, U32 len, bool *done_flag)
     ((dev_id << 16) & AT91C_TWI_DADR) | AT91C_TWI_IADRSZ_NO | AT91C_TWI_MREAD;
 
   /* Wait until the TWI is idle. */
-  spinlock_lock(twi_busy);
+  spinlock_acquire(twi_busy);
   current_state = TWI_RX_BUSY;
 
   current_request.len = len;
@@ -195,7 +195,7 @@ void twi_write_async(U32 dev_id, U8 *data, U32 len, bool *done_flag)
   U32 dummy;
 
   /* Wait until the TWI is idle. */
-  spinlock_lock(twi_busy);
+  spinlock_acquire(twi_busy);
   current_state = TWI_TX_BUSY;
 
   current_request.len = len;
