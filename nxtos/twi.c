@@ -193,7 +193,6 @@ void twi_write_async(U32 dev_id, U8 *data, U32 len, bool *done_flag)
      address and read mode. */
   U32 mode =
     ((dev_id << 16) & AT91C_TWI_DADR) | AT91C_TWI_IADRSZ_NO;
-  U32 dummy;
 
   /* Wait until the TWI is idle. */
   spinlock_acquire(twi_busy);
