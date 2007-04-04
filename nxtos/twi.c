@@ -18,7 +18,7 @@ static volatile enum {
 static volatile struct {
   U32 len;
   U8 *ptr;
-  U32 *flag; /* Set *flag to 1 when the pending request is complete. */
+  U8 *flag; /* Set *flag to 1 when the pending request is complete. */
 } current_request;
 
 /* Interrupt service routine for the TWI, used to drive transmission
@@ -158,8 +158,10 @@ void twi_read_async(U32 dev_id, U8 *data, U32 len, bool *done_flag)
 {
   /* The value for the mode register. This sets the 7-bit device
      address and read mode. */
+
   U32 mode =
     ((dev_id << 16) & AT91C_TWI_DADR) | AT91C_TWI_IADRSZ_NO | AT91C_TWI_MREAD;
+
 
   /* Wait until the TWI is idle. */
   spinlock_acquire(twi_busy);
