@@ -13,11 +13,11 @@ typedef volatile U8 spinlock; /* Basic spinlock type. */
   while (prev_value) { \
     __asm__ volatile ("swpb %0, %0, [%1]" \
                       : "=r" (prev_value) \
-                      : "0" (prev_value), "r" (lock) \
+                      : "0" (prev_value), "r" (&lock) \
                       : "memory"); \
   } \
 }
 
-#define spinlock_release(lock) { *lock = 0; }
+#define spinlock_release(lock) { lock = 0; }
 
 #endif /* __ESTORM_LOCK_H__ */
