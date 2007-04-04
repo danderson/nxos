@@ -1,36 +1,77 @@
 #include "at91sam7s256.h"
-
 #include "types.h"
+#include "lock.h"
 #include "crt0.h"
 #include "aic.h"
 #include "sys_timer.h"
 
-static enum {
+static spinlock twi_busy = SPINLOCK_INIT_LOCKED;
+
+static volatile enum {
   TWI_UNINITIALIZED = 0,
   TWI_READY,
   TWI_TX_BUSY,
   TWI_RX_BUSY,
-  TWI_FAILED
-} twi_state;
+  TWI_FAILED,
+} current_state;
 
-static struct {
-  U32 pending_len;
-  U8 *pending_ptr;
-  enum {
-    IN = 0,
-    OUT,
-  } pending_direction;
-  U8 pending_thread; /* Wake up this thread on pending done. Not
-                        implemented yet. */
-} twi_current_request;
+static volatile struct {
+  U32 len;
+  U8 *ptr;
+  U32 *flag; /* Set *flag to 1 when the pending request is complete. */
+} current_request;
 
 /* Interrupt service routine for the TWI, used to drive transmission
  * and reception of data.
  */
 static void twi_isr() {
+  U32 status = *AT91C_TWI_SR;
+
+  /* We received the data we were expecting. */
+  if (current_state == TWI_RX_BUSY && (status & AT91C_TWI_RXRDY)) {
+    if (current_request.len > 0) {
+      *(current_request.ptr) = *AT91C_TWI_RHR;
+      current_request.ptr++;
+      current_request.len--;
+    }
+
+    /* Only one byte left to receive, we tell the TWI to send STOP
+     * after this. */
+    if (current_request.len == 1)
+      *AT91C_TWI_CR = AT91C_TWI_STOP;
+
+    /* Receive complete, return to idle. */
+    if (current_request.len == 0) {
+      *AT91C_TWI_IDR = ~0;
+      current_state = TWI_READY;
+      *(current_request.flag) = TRUE;
+      spinlock_unlock(twi_busy);
+    }
+  }
+
+  /* We finished sending a byte. */
+  if (current_state == TWI_TX_BUSY && (status & AT91C_TWI_TXRDY)) {
+    if (current_request.len > 0) {
+      /* There is still some data buffered that needs to be sent. */
+      *AT91C_TWI_CR = AT91C_TWI_START;
+      if (current_request.len == 1)
+        *AT91C_TWI_CR = AT91C_TWI_STOP;
+      *AT91C_TWI_THR = *(current_request.ptr);
+      current_request.ptr++;
+      current_request.len--;
+    } else {
+      /* All data sent. */
+      *AT91C_TWI_IDR = ~0;
+      current_state = TWI_READY;
+      *(current_request.flag) = TRUE;
+      spinlock_unlock(twi_busy);
+    }
+  }
+
+  /* TODO: Handle NAK, which might be either a crash or a reinit... */
 }
 
-/* Reset the I2C bus and restart the TWI controller.
+/* Reset the I2C bus and start the TWI controller.
  *
  * The NXT's TWI controller has a hardware bug: if the system attempts
  * to initialize it when the I2C bus is *not* idle (either the data or
@@ -44,7 +85,7 @@ static void twi_isr() {
  * the TWI controller and initialize it.
  */
 void twi_init() {
-  unsigned long cycles = 9;
+  U8 cycles = 9;
 
   interrupts_disable();
 
@@ -89,34 +130,86 @@ void twi_init() {
   /* Enable the TWI controller in master mode. */
   *AT91C_TWI_CR = (1 << 2);
 
-  twi_state = TWI_READY;
-
   /* Install the TWI controller interrupt service routine. */
   aic_install_isr(AT91C_ID_TWI, twi_isr);
   aic_enable(AT91C_ID_TWI);
 
+  /* Let the world make requests on the TWI bus. */
+  current_state = TWI_READY;
+  spinlock_unlock(twi_busy);
+
   interrupts_enable();
 }
 
-int twi_is_ready() {
-  return (twi_state & TWI_READY);
+bool twi_is_ready() {
+  return !twi_busy;
 }
 
-int twi_is_busy() {
-  return ((twi_state & TWI_TX_BUSY) || (twi_state & TWI_RX_BUSY));
+bool twi_is_busy() {
+  return twi_busy;
 }
-
 
 /* Start a read operation on the I2C bus. This function returns
  * control to the OS immediately.
  *
- * When the read is completed, the given flag address is set to 1.
+ * When the read is completed, the given flag is set to TRUE.
  */
-int twi_read_async(U32 dev_addr, U32 int_addr_bytes, U32 int_addr, U8 *data,
-                   U32 len)
+void twi_read_async(U32 dev_id, U8 *data, U32 len, bool *done_flag)
 {
-  /* Wait until the TWI is idle. */
-  while (!twi_is_ready());
+  /* The value for the mode register. This sets the 7-bit device
+     address and read mode. */
+  U32 mode =
+    ((dev_id << 16) & AT91C_TWI_DADR) | AT91C_TWI_IADRSZ_NO | AT91C_TWI_MREAD;
 
-  
+  /* Wait until the TWI is idle. */
+  spinlock_lock(twi_busy);
+  current_state = TWI_RX_BUSY;
+
+  current_request.len = len;
+  current_request.ptr = data;
+  current_request.flag = done_flag;
+  *done_flag = FALSE;
+
+  /* Disable all interrupt signalling in the TWI */
+  *AT91C_TWI_IDR = ~0;
+
+  /* Set the mode to the value defined above and start the read. */
+  *AT91C_TWI_CR = AT91C_TWI_START;
+
+  /* Tell the TWI to send an interrupt when a byte is received, or
+   * when there is a NAK (error) condition. */
+  *AT91C_TWI_IER = AT91C_TWI_RXRDY | AT91C_TWI_NACK;
+}
+
+/* Start a write operation on the I2C bus. This function returns
+ * control to the OS immediately.
+ *
+ * When the write is completed, the given flag is set to TRUE.
+ */
+void twi_write_async(U32 dev_id, U8 *data, U32 len, bool *done_flag)
+{
+  /* The value for the mode register. This sets the 7-bit device
+     address and read mode. */
+  U32 mode =
+    ((dev_id << 16) & AT91C_TWI_DADR) | AT91C_TWI_IADRSZ_NO;
+  U32 dummy;
+
+  /* Wait until the TWI is idle. */
+  spinlock_lock(twi_busy);
+  current_state = TWI_TX_BUSY;
+
+  current_request.len = len;
+  current_request.ptr = data;
+  current_request.flag = done_flag;
+  *done_flag = FALSE;
+
+  /* Disable all interrupt signalling in the TWI. */
+  *AT91C_TWI_IDR = ~0;
+
+  /* Set the mode to the value defined above and start the write. */
+  *AT91C_TWI_CR = AT91C_TWI_START;
+
+  /* Tell the TWI to send an interrupt when a byte is sent, or
+   * when there is a NAK (error) condition. */
+  *AT91C_TWI_IER = AT91C_TWI_TXRDY | AT91C_TWI_NACK;
 }
