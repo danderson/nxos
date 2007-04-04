@@ -174,6 +174,7 @@ void twi_read_async(U32 dev_id, U8 *data, U32 len, bool *done_flag)
   *AT91C_TWI_IDR = ~0;
 
   /* Set the mode to the value defined above and start the read. */
+  *AT91C_TWI_MMR = mode;
   *AT91C_TWI_CR = AT91C_TWI_START;
 
   /* Tell the TWI to send an interrupt when a byte is received, or
@@ -207,6 +208,7 @@ void twi_write_async(U32 dev_id, U8 *data, U32 len, bool *done_flag)
   *AT91C_TWI_IDR = ~0;
 
   /* Set the mode to the value defined above and start the write. */
+  *AT91C_TWI_MMR = mode;
   *AT91C_TWI_CR = AT91C_TWI_START;
 
   /* Tell the TWI to send an interrupt when a byte is sent, or
