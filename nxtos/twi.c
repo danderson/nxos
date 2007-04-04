@@ -45,7 +45,7 @@ static void twi_isr() {
       *AT91C_TWI_IDR = ~0;
       current_state = TWI_READY;
       *(current_request.flag) = TRUE;
-      spinlock_unlock(twi_busy);
+      spinlock_release(twi_busy);
     }
   }
 
@@ -64,7 +64,7 @@ static void twi_isr() {
       *AT91C_TWI_IDR = ~0;
       current_state = TWI_READY;
       *(current_request.flag) = TRUE;
-      spinlock_unlock(twi_busy);
+      spinlock_release(twi_busy);
     }
   }
 
@@ -136,7 +136,7 @@ void twi_init() {
 
   /* Let the world make requests on the TWI bus. */
   current_state = TWI_READY;
-  spinlock_unlock(twi_busy);
+  spinlock_release(twi_busy);
 
   interrupts_enable();
 }
