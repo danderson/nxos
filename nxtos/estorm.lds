@@ -71,8 +71,8 @@ SECTIONS {
   .text : {
     . = ALIGN(16);
     *.o(*.text)
-    . = ALIGN(16);
     *.o(*.rodata)
+    *(.glue*) /* generated Arm-Thumb interworking code. */
     . = ALIGN(16);
   }
   ROM_ONLY > rom
