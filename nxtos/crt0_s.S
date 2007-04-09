@@ -12,8 +12,8 @@
 #define MC_BASE 0xFFFFFF00 /* Base of the MC register bank. */
 #define MC_REMAP 0x0       /* Offset of the RCR register within the MC. */
 
-#define FIQ_MASK 0x6    /* FIQ disable control bit in the CPSR. */
-#define IRQ_MASK 0x7    /* IRQ disable control bit in the CPSR. */
+#define FIQ_MASK 0x40   /* FIQ disable control bit in the CPSR. */
+#define IRQ_MASK 0x80   /* IRQ disable control bit in the CPSR. */
 
 #define MODE_FIQ 0x11   /* FIQ mode. */
 #define MODE_IRQ 0x12   /* IRQ mode. */
@@ -300,12 +300,6 @@ init_reset:
 	 */
 	bl nxt_low_level_init
 
-	/* Switch to FIQ mode and set the r8 register with the AIC
-	 * register base address.
-	 */
-	msr CPSR_c, #(IRQ_MASK | FIQ_MASK | MODE_FIQ)
-	ldr r8, =AIC_BASE
-
 	/* Copy the vectors, data and ramtext sections into ram if necessary,
 	 * and initialize the BSS and stack regions.
 	 */
@@ -314,6 +308,12 @@ init_reset:
 	mem_copy __ramtext_load_start, __ramtext_load_end, __ramtext_ram_start
 	mem_initialize __bss_start, __bss_end, 0
 	mem_initialize __stack_start, __stack_end, 0
+
+	/* Switch to FIQ mode and set the r8 register with the AIC
+	 * register base address.
+	 */
+	msr CPSR_c, #(IRQ_MASK | FIQ_MASK | MODE_FIQ)
+	ldr r8, =AIC_BASE
 
 	/* Switch to IRQ mode and set up the IRQ stack at the very top
 	 * of ram. Given our IRQ dispatch code, we need 3 words per
