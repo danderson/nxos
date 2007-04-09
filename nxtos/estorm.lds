@@ -45,9 +45,9 @@ SECTIONS {
    */
   .ram_text : {
     . = ALIGN(16);
-    *.o(*.ramtext *.glue*)
+    *.oram(*.text *.glue*)
     . = ALIGN(16);
-    *.o(*.rodata)
+    *.oram(*.rodata)
     . = ALIGN(16);
   } > ram
   ROM_ONLY AT > rom
@@ -60,7 +60,7 @@ SECTIONS {
     *.o(*.data)
     . = ALIGN(16);
   } > ram
-  ROM_ONLY AT > ram
+  ROM_ONLY AT > rom
   __data_ram_start = ADDR(.data);
   __data_load_start = LOADADDR(.data);
   __data_load_end = (__data_load_start + SIZEOF(.data));
