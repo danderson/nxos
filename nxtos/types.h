@@ -2,6 +2,7 @@
 #define __ESTORM_TYPES_H__
 
 typedef unsigned char U8;
+typedef signed char S8;
 typedef unsigned short U16;
 typedef unsigned long U32;
 typedef unsigned char bool;

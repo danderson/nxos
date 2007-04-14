@@ -8,6 +8,7 @@
 
 #include "sys_timer.h"
 #include "twi.h"
+#include "system.h"
 
 /*
  * This is the first function to get executed after the bootstrapper
@@ -16,6 +17,8 @@
  * like.
  */
 void kernel_main(void) {
+  system_services_init();
   sys_timer_init();
   twi_init();
+  interrupts_enable();
 }

@@ -1,6 +1,6 @@
 	.code 32
 	.align 	0
-	.section ".vectors"
+	.section ".text"
 
 @ What follows is the exception vectors for. They are placed at the
 @ bottom of memory at system start up, and just call into exception

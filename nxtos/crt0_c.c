@@ -33,14 +33,11 @@ static inline void init_clocks()
    * 96MHz +/- 0.25%. A frequency of 96.11MHz is a deviation of .11%,
    * therefore acceptable.
    *
-   * We also configure the USB clock divider in the same register
-   * write, as the divider is in the same register.
-   *
    * The PLL clock is estimated to lock within 0.844ms (estimate
    * documented in the LEGO source code), which maps to ~28 slow clock
    * cycles.
    */
-  *AT91C_CKGR_PLLR = (14 | (28 << 8) | (72 << 16) | AT91C_CKGR_USBDIV_1);
+  *AT91C_CKGR_PLLR = (14 | (28 << 8) | (72 << 16));
 
   /* Wait for the PLL to lock. */
   while ((*AT91C_PMC_SR & AT91C_PMC_LOCK) == 0);
@@ -88,10 +85,10 @@ static inline void init_aic() {
    *  - Clear all pending interrupts.
    *  - Tell the AIC that it is no longer handling any interrupt.
    */
-  AT91C_BASE_AIC->AIC_IDCR = 0xFFFFFFFF;
-  AT91C_BASE_AIC->AIC_FFDR = 0xFFFFFFFF;
-  AT91C_BASE_AIC->AIC_ICCR = 0xFFFFFFFF;
-  AT91C_BASE_AIC->AIC_EOICR = 0xFFFFFFFF;
+  *AT91C_AIC_IDCR  = 0xFFFFFFFF;
+  *AT91C_AIC_FFDR  = 0xFFFFFFFF;
+  *AT91C_AIC_ICCR  = 0xFFFFFFFF;
+  *AT91C_AIC_EOICR = 0xFFFFFFFF;
 
   /* Since it can be useful for JTAG debugging, enable debug mode in
    * the AIC. In this mode, reading the interrupt vector register will
@@ -99,18 +96,16 @@ static inline void init_aic() {
    * IRQs. We will have to write back to the vector register to unlock
    * the AIC (the low-level IRQ dispatcher routine does this already).
    */
-  AT91C_BASE_AIC->AIC_DCR = 0x1;
+  *AT91C_AIC_DCR = 0x1;
 
   /* Set up the AIC with the default handlers. The handlers at startup
    * are undefined, which will cause undefined behavior if the kernel
    * activates an interrupt line before configuring the handler.
    */
-  AT91C_BASE_AIC->AIC_SVR[0] = (long int) nxt_default_irq_handler;
-  for (i=1; i<31; i++) {
-    AT91C_BASE_AIC->AIC_SVR[i] = (long int) nxt_default_irq_handler;
+  for (i=0; i<31; i++) {
+    AT91C_AIC_SVR[i] = (long int) nxt_default_irq_handler;
   }
-  AT91C_BASE_AIC->AIC_SPU = (long int) nxt_default_irq_handler;
-
+  *AT91C_AIC_SPU = (long int) nxt_default_irq_handler;
 }
 
 

@@ -4,7 +4,7 @@ TARGET = estorm
 BUILD = build
 
 S_SOURCES = crt0_s.S vectors.S
-C_SOURCES = crt0_c.c main.c aic.c sys_timer.c twi.c
+C_SOURCES = crt0_c.c main.c aic.c sys_timer.c twi.c avr.c system.c
 
 ROM_TARGET = $(TARGET)_rom.bin
 SAMBA_TARGET  = $(TARGET)_samba.bin
@@ -16,7 +16,7 @@ SAMBA_LDSCRIPT = $(BUILD)/$(TARGET)_samba.lds
 S_OBJECTS = $(addprefix $(BUILD)/,$(S_SOURCES:.S=.o))
 C_OBJECTS = $(addprefix $(BUILD)/,$(C_SOURCES:.c=.o))
 
-OPTIMIZE=-O2
+OPTIMIZE=-O0
 
 CCFLAGS=-ffreestanding -W -Wall -Werror $(OPTIMIZE) -mcpu=arm7tdmi -msoft-float -mfpu=fpa -mapcs -mthumb-interwork -Isupport
 ASFLAGS=-W -Wall -Werror $(OPTIMIZE) -Wa,-mcpu=arm7tdmi,-mapcs-32,-mthumb-interwork,-mfpu=softfpa

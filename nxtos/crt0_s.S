@@ -11,6 +11,7 @@
 
 #define MC_BASE 0xFFFFFF00 /* Base of the MC register bank. */
 #define MC_REMAP 0x0       /* Offset of the RCR register within the MC. */
+#define MC_FMR 0x60        /* Offset of the Flash Mode Register. */
 
 #define FIQ_MASK 0x40   /* FIQ disable control bit in the CPSR. */
 #define IRQ_MASK 0x80   /* IRQ disable control bit in the CPSR. */
@@ -181,9 +182,6 @@ nxt_default_irq_handler:
 	b nxt_default_irq_handler
 .global nxt_default_irq_handler
 
-end:	b end
-
-
 /*
  * Macros and functions to do memory initialization.
  */
@@ -195,6 +193,13 @@ end:	b end
 	ldr r2, =\dest
 	bl mem_copy_func
 	.endm
+
+.global memcpy
+memcpy:
+	mov r3, r0
+	mov r0, r1
+	add r1, r1, r2
+	mov r2, r3
 
 mem_copy_func:
 	/* Stop if source and dest addresses are the same */
@@ -231,6 +236,12 @@ mcf_16_aligned:
 	bl mem_init_func
 	.endm
 
+.global memset
+memset:
+	mov r3, r1
+	add r1, r0, r2
+	mov r2, r3
+
 mem_init_func:
 	orr r3,r0,r1
 	ands r3,r2,#15
@@ -260,9 +271,7 @@ init_reset:
 	/* If we're booting from SAM-BA or rebooting, interrupts are on.
 	 * Turn them off.
 	 */
-	mrs r0, cpsr
-	orr r0, r0, #(FIQ_MASK | IRQ_MASK)
-	msr cpsr_c, r0
+	msr CPSR_c, #(IRQ_MASK | FIQ_MASK | MODE_SVC)
 
 	/* Test to see whether the bottom of memory is RAM or not. If
 	 * it is not, execute a remap.
@@ -290,6 +299,9 @@ init_reset:
 	ldreq r0, =MC_BASE
 	moveq r1, #0x1
 	streq r1, [r0, #MC_REMAP]
+	beq continue_boot
+
+continue_boot:
 
 	/* Set up the supervisor mode stack at the top of RAM. */
 	ldr sp, =RAM_END
@@ -311,9 +323,10 @@ init_reset:
 
 	/* Switch to FIQ mode and set the r8 register with the AIC
 	 * register base address.
-	 */
+	 *
 	msr CPSR_c, #(IRQ_MASK | FIQ_MASK | MODE_FIQ)
 	ldr r8, =AIC_BASE
+         */
 
 	/* Switch to IRQ mode and set up the IRQ stack at the very top
 	 * of ram. Given our IRQ dispatch code, we need 3 words per
@@ -322,6 +335,7 @@ init_reset:
 	msr CPSR_c, #(IRQ_MASK | FIQ_MASK | MODE_IRQ)
 	ldr r0, =__irq_stack
 	mov sp, r0
+	bic sp, sp, #0x7
 
 	/* Go back to Supervisor mode and set up the Supervisor stack
 	 * to start at the top of the IRQ stack.
@@ -329,12 +343,16 @@ init_reset:
 	msr CPSR_c, #(IRQ_MASK | FIQ_MASK | MODE_SVC)
 	ldr r0, =__system_stack
 	mov sp, r0
+	bic sp, sp, #0x7
 
 	/* Set up initial frame pointers and boot the main kernel code. */
 	mov r0, #0
-	mov fp, r0
-	mov r7, r0
+	mov fp, r0 /* Arm mode null frame pointer */
+	mov r7, r0 /* Thumb mode null frame pointer */
 
 	ldr r5, =kernel_main
-	ldr lr, =end
+	mov lr, pc
 	bx r5
+
+end:
+	b end

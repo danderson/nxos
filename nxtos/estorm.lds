@@ -19,11 +19,11 @@ SECTIONS {
 
   /* Interrupt vectors. These are loaded to the bottom of memory at boot time. */
   .vectors : {
-    KEEP(build/vectors.o (.vectors))
+    KEEP(build/vectors.o (.text))
     . = ALIGN(16);
   } > vector_ram
-  ROM_ONLY AT > rom
-  SAMBA_ONLY AT > ram
+  ROM_ONLY AT> rom
+  SAMBA_ONLY AT> ram
   __vectors_ram_start = ADDR(.vectors);
   __vectors_load_start = LOADADDR(.vectors);
   __vectors_load_end = (__vectors_load_start + SIZEOF(.vectors));
@@ -50,7 +50,7 @@ SECTIONS {
     *.oram(*.rodata)
     . = ALIGN(16);
   } > ram
-  ROM_ONLY AT > rom
+  ROM_ONLY AT> rom
   __ramtext_ram_start = ADDR(.ram_text);
   __ramtext_load_start = LOADADDR(.ram_text);
   __ramtext_load_end = (__ramtext_load_start + SIZEOF(.ram_text));
@@ -60,7 +60,7 @@ SECTIONS {
     *.o(*.data)
     . = ALIGN(16);
   } > ram
-  ROM_ONLY AT > rom
+  ROM_ONLY AT> rom
   __data_ram_start = ADDR(.data);
   __data_load_start = LOADADDR(.data);
   __data_load_end = (__data_load_start + SIZEOF(.data));
@@ -71,7 +71,7 @@ SECTIONS {
   .text : {
     . = ALIGN(16);
     *.o(*.text)
-    *.o(*.rodata)
+    *(*.rodata)
     *(.glue*) /* generated Arm-Thumb interworking code. */
     . = ALIGN(16);
   }
