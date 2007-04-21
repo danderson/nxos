@@ -1,11 +1,11 @@
 GCC_VERSION = 4.1.2
-GCC_PATH = /mnt/data/arm-elf-gcc/build
+GCC_PATH = /opt/local/arm-elf-gcc/build
 
 # If you have a standard install of an arm-elf GCC cross-compiler, you
 # should not have to edit any of the following. If you have a
 # nonstandard installation, tweak below.
 
-TARGET_PREFIX =arm-elf
+TARGET_PREFIX = arm-elf
 
 INC_PATH  = $(GCC_PATH)/$(TARGET_PREFIX)/include
 LIBGCC    = $(GCC_PATH)/lib/gcc/arm-elf/$(GCC_VERSION)/interwork/libgcc.a
