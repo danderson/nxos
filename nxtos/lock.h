@@ -1,7 +1,7 @@
-#ifndef __ESTORM_LOCK_H__
-#define __ESTORM_LOCK_H__
+#ifndef __NXTOS_LOCK_H__
+#define __NXTOS_LOCK_H__
 
-#include "types.h"
+#include "mytypes.h"
 
 typedef volatile U8 spinlock; /* Basic spinlock type. */
 
@@ -20,4 +20,4 @@ typedef volatile U8 spinlock; /* Basic spinlock type. */
 
 #define spinlock_release(lock) { lock = 0; }
 
-#endif /* __ESTORM_LOCK_H__ */
+#endif /* __NXTOS_LOCK_H__ */

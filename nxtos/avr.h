@@ -1,12 +1,15 @@
-/*
- * Handling of the NXT's Two Wire (I2C) Interface, which is used for
- * communication with the NXT's sensors and AVR coprocessor.
- */
+#ifndef __NXTOS_AVR_H__
+#define __NXTOS_AVR_H__
 
-#ifndef __ESTORM_AVR_H__
-#define __ESTORM_AVR_H__
+#include "mytypes.h"
 
-/* Initialize the TWI. */
-void avr_1khz_update();
+void avr_init();
+void avr_1kHz_update();
+void avr_set_motor(U32 n, int power_percent, int brake);
+void avr_power_down();
+U32 avr_buttons_get();
+U32 avr_battery_voltage();
+U32 avr_sensor_adc(U32 n);
+void avr_set_input_power(U32 n, U32 power_type);
 
 #endif

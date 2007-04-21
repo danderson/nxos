@@ -1,35 +1,24 @@
-/*
- * Advanced Interrupt Controller routines
- *
- * The AIC was initialized by the bootstrap code, so we only have
- * utility functions to install interrupts and mask selected interrupt
- * lines.
- *
- * This code is very heavily inspired by the work of Charles Manning,
- * of Lejos fame.
- */
+#ifndef __NXTOS_AIC_H__
+#define __NXTOS_AIC_H__
 
-#ifndef __ESTORM_AIC_H__
-#define __ESTORM_AIC_H__
+#include "mytypes.h"
 
-typedef long int aic_vector_t;
+typedef U32 aic_vector_t;
 
-/* Enable the interrupt VECTOR in the AIC. */
+/* Priority levels for interrupt lines. */
+typedef enum {
+  AIC_INT_LEVEL_LOW = 2,
+  AIC_INT_LEVEL_NORMAL = 4,
+  AIC_INT_LEVEL_ABOVE_NORMAL = 5,
+} aic_priority_t;
+
+typedef void (*aic_isr_t)();
+
+void aic_initialise();
+void aic_install_isr(aic_vector_t vector, aic_priority_t prio, aic_isr_t isr);
 void aic_enable(aic_vector_t vector);
-
-/* Disable the interrupt VECTOR in the AIC. */
 void aic_disable(aic_vector_t vector);
-
-/* Install the given ISR as the Interrupt Service Routine for the
- * given interrupt VECTOR. On return, ISR is installed but the VECTOR
- * line is left masked in the AIC. You need to enable yourself when
- * ready with a call to aic_enable().
- */
-void aic_install_isr(aic_vector_t vector, void (*isr)());
-
-/* Manually force the AIC to trigger an irq exception for the given
- * interrupt VECTOR.
- */
-inline void aic_trigger_irq(aic_vector_t vector);
+void aic_set(aic_vector_t vector);
+void aic_clear(aic_vector_t vector);
 
 #endif

@@ -1,24 +1,43 @@
-/* Electric storm main code.
- *
- * This gets called as the payload of the crt0.
- */
 
+#include "mytypes.h"
+#include "interrupts.h"
+#include "aic.h"
 #include "at91sam7s256.h"
-#include "crt0.h"
-
-#include "sys_timer.h"
+#include "systick.h"
+#include "avr.h"
 #include "twi.h"
-#include "system.h"
 
-/*
- * This is the first function to get executed after the bootstrapper
- * does the bare metal board initialization. We arrive in this routine
- * with interrupts disabled, so we're free to do all the setup we
- * like.
- */
-void kernel_main(void) {
-  system_services_init();
-  sys_timer_init();
-  twi_init();
+#include "sound.h"
+
+#include "inutil.h"
+
+void
+core_init() {
+  aic_initialise();
   interrupts_enable();
+  systick_init();
+  sound_init();
+  avr_init();
+}
+
+void
+main()
+{
+  core_init();
+
+  avr_set_motor(0, 80, 0);
+  sound_freq(440, 1000);
+  systick_wait_ms(1000);
+
+  avr_set_motor(0, -80, 0);
+  sound_freq(880, 1000);
+  systick_wait_ms(1000);
+
+  avr_set_motor(0, 80, 0);
+  sound_freq(1320, 1000);
+  systick_wait_ms(1000);
+
+  avr_set_motor(0, 0, 1);
+
+  avr_power_down();
 }
