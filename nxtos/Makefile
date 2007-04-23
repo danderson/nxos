@@ -3,6 +3,7 @@ BUILD_DIR = build
 
 C_SOURCES = aic.c systick.c twi.c sound.c avr.c lcd.c main.c inutil.c
 S_SOURCES = init.S interrupts.S vectors.S
+FONT_FILE = data/font.8x5.png
 
 OPT_FLAGS = -O3
 #OPT_FLAGS = -O0 -g
@@ -20,6 +21,7 @@ SOURCE_LDS   = $(TARGET).lds
 S_OBJECTS    = $(addprefix $(BUILD_DIR)/, $(S_SOURCES:.S=.o))
 C_OBJECTS    = $(addprefix $(BUILD_DIR)/, $(C_SOURCES:.c=.o) $(C_RAMSOURCES:.c=.oram))
 ALL_OBJECTS  = $(C_OBJECTS) $(S_OBJECTS)
+FONT_INCLUDE = font.h
 
 ROM_TARGET   = $(TARGET)_rom.bin
 SAMBA_TARGET = $(TARGET)_samba.bin
@@ -45,7 +47,7 @@ samba: $(SAMBA_TARGET)
 
 clean:
 	@echo "Removing all intermediary build output"
-	@rm -rf $(BUILD_DIR)
+	@rm -rf $(BUILD_DIR) $(FONT_INCLUDE)
 	@echo "Removing targets"
 	@rm -f $(ALL_TARGETS)
 	@echo "Removing save files"
@@ -102,3 +104,12 @@ $(BUILD_DIR)/%.o: %.c
 $(BUILD_DIR)/%.oram: %.c
 	@echo "Compiling $< to $@"
 	$(CC) $(CFLAGS) -o $@ $<
+
+#
+# Specific rule: the display driver has a dependency on the generated
+# font.h file.
+#
+$(BUILD_DIR)/lcd.o: lcd.c $(FONT_INCLUDE)
+
+$(FONT_INCLUDE): $(FONT_FILE)
+	./generate_fonts.py $(FONT_FILE) font.h.base $(FONT_INCLUDE)
