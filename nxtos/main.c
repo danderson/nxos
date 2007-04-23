@@ -35,6 +35,5 @@ void
 main()
 {
   core_init();
-  tests_sound();
   core_shutdown();
 }
