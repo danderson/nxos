@@ -23,7 +23,29 @@ static void goodbye() {
   sound_freq(2000, 100);
   systick_wait_ms(50);
   sound_freq(1000, 100);
-  systick_wait_ms(50);
+  systick_wait_ms(900);
+}
+
+void beep_word(U32 value) {
+  U32 i=32;
+
+  hello();
+
+  while (i > 0 && !(value & 0x80000000)) {
+    value <<= 1;
+    i--;
+  }
+  while (i > 0) {
+    if (value & 0x80000000)
+      sound_freq(2000, 300);
+    else
+      sound_freq(1000, 300);
+    systick_wait_ms(700);
+    value <<= 1;
+    i--;
+  }
+
+  goodbye();
 }
 
 
@@ -44,6 +66,33 @@ tests_motor() {
   systick_wait_ms(200);
 
   goodbye();
+}
+
+void tests_sound() {
+  enum {
+    end = 0, sleep500 = 1, si = 990, dod = 1122,
+    re = 1188, mi = 1320, fad = 1496, sol = 1584,
+  } pain[] = {
+    si, sleep500,
+    fad, si, sol, sleep500,
+    fad, mi, fad, sleep500,
+    mi, fad, sol, sol, fad, mi, si, sleep500,
+    fad, si, sol, sleep500,
+    fad, mi, re,  sleep500,
+    mi, re,  dod, dod, re,  dod, si, end
+  };
+  int i = 0;
+
+  systick_wait_ms(1000);
+
+  while (pain[i] != end) {
+    if (pain[i] != sleep500)
+      sound_freq(pain[i], 200);
+    systick_wait_ms(300);
+    i++;
+  }
+
+  systick_wait_ms(1000);
 }
 
 void tests_display() {

@@ -32,6 +32,9 @@ void
 main()
 {
   core_init();
+  tests_motor();
+  tests_sound();
+  tests_display();
   tests_time();
   core_shutdown();
 }
