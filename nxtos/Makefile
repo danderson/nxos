@@ -1,7 +1,7 @@
 TARGET = nxtos
 BUILD_DIR = build
 
-C_SOURCES = aic.c systick.c twi.c sound.c avr.c lcd.c display.c util.c main.c inutil.c
+C_SOURCES = aic.c systick.c twi.c sound.c avr.c lcd.c display.c util.c main.c tests.c inutil.c
 S_SOURCES = init.S interrupts.S vectors.S lock.S
 FONT_FILE = data/font.8x5.png
 
