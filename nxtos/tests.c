@@ -86,9 +86,11 @@ void tests_sound() {
   systick_wait_ms(1000);
 
   while (pain[i] != end) {
-    if (pain[i] != sleep500)
-      sound_freq(pain[i], 200);
-    systick_wait_ms(200);
+    if (pain[i] == sleep500)
+      systick_wait_ms(150);
+    else
+      sound_freq(pain[i], 150);
+    systick_wait_ms(150);
     i++;
   }
 
