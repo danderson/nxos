@@ -21,6 +21,9 @@ static void core_init() {
   avr_init();
   lcd_init();
   display_init();
+
+  /* Delay a little post-init, to let all the drivers settle down. */
+  systick_wait_ms(100);
 }
 
 static void core_shutdown() {
@@ -32,9 +35,6 @@ void
 main()
 {
   core_init();
-  tests_motor();
   tests_sound();
-  tests_display();
-  tests_time();
   core_shutdown();
 }

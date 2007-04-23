@@ -83,7 +83,7 @@ void tests_sound() {
   };
   int i = 0;
 
-  systick_wait_ms(1000);
+  hello();
 
   while (pain[i] != end) {
     if (pain[i] == sleep500)
@@ -95,6 +95,7 @@ void tests_sound() {
   }
 
   systick_wait_ms(1000);
+  goodbye();
 }
 
 void tests_display() {
