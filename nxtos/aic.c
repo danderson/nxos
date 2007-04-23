@@ -19,7 +19,7 @@
  * handlers safely.
  */
 void
-aic_initialise()
+aic_init()
 {
   int i;
 

@@ -1,7 +1,7 @@
 TARGET = nxtos
 BUILD_DIR = build
 
-C_SOURCES = aic.c systick.c twi.c sound.c avr.c main.c inutil.c
+C_SOURCES = aic.c systick.c twi.c sound.c avr.c lcd.c main.c inutil.c
 S_SOURCES = init.S interrupts.S vectors.S
 
 OPT_FLAGS = -O3
