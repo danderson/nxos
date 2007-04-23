@@ -22,6 +22,7 @@
 #include "interrupts.h"
 #include "systick.h"
 #include "aic.h"
+#include "lcd.h"
 
 /*
  * SPI controller driver.
@@ -83,7 +84,7 @@ static void spi_write_command(U8 command) {
 /*
  * Send data bytes to the LCD controller.
  */
-void spi_write_data(U8 *data, U32 len) {
+void spi_write_data(const U8 *data, U32 len) {
   /* Flip the chip-select line... Because the uc1601 has a bug and
      needs to be pinged a little more directly? */
   *AT91C_PIOA_SODR = AT91C_PA10_NPCS2;
@@ -142,7 +143,7 @@ void lcd_set_all_pixels_on(U32 on) {
   spi_write_command(0xA4 | ((on) ? 1 : 0));
 }
 
-static void lcd_inverse_display(U32 on) {
+void lcd_inverse_display(U32 on) {
   spi_write_command(0xA6 | ((on) ? 1 : 0));
 }
 
@@ -163,6 +164,7 @@ static void lcd_set_bias_ratio(U32 ratio) {
 }
 
 
+/* Initialize the LCD controller. */
 void lcd_init() {
   /* Initialize the SPI controller to enable communication. */
   spi_init();
@@ -210,21 +212,39 @@ void lcd_init() {
   /* Set the LCD mapping mode, which defines how the data in video RAM
    * is driven to the display. We don't want X or Y mirroring.
    */
-  lcd_set_map_control(0);
+  lcd_set_map_control(2);
 
   /* Turn the display on. */
   lcd_enable(1);
 }
 
-void lcd_shutdown() {
-  lcd_reset();
-  systick_wait_ms(20);
+
+/* Mirror the given display buffer to the LCD controller. The given
+ * buffer must be exactly 100x64 bytes, one full screen of pixels.
+ */
+void lcd_display_data(U8 *display_buffer) {
+  int i;
+
+  for (i=0; i<LCD_HEIGHT; i++) {
+    lcd_set_page_address(i);
+    lcd_set_column_address(0);
+
+    /* Write a single page (8x100 pixels) of data. */
+    spi_write_data(display_buffer, LCD_WIDTH);
+    display_buffer += LCD_WIDTH;
+  }
 }
 
-void lcd_test() {
-  systick_wait_ms(2000);
-  lcd_inverse_display(1);
-  systick_wait_ms(2000);
-  lcd_inverse_display(0);
-  systick_wait_ms(2000);
+
+/* Shutdown the LCD controller. */
+void lcd_shutdown() {
+  /* When power to the controller goes out, there is the risk that
+   * some capacitors mounted around the controller might damage it
+   * when discharging in an uncontrolled fashion. To avoid this, the
+   * spec recommends putting the controller into reset mode before
+   * shutdown, which activates a drain circuit to empty the board
+   * capacitors gracefully.
+   */
+  lcd_reset();
+  systick_wait_ms(20);
 }

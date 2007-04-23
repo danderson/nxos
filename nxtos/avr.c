@@ -2,6 +2,7 @@
 #include "systick.h"
 #include "twi.h"
 #include "avr.h"
+#include "util.h"
 
 #define AVR_ADDRESS 1
 #define AVR_N_OUTPUTS 3
@@ -47,14 +48,6 @@ static U8 raw_to_avr[1 + /* Power mode    */
                      1 + /* Input modes (sensor power) */
                      1]; /* Checksum */
 
-static void
-memset(U8 *dest, U8 val, U32 len) {
-  while (len > 0) {
-    *dest = val;
-    dest++;
-    len--;
-  }
-}
 
 static void
 avr_start_read() {

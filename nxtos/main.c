@@ -7,6 +7,7 @@
 #include "avr.h"
 #include "twi.h"
 #include "lcd.h"
+#include "display.h"
 
 #include "sound.h"
 
@@ -19,6 +20,7 @@ static void core_init() {
   sound_init();
   avr_init();
   lcd_init();
+  display_init();
 }
 
 static void core_shutdown() {
@@ -26,13 +28,33 @@ static void core_shutdown() {
   avr_power_down();
 }
 
+void alive() {
+  systick_wait_ms(883);
+  sound_freq(1500, 100);
+}
+
 void more_test() {
+  int i;
+  int t;
+
   sound_freq(1000, 100);
   systick_wait_ms(50);
   sound_freq(2000, 100);
-  systick_wait_ms(500);
 
-  lcd_test();
+  for (i=0; i<20; i++) {
+    t = systick_get_ms();
+    display_clear();
+    display_cursor_set_pos(0, 0);
+    display_string("  TX52 - NxtOS\n\n"
+                   "0123456789ABCDEF\n"
+                   "\n"
+                   "Time (ms) : ");
+    display_uint(t);
+    display_string("\nTime (hex): ");
+    display_hex(t);
+    display_refresh();
+    alive();
+  }
 
   sound_freq(2000, 100);
   systick_wait_ms(50);

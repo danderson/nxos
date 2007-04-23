@@ -1,7 +1,7 @@
 TARGET = nxtos
 BUILD_DIR = build
 
-C_SOURCES = aic.c systick.c twi.c sound.c avr.c lcd.c main.c inutil.c
+C_SOURCES = aic.c systick.c twi.c sound.c avr.c lcd.c display.c util.c main.c inutil.c
 S_SOURCES = init.S interrupts.S vectors.S
 FONT_FILE = data/font.8x5.png
 
@@ -29,8 +29,8 @@ SAMBA_TARGET = $(TARGET)_samba.bin
 ALL_TARGETS = $(SAMBA_TARGET) $(ROM_TARGET)
 
 CFLAGS = -c -ffreestanding -fsigned-char -mcpu=arm7tdmi $(OPT_FLAGS) \
-         -Wall -Werror -I. -ffunction-sections -fdata-sections -msoft-float \
-         -mthumb-interwork
+         -Wall -Werror -I. -ffunction-sections -fdata-sections \
+         -msoft-float -mthumb-interwork
 
 ASFLAGS = -Wall -Werror $(OPT_FLAGS) -Wa,-mcpu=arm7tdmi,-mfpu=softfpa,-mthumb-interwork
 
@@ -111,5 +111,5 @@ $(BUILD_DIR)/%.oram: %.c
 #
 $(BUILD_DIR)/lcd.o: lcd.c $(FONT_INCLUDE)
 
-$(FONT_INCLUDE): $(FONT_FILE)
+$(FONT_INCLUDE): $(FONT_FILE) font.h.base
 	./generate_fonts.py $(FONT_FILE) font.h.base $(FONT_INCLUDE)

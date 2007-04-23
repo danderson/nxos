@@ -7,13 +7,11 @@
 
 #include "mytypes.h"
 
-#define DISPLAY_WIDTH 100
-#define DISPLAY_HEIGHT 64
-
 /* The offset of the first character in the font table. All characters
  * before that one are unprintable.
  */
 #define FONT_START 0x20
+#define FONT_END 0x80
 
 /* The width in pixels of the font codepoints, of a character cell
  * (includes space between chars), and the resulting length of a line
@@ -21,8 +19,8 @@
  */
 #define FONT_WIDTH @@FONT_WIDTH@@
 #define CELL_WIDTH (FONT_WIDTH + 1)
-#define DISPLAY_WIDTH_CELLS (DISPLAY_WIDTH / CELL_WIDTH)
-#define DISPLAY_HEIGHT_CELLS (DISPLAY_HEIGHT / 8)
+#define DISPLAY_WIDTH_CELLS (LCD_WIDTH / CELL_WIDTH)
+#define DISPLAY_HEIGHT_CELLS LCD_HEIGHT
 
 /*
  * An array containing all the bits of the flash routine bytecode.
