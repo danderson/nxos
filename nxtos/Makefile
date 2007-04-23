@@ -2,10 +2,10 @@ TARGET = nxtos
 BUILD_DIR = build
 
 C_SOURCES = aic.c systick.c twi.c sound.c avr.c lcd.c display.c util.c main.c inutil.c
-S_SOURCES = init.S interrupts.S vectors.S
+S_SOURCES = init.S interrupts.S vectors.S lock.S
 FONT_FILE = data/font.8x5.png
 
-OPT_FLAGS = -O3
+OPT_FLAGS = -Os
 #OPT_FLAGS = -O0 -g
 
 ##
@@ -29,13 +29,13 @@ SAMBA_TARGET = $(TARGET)_samba.bin
 ALL_TARGETS = $(SAMBA_TARGET) $(ROM_TARGET)
 
 CFLAGS = -c -ffreestanding -fsigned-char -mcpu=arm7tdmi $(OPT_FLAGS) \
-         -Wall -Werror -I. -ffunction-sections -fdata-sections \
-         -msoft-float -mthumb-interwork
+         -Wall -Werror -I. -msoft-float -mthumb-interwork -mthumb \
+         -ffunction-sections -fdata-sections
 
 ASFLAGS = -Wall -Werror $(OPT_FLAGS) -Wa,-mcpu=arm7tdmi,-mfpu=softfpa,-mthumb-interwork
 
 LIBS = $(LIBGCC)
-LDFLAGS = -O3 -Map $@.map -cref --gc-sections
+LDFLAGS = $(OPT_FLAGS) -Map $@.map -cref --gc-sections
 
 #
 # Phony helper targets.
@@ -109,7 +109,7 @@ $(BUILD_DIR)/%.oram: %.c
 # Specific rule: the display driver has a dependency on the generated
 # font.h file.
 #
-$(BUILD_DIR)/lcd.o: lcd.c $(FONT_INCLUDE)
+$(BUILD_DIR)/display.o: display.c $(FONT_INCLUDE)
 
 $(FONT_INCLUDE): $(FONT_FILE) font.h.base
 	./generate_fonts.py $(FONT_FILE) font.h.base $(FONT_INCLUDE)

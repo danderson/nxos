@@ -8,16 +8,8 @@ typedef volatile U8 spinlock; /* Basic spinlock type. */
 #define SPINLOCK_INIT_UNLOCKED 0
 #define SPINLOCK_INIT_LOCKED 1
 
-#define spinlock_acquire(lock) { \
-  U8 prev_value = 1; \
-  while (prev_value) { \
-    __asm__ volatile ("swpb %0, %1, [%2]" \
-                      : "=r" (prev_value) \
-                      : "0" (prev_value), "r" (&lock) \
-                      : "memory"); \
-  } \
-}
-
+extern void spinlock_acquire_from_ref(spinlock *lock);
+#define spinlock_acquire(lock) spinlock_acquire_from_ref(&lock);
 #define spinlock_release(lock) { lock = 0; }
 
 #endif /* __NXTOS_LOCK_H__ */
