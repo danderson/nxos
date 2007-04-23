@@ -136,7 +136,7 @@ void tests_time() {
     display_string("\nT(hex): ");
     display_hex(t);
     display_refresh();
-    systick_wait_ms(883);
+    systick_wait_ms(900);
     sound_freq(1500, 100);
   }
 
