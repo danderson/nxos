@@ -111,11 +111,17 @@ void display_hex(U32 val) {
   char buf[9];
   char *ptr = &buf[8];
 
-  while (val != 0) {
+  if (val == 0) {
     ptr--;
-    *ptr = hex[val & 0xF];
-    val >>= 4;
+    *ptr = hex[0];
+  } else {
+    while (val != 0) {
+      ptr--;
+      *ptr = hex[val & 0xF];
+      val >>= 4;
+    }
   }
+
   buf[8] = '\0';
 
   display_string(ptr);
@@ -125,11 +131,19 @@ void display_uint(U32 val) {
   char buf[11];
   char *ptr = &buf[10];
 
-  while (val > 0) {
+  if (val == 0) {
     ptr--;
-    *ptr = val % 10 + '0';
-    val /= 10;
+    *ptr = '0';
+  } else {
+
+    while (val > 0) {
+      ptr--;
+      *ptr = val % 10 + '0';
+      val /= 10;
+    }
+
   }
+
   buf[10] = '\0';
 
   display_string(ptr);
