@@ -124,7 +124,7 @@ wait_mosc:
 	 * output by 73 (72+1, as the datasheet says that the board adds 1
 	 * to the value written in the register), which clocks us to
 	 * 96.11MHz. Note that the USB clock requires an input signal of
-	 * 96MHz +/- 0.25%. A frequency of 96.11MHz is a deviation of .11%,
+	 * 48MHz +/- 0.25% (-> 96/2). A frequency of 96.11MHz is a deviation of .11%,
 	 * therefore acceptable.
 	 *
 	 * The PLL clock is estimated to lock within 0.844ms (estimate
@@ -132,7 +132,7 @@ wait_mosc:
 	 * cycles.
 	 */
 	ldr r0, =PMC_PLLR
-	ldr r1, =0x00481C0E
+	ldr r1, =0x10481C0E
 	str r1, [r0]
 
 wait_pll_lock:
