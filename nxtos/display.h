@@ -7,6 +7,7 @@ void display_init();
 
 void display_clear();
 void display_auto_refresh(bool auto_refresh);
+inline void display_refresh();
 
 void display_cursor_set_pos(U8 x, U8 y);
 void display_string(const char *str);

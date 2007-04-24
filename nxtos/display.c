@@ -56,6 +56,14 @@ void display_auto_refresh(bool auto_refresh) {
 }
 
 
+/* Explicitely refresh the display. You only need to use this when
+ * auto-refresh is disabled.
+ */
+inline void display_refresh() {
+  lcd_dirty_display();
+}
+
+
 /*
  * Text display functions.
  */
