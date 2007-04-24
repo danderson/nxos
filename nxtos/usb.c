@@ -5,15 +5,10 @@
 
 #include "systick.h"
 #include "display.h"
-
+#include "interrupts.h"
 
 #include "usb.h"
 
-
-
-/* to have more informations about the descriptors,
- * see http://www.beyondlogic.org/usbnutshell/usb5.htm
- */
 
 
 /*
@@ -35,7 +30,7 @@ typedef struct usb_desc_header {
  * bLength = 18;
  * bDescriptionType = 0x1;
  */
-typedef struct usb_dev_desc {
+static const struct {
   usb_desc_header_t header;
 
   U16 bcdUsb;          /* USB Specification Number which device complies too ;
@@ -47,14 +42,17 @@ typedef struct usb_dev_desc {
   U8  bMaxPacketSize;  /* max packet size for the endpoint 0 ;
 			* for the NXT, max = 64 */
   U16 idVendor;        /* LEGO : 0x0694 */
-  U16 idProduct;       /* LEGO : 0x0002 ; NXTOS : 0x00FF */
+  U16 idProduct;       /* LEGO : 0x0002 ; NXTOS : 0xFF00 */
   U16 bcdDevice;       /* Device release number : NXTOS : 0x0000 */
   U8  iManufacturer;   /* Index of the manufacturer string descriptor : 0x01 */
   U8  iProduct;        /* Index of Product String Descriptor : 0x02 */
   U8  iSerialNumber;   /* Index of Serial Number String Descriptor : 0x03 */
   U8  bNumConfigurations; /* Number of possible configurations : 0x01 */
 
-} usb_dev_desc_t;
+} usb_dev_desc = {
+  { 0 },
+  0
+};
 
 
 /*
@@ -63,10 +61,10 @@ typedef struct usb_dev_desc {
  * bLength = 9
  * bDescriptorType = 0x02
  */
-typedef struct usb_config_desc {
+static const struct {
   usb_desc_header_t header;
 
-  U16 wTotalLength;   /* Total length in bytes of data returned ; TO COMPUTE */
+  U16 wTotalLength;   /* Total length in bytes of data returned */
   U8  bNumInterfaces; /* Number of Interfaces ; nxtos use only 1 */
   U8  bConfigurationValue; /* Value to use as an argument to select this
 			    * configuration will be used by the computer to select this config */
@@ -75,13 +73,11 @@ typedef struct usb_config_desc {
   U8  bmAttributes;   /* */
   U8  bMaxPower;      /* max power consumption (unit: 2mA) : 0 for the nxt */
 
-  /* From http://www.beyondlogic.org/usbnutshell/usb5.htm :
-   * When the configuration descriptor is read, it returns the entire
-   * configuration hierarchy which includes all related interface and endpoint
-   * descriptors. The wTotalLength field reflects the number of bytes in the
-   * hierarchy.
-   */
-} usb_config_desc_t;
+  /* the config descriptor is followed by all the other descriptors */
+} usb_config_desc = {
+  {0},
+  0
+};
 
 
 /*
@@ -89,38 +85,24 @@ typedef struct usb_config_desc {
  * bLength = 9 bytes
  * bDescriptorType = 0x04
  */
-typedef struct usb_int_desc {
+static const struct {
   usb_desc_header_t header;
 
 
-} usb_int_desc_t;
+} usb_int_desc = {
+  {0}
+};
 
 
 
 
 static volatile struct {
-  /*
-   * 0 == not initialized
-   * 1 == initialized but no communication
-   * 2 == initialized and something was received
-   */
-  U32 status;
+  /* for debug purpose : */
+  U8  isr;
+  U32 last_udp_isr;
+  U32 last_udp_csr0;
+  U32 last_udp_csr1;
 
-  /*
-   * number of bytes read since the beginning
-   */
-  U32 nmb_bytes_read;
-
-  /*
-   * last endpoint from where came a comm
-   */
-  S8 endpoint;
-
-  /*
-   * set to 1 while in the interruption
-   * set to 2 if error
-   */
-  U32 reading;
 } usb_state;
 
 
@@ -128,7 +110,7 @@ static volatile struct {
 
 
 
-/* THESE two functions are recommanded by the ATMEL doc (34.6.10) */
+/* THESE two functions are recommended by the ATMEL doc (34.6.10) */
 //! Clear flags of UDP UDP_CSR register and waits for synchronization
 static inline void udp_ep_clr_flag(U8 endpoint, U32 flags)
 {
@@ -148,62 +130,50 @@ static inline void udp_ep_set_flag(U8 endpoint, U32 flags)
 
 
 static void usb_isr() {
-  /* number of bytes to read from the fifo */
-  U16 nmb_bytes, i;
+  U8 endpoint = 127;
 
-  /* message read */
-  U8 msg[MAX_ENDPOINT_SIZE];
+  usb_state.isr = 1;
 
-  usb_state.status = 2;
-  usb_state.reading = 1;
-
-  if ((*AT91C_UDP_ISR & 0xF) == 0) { /* No endpoint ?
-				      * Don't know what to do at the moment */
-    usb_state.endpoint = 125;
-    usb_state.reading = 0;
-    return;
-  }
+  usb_state.last_udp_isr = *AT91C_UDP_ISR;
+  usb_state.last_udp_csr0 = AT91C_UDP_CSR[0];
+  usb_state.last_udp_csr1 = AT91C_UDP_CSR[1];
 
   if (*AT91C_UDP_ISR & 1) /* endpoint 0 */
-    usb_state.endpoint = 0;
+    endpoint = 0;
   else if (*AT91C_UDP_ISR & (1 << 1)) /* endpoint 1 */
-    usb_state.endpoint = 1;
+    endpoint = 1;
   else if (*AT91C_UDP_ISR & (1 << 2)) /* endpoint 2 */
-    usb_state.endpoint = 2;
+    endpoint = 2;
   else if (*AT91C_UDP_ISR & (1 << 3)) /* endpoint 3 */
-    usb_state.endpoint = 3;
+    endpoint = 3;
 
 
-  /** number of bytes to read */
-  nmb_bytes = (AT91C_UDP_CSR[usb_state.endpoint] & AT91C_UDP_RXBYTECNT) >> 16;
-
-  for (i = 0 ; i < nmb_bytes ; i++) {
-    msg[i] = AT91C_UDP_FDR[usb_state.endpoint] & 0xFF;
-    usb_state.nmb_bytes_read++;
-  }
 
   /* notify that the data have been read */
-  udp_ep_clr_flag(usb_state.endpoint, AT91C_UDP_RX_DATA_BK0 & AT91C_UDP_RXSETUP);
+  if (endpoint != 127)
+    udp_ep_clr_flag(endpoint, AT91C_UDP_RX_DATA_BK0 & AT91C_UDP_RXSETUP);
 
-  usb_state.reading = 0;
+  usb_state.isr = 0;
 }
 
 
 void usb_disable() {
-  usb_state.status = 0;
-
-  *AT91C_PIOA_PER = (1 << 16);
-  *AT91C_PIOA_SODR = (1 << 16);
-  *AT91C_PIOA_OER = (1 << 16);
+  usb_state.last_udp_isr  = 0;
+  usb_state.last_udp_csr0 = 0;
+  usb_state.last_udp_csr1 = 0;
 }
 
 
 void usb_init() {
+
   usb_disable();
 
-  usb_state.endpoint = -1;
-  usb_state.nmb_bytes_read = 0;
-  usb_state.status = 1;
+  interrupts_disable();
+
+  usb_state.isr = 0;
+  usb_state.last_udp_isr = 0;
+  usb_state.last_udp_csr0 = 0;
+  usb_state.last_udp_csr1 = 0;
 
   /* usb pll was already set in init.S */
 
@@ -214,25 +184,22 @@ void usb_init() {
   *AT91C_PMC_SCER = AT91C_PMC_UDP;
 
   /* disable all the interruptions */
-  *AT91C_UDP_IDR = 0xFFFFFFFF;
-
-  /* mask all the interruptions */
-  *AT91C_UDP_IMR = 0x00000000;
+  *AT91C_UDP_IDR = ~0;
 
   /* reset all the endpoints */
-  *AT91C_UDP_RSTEP = 0x0F;
-  *AT91C_UDP_RSTEP = 0x00;
+  *AT91C_UDP_RSTEP = 0xF;
+  *AT91C_UDP_RSTEP = 0;
 
 
-  /* Install the interrupt routine */
+  /* Install the interruption routine */
+  aic_clear(AT91C_ID_UDP);
   aic_install_isr(AT91C_ID_UDP, AIC_INT_LEVEL_NORMAL, usb_isr);
 
 
   /* enable interruption for the endpoint 0, 1, 2, 3 */
-  *AT91C_UDP_IER = 0x0F;
+  *AT91C_UDP_IER = ~0; //0x0F;
 
-  /* unmask the corresponding interruptions */
-  *AT91C_UDP_IMR = 0x0F;
+  interrupts_enable();
 
 
   /* Enable the UDP pull up by outputting a zero on PA.16 */
@@ -242,8 +209,8 @@ void usb_init() {
    * source code (and they probably looked at Lego source code ... :)
    */
   *AT91C_PIOA_PER = (1 << 16);
-  *AT91C_PIOA_CODR = (1 << 16);
   *AT91C_PIOA_OER = (1 << 16);
+  *AT91C_PIOA_CODR = (1 << 16);
 }
 
 
@@ -254,27 +221,24 @@ void usb_test() {
   display_clear();
 
 
-  for (i = 0 ; i < 100 ; i++) {
+  for (i = 0 ; i < 40 ; i++) {
     systick_wait_ms(250);
 
     display_cursor_set_pos(0, 0);
+    display_string("In isr ? : ");
+    display_uint(usb_state.isr);
 
-    if (usb_state.status < 2)
-      display_string("Jflesch 0-USB 1");
-    else {
-      display_string("Jflesch 1-USB 0");
-    }
-
-    if (usb_state.endpoint >= 0) {
-      display_cursor_set_pos(0, 1);
-      display_uint(usb_state.endpoint);
-    }
+    display_cursor_set_pos(0, 1);
+    display_string("ISR:  0x");
+    display_hex(usb_state.last_udp_isr);
 
     display_cursor_set_pos(0, 2);
-    display_uint(usb_state.nmb_bytes_read);
+    display_string("CSR0: 0x");
+    display_hex(usb_state.last_udp_csr0);
 
     display_cursor_set_pos(0, 3);
-    display_uint(usb_state.reading);
+    display_string("CSR1: 0x");
+    display_uint(usb_state.last_udp_csr1);
 
     systick_wait_ms(250);
   }
