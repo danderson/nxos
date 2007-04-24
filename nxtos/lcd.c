@@ -66,7 +66,7 @@ static volatile struct {
   U8 *data;
   U8 page;
   bool send_padding;
-} spi_state = { DATA, FALSE, NULL, FALSE, NULL, 8, FALSE };
+} spi_state = { DATA, NULL, FALSE, NULL, 8, FALSE };
 
 
 /*
