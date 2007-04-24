@@ -7,4 +7,6 @@ void tests_display();
 void tests_time();
 void tests_sysinfo();
 
+void tests_all();
+
 #endif

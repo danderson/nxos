@@ -13,7 +13,11 @@
 #include "sound.h"
 #include "memmap.h"
 
+static bool test_silent = FALSE;
+
 static void hello() {
+  if (test_silent)
+    return;
   sound_freq(1000, 100);
   systick_wait_ms(50);
   sound_freq(2000, 100);
@@ -21,6 +25,8 @@ static void hello() {
 }
 
 static void goodbye() {
+  if (test_silent)
+    return;
   sound_freq(2000, 100);
   systick_wait_ms(50);
   sound_freq(1000, 100);
@@ -174,5 +180,20 @@ void tests_sysinfo() {
   display_end_line();
 
   systick_wait_ms(5000);
+  goodbye();
+}
+
+
+void tests_all() {
+  hello();
+  test_silent = TRUE;
+
+  tests_sysinfo();
+  tests_sound();
+  tests_motor();
+  tests_display();
+  tests_time();
+
+  test_silent = FALSE;
   goodbye();
 }
