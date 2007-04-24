@@ -54,19 +54,35 @@ typedef enum spi_mode {
   DATA
 } spi_mode;
 
+/*
+ * The SPI device state. Contains some of the actual state of the bus,
+ * and transitory state for interrupt-driven DMA transfers.
+ */
 static volatile struct {
   /* TRUE if the SPI driver is configured for sending commands, FALSE
    * if it's configured for sending video data. */
   spi_mode mode;
 
-  /* State used by the display update code to manage the DMA
-   * transfer. */
+  /* A pointer to the in-memory screen framebuffer to mirror to
+   * screen, and a flag stating whether the in-memory buffer is dirty
+   * (new content needs mirroring to the LCD device.
+   */
   U8 *screen;
   bool screen_dirty;
+
+  /* State used by the display update code to manage the DMA
+   * transfer. */
   U8 *data;
   U8 page;
   bool send_padding;
-} spi_state = { DATA, NULL, FALSE, NULL, 8, FALSE };
+} spi_state = {
+  COMMAND, /* We're initialized in command tx mode. */
+  NULL,    /* No screen buffer */
+  FALSE,   /* ... So obviously not dirty */
+  NULL,    /* No current refresh data pointer */
+  7,       /* Current state is the "refresh ended" state: 8th data page... */
+  TRUE     /* And about to send padding data. */
+};
 
 
 /*
@@ -114,7 +130,7 @@ void spi_isr() {
    * we have no screen pointer to push to the screen, shut down the
    * refresh loop.
    */
-  if (spi_state.page == 8 && !spi_state.send_padding) {
+  if (spi_state.page == 7 && spi_state.send_padding) {
     bool dirty = atomic_cas8((U8*)&(spi_state.screen_dirty), FALSE);
     spi_state.data = dirty ? spi_state.screen: NULL;
     if (!spi_state.data) {
@@ -176,15 +192,16 @@ static void spi_init() {
    * (Master In, Slave Out) and PA10 (Chip Select in this case) and
    * configure them for manually driven output.
    *
-   * The initial configuration is data mode (sending video data) and
-   * the LCD controller chip not selected.
+   * The initial configuration is command mode (sending LCD commands)
+   * and the LCD controller chip not selected.
    */
   *AT91C_PIOA_PDR = AT91C_PA13_MOSI | AT91C_PA14_SPCK;
   *AT91C_PIOA_ASR = AT91C_PA13_MOSI | AT91C_PA14_SPCK;
 
   *AT91C_PIOA_PER = AT91C_PA12_MISO | AT91C_PA10_NPCS2;
   *AT91C_PIOA_OER = AT91C_PA12_MISO | AT91C_PA10_NPCS2;
-  *AT91C_PIOA_SODR = AT91C_PA12_MISO | AT91C_PA10_NPCS2;
+  *AT91C_PIOA_CODR = AT91C_PA12_MISO;
+  *AT91C_PIOA_SODR = AT91C_PA10_NPCS2;
 
   /* Disable all SPI interrupts, then configure the SPI controller in
    * master mode, with the chip select locked to chip 0 (UC1601 LCD
