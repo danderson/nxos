@@ -107,7 +107,8 @@ void tests_display() {
   display_clear();
   display_cursor_set_pos(0, 0);
 
-  display_string("***** NxtOS ****\n################\n");
+  display_string("***** NxtOS ****\n"
+                 "----------------\n");
   for (i=32; i<128; i++) {
     buf[0] = i;
     display_string(buf);
