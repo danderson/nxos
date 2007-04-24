@@ -59,9 +59,6 @@ static volatile struct {
    * if it's configured for sending video data. */
   spi_mode mode;
 
-  /* TRUE if the LCD controller is currently the selected chip. */
-  bool selected;
-
   /* State used by the display update code to manage the DMA
    * transfer. */
   U8 *screen;
