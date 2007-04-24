@@ -92,13 +92,13 @@ typedef struct usb_config_desc {
 typedef struct usb_int_desc {
   usb_desc_header_t header;
 
-  
+
 } usb_int_desc_t;
 
 
 
 
-static struct {
+static volatile struct {
   /*
    * 0 == not initialized
    * 1 == initialized but no communication
@@ -121,23 +121,23 @@ static struct {
    * set to 2 if error
    */
   U32 reading;
-} usb;
+} usb_state;
 
 
 
 
 
 
-/* these two functions are recommanded by the ATMEL doc (34.6.10) */
+/* THESE two functions are recommanded by the ATMEL doc (34.6.10) */
 //! Clear flags of UDP UDP_CSR register and waits for synchronization
-static __inline void udp_ep_clr_flag(U8 endpoint, U32 flags)
+static inline void udp_ep_clr_flag(U8 endpoint, U32 flags)
 {
   while (AT91C_UDP_CSR[endpoint] & (flags))
     AT91C_UDP_CSR[endpoint] &= ~(flags);
 }
 
 //! Set flags of UDP UDP_CSR register and waits for synchronization
-static __inline void udp_ep_set_flag(U8 endpoint, U32 flags)
+static inline void udp_ep_set_flag(U8 endpoint, U32 flags)
 {
   while ( (AT91C_UDP_CSR[endpoint] & (flags)) != (flags) )
     AT91C_UDP_CSR[endpoint] |= (flags);
@@ -154,42 +154,42 @@ static void usb_isr() {
   /* message read */
   U8 msg[MAX_ENDPOINT_SIZE];
 
-  usb.status = 2;
-  usb.reading = 1;
+  usb_state.status = 2;
+  usb_state.reading = 1;
 
   if ((*AT91C_UDP_ISR & 0xF) == 0) { /* Hu ? */
-    usb.endpoint = 125;
-    usb.reading = 0;
+    usb_state.endpoint = 125;
+    usb_state.reading = 0;
     return;
   }
 
   if (*AT91C_UDP_ISR & 1) /* endpoint 0 */
-    usb.endpoint = 0;
+    usb_state.endpoint = 0;
   else if (*AT91C_UDP_ISR & (1 << 1)) /* endpoint 1 */
-    usb.endpoint = 1;
+    usb_state.endpoint = 1;
   else if (*AT91C_UDP_ISR & (1 << 2)) /* endpoint 2 */
-    usb.endpoint = 2;
+    usb_state.endpoint = 2;
   else if (*AT91C_UDP_ISR & (1 << 3)) /* endpoint 3 */
-    usb.endpoint = 3;
+    usb_state.endpoint = 3;
 
 
   /** number of bytes to read */
-  nmb_bytes = (AT91C_UDP_CSR[usb.endpoint] & AT91C_UDP_RXBYTECNT) >> 16;
+  nmb_bytes = (AT91C_UDP_CSR[usb_state.endpoint] & AT91C_UDP_RXBYTECNT) >> 16;
 
   for (i = 0 ; i < nmb_bytes ; i++) {
-    msg[i] = AT91C_UDP_FDR[usb.endpoint] & 0xFF;
-    usb.nmb_bytes_read++;
+    msg[i] = AT91C_UDP_FDR[usb_state.endpoint] & 0xFF;
+    usb_state.nmb_bytes_read++;
   }
 
   /* notify that the data have been read */
-  udp_ep_clr_flag(usb.endpoint, AT91C_UDP_RX_DATA_BK0 & AT91C_UDP_RXSETUP);
+  udp_ep_clr_flag(usb_state.endpoint, AT91C_UDP_RX_DATA_BK0 & AT91C_UDP_RXSETUP);
 
-  usb.reading = 0;
+  usb_state.reading = 0;
 }
 
 
 void usb_disable() {
-  usb.status = 0;
+  usb_state.status = 0;
 
   *AT91C_PIOA_PER = (1 << 16);
   *AT91C_PIOA_SODR = (1 << 16);
@@ -200,9 +200,9 @@ void usb_disable() {
 void usb_init() {
   usb_disable();
 
-  usb.endpoint = -1;
-  usb.nmb_bytes_read = 0;
-  usb.status = 1;
+  usb_state.endpoint = -1;
+  usb_state.nmb_bytes_read = 0;
+  usb_state.status = 1;
 
   /* usb pll was already set in init.S */
 
@@ -258,22 +258,22 @@ void usb_test() {
 
     display_cursor_set_pos(0, 0);
 
-    if (usb.status < 2)
+    if (usb_state.status < 2)
       display_string("Jflesch 0-USB 1");
     else {
       display_string("Jflesch 1-USB 0");
     }
 
-    if (usb.endpoint >= 0) {
+    if (usb_state.endpoint >= 0) {
       display_cursor_set_pos(0, 1);
-      display_uint(usb.endpoint);
+      display_uint(usb_state.endpoint);
     }
 
     display_cursor_set_pos(0, 2);
-    display_uint(usb.nmb_bytes_read);
+    display_uint(usb_state.nmb_bytes_read);
 
     display_cursor_set_pos(0, 3);
-    display_uint(usb.reading);
+    display_uint(usb_state.reading);
 
     systick_wait_ms(250);
   }
