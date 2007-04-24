@@ -36,11 +36,6 @@ static struct {
  * General display functions.
  */
 
-/* Mirror the current in-memory screen to the display. */
-void display_refresh() {
-  lcd_display_data(&display.buffer[0][0]);
-}
-
 /* Clear the display. */
 void display_clear() {
   memset(&display.buffer[0][0], 0, sizeof(display.buffer));
@@ -155,7 +150,7 @@ void display_uint(U32 val) {
  */
 void display_init() {
   display_clear();
-  display_refresh();
+  lcd_set_display(&display.buffer[0][0]);
   display.cursor.x = 0;
   display.cursor.y = 0;
   display.cursor.ignore_lf = FALSE;

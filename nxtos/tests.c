@@ -107,13 +107,13 @@ void tests_display() {
   display_clear();
   display_cursor_set_pos(0, 0);
 
+  display_string("***** NxtOS ****\n################\n");
   for (i=32; i<128; i++) {
     buf[0] = i;
     display_string(buf);
     if ((i % 16) == 15)
       display_string("\n");
   }
-  display_refresh();
 
   systick_wait_ms(5000);
   goodbye();
@@ -135,7 +135,6 @@ void tests_time() {
     display_uint(t);
     display_string("\nT(hex): ");
     display_hex(t);
-    display_refresh();
     systick_wait_ms(900);
     sound_freq(1500, 100);
   }

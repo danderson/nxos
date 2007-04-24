@@ -19,6 +19,7 @@
 #include "at91sam7s256.h"
 
 #include "mytypes.h"
+#include "lock.h"
 #include "interrupts.h"
 #include "systick.h"
 #include "aic.h"
@@ -63,10 +64,11 @@ static volatile struct {
 
   /* State used by the display update code to manage the DMA
    * transfer. */
+  U8 *screen;
   U8 *data;
   U8 page;
   bool send_padding;
-} spi_state = { DATA, FALSE, NULL, 0, FALSE };
+} spi_state = { DATA, FALSE, NULL, NULL, 8, FALSE };
 
 
 /*
@@ -93,15 +95,15 @@ static void spi_set_select(bool selected) {
  * Set the data transmission mode.
  */
 static void spi_set_tx_mode(spi_mode mode) {
-  if (spi_state.mode == mode) {
+  if (spi_state.mode == mode)
+    /* Mode hasn't changed, no-op. */
     return;
-  } else {
+  else
     /* If there is a mode switch, we need to let the SPI controller
      * drain all data first, to avoid spurious writes of the wrong
      * type.
      */
     while(!(*AT91C_SPI_SR & AT91C_SPI_TXEMPTY));
-  }
 
   spi_state.mode = mode;
 
@@ -152,25 +154,33 @@ void spi_write_data(const U8 *data, U32 len) {
 
 /* Interrupt routine for handling DMA screen refreshing. */
 void spi_isr() {
+  /* If we would be sending the padding for the last page (useless),
+   * reset the state to start refreshing the screen over again. If
+   * we have no screen pointer to push to the screen, shut down the
+   * refresh loop.
+   */
+  if (spi_state.page == 8 && !spi_state.send_padding) {
+    spi_state.data = spi_state.screen;
+    if (!spi_state.data) {
+      *AT91C_SPI_IDR = AT91C_SPI_ENDTX;
+      return;
+    }
+    spi_state.page = 0;
+    spi_state.send_padding = FALSE;
+  }
+
+  /* If this is the first page of data we're transferring this
+   * refresh, we need to reset the video RAM pointers to zero.
+   *
+   * Once that is configured, we'll be pushing data only for the rest
+   * of the screen refresh cycle, so we switch to data TX mode once
+   * here.
+   */
   if (spi_state.page == 0 && !spi_state.send_padding) {
-    /* If this is the first page of data we're transferring this
-     * refresh, we need to reset the video RAM pointers to zero.
-     *
-     * Once that is configured, we'll be pushing data only for the
-     * rest of the screen refresh cycle, so we switch to data TX mode
-     * once here.
-     */
     spi_write_command_byte(SET_COLUMN_ADDR0(0));
     spi_write_command_byte(SET_COLUMN_ADDR1(0));
     spi_write_command_byte(SET_PAGE_ADDR(0));
     spi_set_tx_mode(DATA);
-  } else if (spi_state.page == 7 && spi_state.send_padding) {
-    /* If we would be sending the padding for the last page (useless),
-     * just inhibit the DMA interrupt source and end the refresh
-     * cycle.
-     */
-    *AT91C_SPI_IDR = AT91C_SPI_ENDTX;
-    return;
   }
 
   if (!spi_state.send_padding) {
@@ -312,25 +322,9 @@ void lcd_init() {
 /* Mirror the given display buffer to the LCD controller. The given
  * buffer must be exactly 100x64 bytes, one full screen of pixels.
  */
-void lcd_display_data(U8 *display_buffer) {
-  *AT91C_SPI_IDR = AT91C_SPI_ENDTX;
-
-  spi_state.data = display_buffer;
-  spi_state.page = 0;
-  spi_state.send_padding = FALSE;
-
+void lcd_set_display(U8 *display) {
+  spi_state.screen = display;
   *AT91C_SPI_IER = AT91C_SPI_ENDTX;
-/*   int i; */
-
-/*   for (i=0; i<LCD_HEIGHT; i++) { */
-/*     spi_write_command_byte(SET_PAGE_ADDR(i)); */
-/*     spi_write_command_byte(SET_COLUMN_ADDR0(0)); */
-/*     spi_write_command_byte(SET_COLUMN_ADDR1(0)); */
-
-/*     /\* Write a single page (8x100 pixels) of data. *\/ */
-/*     spi_write_data(display_buffer, LCD_WIDTH); */
-/*     display_buffer += LCD_WIDTH; */
-/*   } */
 }
 
 
