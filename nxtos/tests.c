@@ -11,6 +11,7 @@
 #include "lcd.h"
 #include "display.h"
 #include "sound.h"
+#include "memmap.h"
 
 static void hello() {
   sound_freq(1000, 100);
@@ -151,5 +152,27 @@ void tests_time() {
     sound_freq(1500, 100);
   }
 
+  goodbye();
+}
+
+void tests_sysinfo() {
+  hello();
+
+  display_clear();
+  display_cursor_set_pos(0,0);
+  display_string("- System Info. -\n\n");
+
+  display_string("Boot from ");
+  if (BOOTED_FROM_SAMBA)
+    display_string("SAM-BA");
+  else
+    display_string("ROM");
+  display_end_line();
+
+  display_string("Free RAM: ");
+  display_uint(FREE_SIZE);
+  display_end_line();
+
+  systick_wait_ms(5000);
   goodbye();
 }
