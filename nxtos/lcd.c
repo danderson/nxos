@@ -123,33 +123,11 @@ static void spi_write_command_byte(U8 command) {
   spi_set_select(TRUE);
   spi_set_tx_mode(COMMAND);
 
+  /* Wait for the transmit register to empty. */
+  while (!(*AT91C_SPI_SR & AT91C_SPI_TDRE));
+
   /* Send the command byte and wait for a reply. */
   *AT91C_SPI_TDR = command;
-
-  /* Wait for the transmission to complete. */
-  while (!(*AT91C_SPI_SR & AT91C_SPI_TXEMPTY));
-}
-
-
-/*
- * Send data bytes to the LCD controller.
- */
-void spi_write_data(const U8 *data, U32 len) {
-  spi_set_select(TRUE);
-  spi_set_tx_mode(DATA);
-
-  while (len) {
-    /* Send the command byte and wait for a reply. */
-    *AT91C_SPI_TDR = *data;
-    data++;
-    len--;
-
-    /* Wait for the transmission to complete. */
-    while (!(*AT91C_SPI_SR & AT91C_SPI_TXEMPTY)); /* TODO: Maybe just
-                                                     wait for TDRE?
-                                                     Would double data
-                                                     rate... */
-  }
 }
 
 
