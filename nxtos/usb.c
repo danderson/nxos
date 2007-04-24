@@ -157,7 +157,8 @@ static void usb_isr() {
   usb_state.status = 2;
   usb_state.reading = 1;
 
-  if ((*AT91C_UDP_ISR & 0xF) == 0) { /* Hu ? */
+  if ((*AT91C_UDP_ISR & 0xF) == 0) { /* No endpoint ?
+				      * Don't know what to do at the moment */
     usb_state.endpoint = 125;
     usb_state.reading = 0;
     return;
