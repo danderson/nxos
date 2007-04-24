@@ -73,26 +73,6 @@ static volatile struct {
 
 
 /*
- * Set the selection state of the LCD controller
- */
-static void spi_set_select(bool selected) {
-  if (spi_state.selected == selected)
-    return;
-
-  spi_state.selected = selected;
-
-  if (selected) {
-    /* Flip the chip-select line... Because the uc1601 has a bug and
-       needs to be pinged a little more directly? */
-    *AT91C_PIOA_SODR = AT91C_PA10_NPCS2;
-    *AT91C_PIOA_CODR = AT91C_PA10_NPCS2;
-  } else {
-    /* Set the chip select line high to deselect the uc1601. */
-    *AT91C_PIOA_SODR = AT91C_PA10_NPCS2;
-  }
-}
-
-/*
  * Set the data transmission mode.
  */
 static void spi_set_tx_mode(spi_mode mode) {
@@ -120,7 +100,6 @@ static void spi_set_tx_mode(spi_mode mode) {
  * Send a command byte to the LCD controller.
  */
 static void spi_write_command_byte(U8 command) {
-  spi_set_select(TRUE);
   spi_set_tx_mode(COMMAND);
 
   /* Wait for the transmit register to empty. */
@@ -198,7 +177,7 @@ static void spi_init() {
   /* Configure the PIO controller: Hand the MOSI (Master Out, Slave
    * In) and SPI clock pins over to the SPI controller, but keep MISO
    * (Master In, Slave Out) and PA10 (Chip Select in this case) and
-   * configure them for output.
+   * configure them for manually driven output.
    *
    * The initial configuration is data mode (sending video data) and
    * the LCD controller chip not selected.
@@ -222,6 +201,11 @@ static void spi_init() {
   AT91C_SPI_CSR[0] = ((0x18 << 24) | (0x18 << 16) | (0x18 << 8) |
                       AT91C_SPI_BITS_8 | AT91C_SPI_CPOL);
 
+  /* Now that the SPI bus is initialized, pull the Chip Select line
+   * low, to select the uc1601. For some reason, letting the SPI
+   * controller do this fails. Therefore, we force it once now.
+   */
+  *AT91C_PIOA_CODR = AT91C_PA10_NPCS2;
 
   /* Install an interrupt handler for the SPI controller, and enable
    * DMA transfers for SPI data. All SPI-related interrupt sources are
