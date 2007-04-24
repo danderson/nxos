@@ -52,7 +52,8 @@ static U8 raw_to_avr[1 + /* Power mode    */
 static void
 avr_start_read() {
   memset(data_from_avr, 0, sizeof(data_from_avr));
-  twi_read_async(AVR_ADDRESS, data_from_avr, sizeof(data_from_avr), (bool*)&tx_done);
+  twi_read_async(AVR_ADDRESS, data_from_avr,
+                 sizeof(data_from_avr), (bool*)&tx_done);
 }
 
 static void
