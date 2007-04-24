@@ -2,6 +2,13 @@
 .text
 .align 0
 
+	.global atomic_cas32
+atomic_cas32:
+	mov r2, r0
+	swp r0, r1, [r2]
+	bx lr
+
+
 	.global spinlock_acquire_from_ref
 spinlock_acquire_from_ref:
 	mov r1, #1
