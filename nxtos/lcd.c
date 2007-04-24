@@ -76,12 +76,12 @@ static volatile struct {
   U8 page;
   bool send_padding;
 } spi_state = {
-  COMMAND, /* We're initialized in command tx mode. */
+  COMMAND, /* We're initialized in command tx mode */
   NULL,    /* No screen buffer */
   FALSE,   /* ... So obviously not dirty */
   NULL,    /* No current refresh data pointer */
-  7,       /* Current state is the "refresh ended" state: 8th data page... */
-  TRUE     /* And about to send padding data. */
+  0,       /* Current state: 1st data page... */
+  FALSE    /* And about to send display data */
 };
 
 
@@ -125,35 +125,34 @@ static void spi_write_command_byte(U8 command) {
 
 /* Interrupt routine for handling DMA screen refreshing. */
 void spi_isr() {
-  /* If we would be sending the padding for the last page (useless),
-   * reset the state to start refreshing the screen over again. If
-   * we have no screen pointer to push to the screen, shut down the
-   * refresh loop.
+  /* If we are in the initial state, determine whether we need to do a
+   * refresh cycle.
    */
-  if (spi_state.page == 7 && spi_state.send_padding) {
+  if (spi_state.page == 0 && !spi_state.send_padding) {
+    /* Atomically retrieve the dirty flag and set it to FALSE. This is
+     * to avoid race conditions where a set of the dirty flag could
+     * get squashed by the interrupt handler resetting it.
+     */
     bool dirty = atomic_cas8((U8*)&(spi_state.screen_dirty), FALSE);
     spi_state.data = dirty ? spi_state.screen: NULL;
+
+    /* If the screen is not dirty, or if there is no screen pointer to
+     * source data from, then shut down the DMA refresh interrupt
+     * routine. It'll get reenabled by the screen dirtying function or
+     * the 1kHz interrupt update if the screen becomes dirty.
+     */
     if (!spi_state.data) {
       *AT91C_SPI_IDR = AT91C_SPI_ENDTX;
       return;
     }
-    spi_state.page = 0;
-    spi_state.send_padding = FALSE;
   }
 
-  /* If this is the first page of data we're transferring this
-   * refresh, we need to reset the video RAM pointers to zero.
-   *
-   * Once that is configured, we'll be pushing data only for the rest
-   * of the screen refresh cycle, so we switch to data TX mode once
-   * here.
+  /* Make sure that we are in data TX mode. This is a no-op if we
+   * already are, so it costs next to nothing to make sure of it at
+   * every interrupt.
    */
-  if (spi_state.page == 0 && !spi_state.send_padding) {
-    spi_write_command_byte(SET_COLUMN_ADDR0(0));
-    spi_write_command_byte(SET_COLUMN_ADDR1(0));
-    spi_write_command_byte(SET_PAGE_ADDR(0));
-    spi_set_tx_mode(DATA);
-  }
+  spi_set_tx_mode(DATA);
+
 
   if (!spi_state.send_padding) {
     /* We are at the start of a page, so we need to send 100 bytes of
@@ -172,7 +171,7 @@ void spi_isr() {
      * Given that this data is off-screen, we just resend the last 32
      * bytes of the 100 we just transferred.
      */
-    spi_state.page += 1;
+    spi_state.page = (spi_state.page + 1) % 8;
     spi_state.data += 100;
     spi_state.send_padding = FALSE;
     *AT91C_SPI_TNPR = (U32)(spi_state.data - 32);
@@ -274,6 +273,13 @@ void lcd_init() {
      * upside down, so we want just Y mirroring.
      */
     SET_MAP_CONTROL(0, 1),
+
+    /* Set the initial position of the video memory cursor. We
+     * initialize it to point to the start of the screen.
+     */
+    SET_COLUMN_ADDR0(0),
+    SET_COLUMN_ADDR1(0),
+    SET_PAGE_ADDR(0),
 
     /* Turn the display on. */
     ENABLE(1),
