@@ -123,13 +123,17 @@ void tests_display() {
 void tests_time() {
   int i;
   int t;
-  extern U32 lcd_n_refreshes;
 
   hello();
 
   for (i=0; i<20; i++) {
     t = systick_get_ms();
+
+    /* Manual screen refresh on even seconds, automatic on odd
+     * seconds.
+     */
     display_auto_refresh((i % 2) ? TRUE : FALSE);
+
     display_clear();
     display_cursor_set_pos(0, 0);
     display_string("  TX52 - NxtOS\n\n"
@@ -138,8 +142,11 @@ void tests_time() {
     display_uint(t);
     display_string("\nT(hex): ");
     display_hex(t);
-    display_string("\nN: ");
-    display_uint(lcd_n_refreshes);
+
+    /* If this is an even iteration, do the manual refresh. */
+    if (!(i % 2))
+      display_refresh();
+
     systick_wait_ms(900);
     sound_freq(1500, 100);
   }

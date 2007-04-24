@@ -72,9 +72,6 @@ static volatile struct {
 } spi_state = { DATA, FALSE, NULL, FALSE, NULL, 8, FALSE };
 
 
-U32 lcd_n_refreshes = 0;
-
-
 /*
  * Set the selection state of the LCD controller
  */
@@ -182,7 +179,6 @@ void spi_isr() {
    * here.
    */
   if (spi_state.page == 0 && !spi_state.send_padding) {
-    lcd_n_refreshes++;
     spi_write_command_byte(SET_COLUMN_ADDR0(0));
     spi_write_command_byte(SET_COLUMN_ADDR1(0));
     spi_write_command_byte(SET_PAGE_ADDR(0));
