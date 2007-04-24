@@ -39,7 +39,8 @@ SECTIONS {
   SAMBA_ONLY     . = (8k - 64);
   SAMBA_ONLY } > ram
   SAMBA_ONLY __samba_ram_start__ = ADDR(.samba_reserved);
-  SAMBA_ONLY __samba_ram_end__   = (__samba_ram_start__ + SIZEOF(.samba_reserved));
+  SAMBA_ONLY __samba_ram_end__   = (__samba_ram_start__ +
+  SAMBA_ONLY                        SIZEOF(.samba_reserved));
 
   /* Provide symbols if not defined above */
   PROVIDE(__samba_ram_start__ = 0);
@@ -132,6 +133,8 @@ SECTIONS {
 
   ROM_ONLY __rom_end__ = ADDR(.text) + SIZEOF(.text) ;
 
+  __text_start__ = ADDR(.text);
+  __text_end__ = ADDR(.text) + SIZEOF(.text);
 
   /*
    * The BSS section is zero-initialized data. The section does not
