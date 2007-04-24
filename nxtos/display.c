@@ -110,6 +110,10 @@ void display_cursor_set_pos(U8 x, U8 y) {
   }
 }
 
+inline void display_end_line() {
+  update_cursor(TRUE);
+}
+
 void display_string(const char *str) {
   while (*str != '\0') {
     if (*str == '\n')
