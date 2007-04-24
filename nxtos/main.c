@@ -38,9 +38,6 @@ void
 main()
 {
   core_init();
-
-  tests_display();
-  //  tests_time();
-
+  tests_sysinfo();
   core_shutdown();
 }
