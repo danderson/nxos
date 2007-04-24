@@ -9,18 +9,6 @@
 
 #include "usb.h"
 
-//! Clear flags of UDP UDP_CSR register and waits for synchronization
-#define UDP_EP_CLR_FLAG(endpoint, flags) { \
-  while (AT91C_UDP_CSR[endpoint] & (flags)) \
-    AT91C_UDP_CSR[endpoint] &= ~(flags); \
-  }
-
-//! Set flags of UDP UDP_CSR register and waits for synchronization
-#define UDP_EP_SET_FLAG(endpoint, flags) { \
-  while ( (AT91C_UDP_CSR[endpoint] & (flags)) != (flags) ) \
-    AT91C_UDP_CSR[endpoint] |= (flags); \
-  }
-
 
 
 /* to have more informations about the descriptors,
@@ -29,10 +17,12 @@
 
 
 /*
- * header common to all the usb descriptors (device, configuration, interface, endpoint)
+ * header common to all the usb descriptors (device, configuration, interface,
+ * endpoint)
  */
 typedef struct usb_desc_header {
-  U8 bLength; /* length of the descriptor ; this whole header is counted in the size ! */
+  U8 bLength; /* length of the descriptor ; this whole header is counted in the
+	       * size ! */
   U8 bDescriptionType; /* type of the descriptor */
 
   /* next follow the parameters */
@@ -48,11 +38,14 @@ typedef struct usb_desc_header {
 typedef struct usb_dev_desc {
   usb_desc_header_t header;
 
-  U16 bcdUsb;          /* USB Specification Number which device complies too ; 0x0200 (usb 2) */
-  U8  bDeviceClass;    /* Class Code ; lejOS : 0 here => specified by the interface */
+  U16 bcdUsb;          /* USB Specification Number which device complies too ;
+			* 0x0200 (usb 2) */
+  U8  bDeviceClass;    /* Class Code ; lejOS : 0 here => specified by the
+			* interface */
   U8  bDeviceSubClass; /* Sub class code ; lejOS : 0 */
   U8  bDeviceProtocol; /* (lejOS : 0x00) */
-  U8  bMaxPacketSize;  /* max packet size for the endpoint 0 ; for the NXT, max = 64 */
+  U8  bMaxPacketSize;  /* max packet size for the endpoint 0 ;
+			* for the NXT, max = 64 */
   U16 idVendor;        /* LEGO : 0x0694 */
   U16 idProduct;       /* LEGO : 0x0002 ; NXTOS : 0x00FF */
   U16 bcdDevice;       /* Device release number : NXTOS : 0x0000 */
@@ -75,18 +68,33 @@ typedef struct usb_config_desc {
 
   U16 wTotalLength;   /* Total length in bytes of data returned ; TO COMPUTE */
   U8  bNumInterfaces; /* Number of Interfaces ; nxtos use only 1 */
-  U8  bConfigurationValue; /* Value to use as an argument to select this configuration
-			      will be used by the computer to select this config */
-  U8  iConfiguration; /* Index of String Descriptor describing this configuration */
+  U8  bConfigurationValue; /* Value to use as an argument to select this
+			    * configuration will be used by the computer to select this config */
+  U8  iConfiguration; /* Index of String Descriptor describing this
+		       * configuration */
   U8  bmAttributes;   /* */
   U8  bMaxPower;      /* max power consumption (unit: 2mA) : 0 for the nxt */
 
   /* From http://www.beyondlogic.org/usbnutshell/usb5.htm :
-   * When the configuration descriptor is read, it returns the entire configuration hierarchy
-   * which includes all related interface and endpoint descriptors. The wTotalLength field 
-   * reflects the number of bytes in the hierarchy.
+   * When the configuration descriptor is read, it returns the entire
+   * configuration hierarchy which includes all related interface and endpoint
+   * descriptors. The wTotalLength field reflects the number of bytes in the
+   * hierarchy.
    */
 } usb_config_desc_t;
+
+
+/*
+ * interface descriptor
+ * bLength = 9 bytes
+ * bDescriptorType = 0x04
+ */
+typedef struct usb_int_desc {
+  usb_desc_header_t header;
+
+  
+} usb_int_desc_t;
+
 
 
 
@@ -118,9 +126,28 @@ static struct {
 
 
 
-static void usb_isr() {
-  U32 isr;
 
+
+/* these two functions are recommanded by the ATMEL doc (34.6.10) */
+//! Clear flags of UDP UDP_CSR register and waits for synchronization
+static __inline void udp_ep_clr_flag(U8 endpoint, U32 flags)
+{
+  while (AT91C_UDP_CSR[endpoint] & (flags))
+    AT91C_UDP_CSR[endpoint] &= ~(flags);
+}
+
+//! Set flags of UDP UDP_CSR register and waits for synchronization
+static __inline void udp_ep_set_flag(U8 endpoint, U32 flags)
+{
+  while ( (AT91C_UDP_CSR[endpoint] & (flags)) != (flags) )
+    AT91C_UDP_CSR[endpoint] |= (flags);
+}
+
+
+
+
+
+static void usb_isr() {
   /* number of bytes to read from the fifo */
   U16 nmb_bytes, i;
 
@@ -136,15 +163,16 @@ static void usb_isr() {
     return;
   }
 
-  isr = *AT91C_UDP_ISR;
+ *AT91C_UDP_ISR;
 
-  if ((isr & 0x1) == 0x1) /* endpoint 0 */
+
+  if (*AT91C_UDP_ISR & 1) /* endpoint 0 */
     usb.endpoint = 0;
-  else if ((isr & 0x2) == 0x2) /* endpoint 1 */
+  else if (*AT91C_UDP_ISR & (1 << 1)) /* endpoint 1 */
     usb.endpoint = 1;
-  else if ((isr & 0x2) == 0x3) /* endpoint 2 */
+  else if (*AT91C_UDP_ISR & (1 << 2)) /* endpoint 2 */
     usb.endpoint = 2;
-  else if ((isr & 0x2) == 0x4) /* endpoint 3 */
+  else if (*AT91C_UDP_ISR & (1 << 3)) /* endpoint 3 */
     usb.endpoint = 3;
 
 
@@ -156,8 +184,8 @@ static void usb_isr() {
     usb.nmb_bytes_read++;
   }
 
-  UDP_EP_CLR_FLAG(usb.endpoint, AT91C_UDP_RX_DATA_BK0); /* notify that the data have been read */
-  UDP_EP_CLR_FLAG(usb.endpoint, AT91C_UDP_RXSETUP); /* clear RXSETUP to say we read the FIFO */
+  /* notify that the data have been read */
+  udp_ep_clr_flag(usb.endpoint, AT91C_UDP_RX_DATA_BK0 & AT91C_UDP_RXSETUP);
 
   usb.reading = 0;
 }
@@ -244,10 +272,8 @@ void usb_test() {
       display_uint(usb.endpoint);
     }
 
-    if (usb.nmb_bytes_read > 0) {
-      display_cursor_set_pos(0, 2);
-      display_uint(usb.nmb_bytes_read);
-    }
+    display_cursor_set_pos(0, 2);
+    display_uint(usb.nmb_bytes_read);
 
     display_cursor_set_pos(0, 3);
     display_uint(usb.reading);
