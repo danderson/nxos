@@ -20,6 +20,10 @@ static struct {
   /* The display buffer, which is mirrored to the LCD controller's RAM. */
   U8 buffer[LCD_HEIGHT][LCD_WIDTH];
 
+  /* Whether the display is automatically refreshed after every call
+   * to display functions. */
+  bool auto_refresh;
+
   /* The position of the text cursor. This is used for easy displaying
    * of text in a console-like manner.
    */
@@ -32,13 +36,23 @@ static struct {
   } cursor;
 } display;
 
-/*
- * General display functions.
- */
+
+static inline void dirty_display() {
+  if (display.auto_refresh)
+    lcd_dirty_display();
+}
+
 
 /* Clear the display. */
 void display_clear() {
   memset(&display.buffer[0][0], 0, sizeof(display.buffer));
+}
+
+
+/* Enable or disable auto-refresh. */
+void display_auto_refresh(bool auto_refresh) {
+  display.auto_refresh = auto_refresh;
+  dirty_display();
 }
 
 
@@ -99,6 +113,7 @@ void display_string(const char *str) {
     }
     str++;
   }
+  dirty_display();
 }
 
 void display_hex(U32 val) {
@@ -120,6 +135,7 @@ void display_hex(U32 val) {
   buf[8] = '\0';
 
   display_string(ptr);
+  dirty_display();
 }
 
 void display_uint(U32 val) {
@@ -142,6 +158,7 @@ void display_uint(U32 val) {
   buf[10] = '\0';
 
   display_string(ptr);
+  dirty_display();
 }
 
 
@@ -150,8 +167,10 @@ void display_uint(U32 val) {
  */
 void display_init() {
   display_clear();
-  lcd_set_display(&display.buffer[0][0]);
+  display.auto_refresh = TRUE;
   display.cursor.x = 0;
   display.cursor.y = 0;
   display.cursor.ignore_lf = FALSE;
+  lcd_set_display(&display.buffer[0][0]);
+  dirty_display();
 }

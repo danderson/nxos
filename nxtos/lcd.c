@@ -65,10 +65,14 @@ static volatile struct {
   /* State used by the display update code to manage the DMA
    * transfer. */
   U8 *screen;
+  bool screen_dirty;
   U8 *data;
   U8 page;
   bool send_padding;
-} spi_state = { DATA, FALSE, NULL, NULL, 8, FALSE };
+} spi_state = { DATA, FALSE, NULL, FALSE, NULL, 8, FALSE };
+
+
+U32 lcd_n_refreshes = 0;
 
 
 /*
@@ -160,7 +164,8 @@ void spi_isr() {
    * refresh loop.
    */
   if (spi_state.page == 8 && !spi_state.send_padding) {
-    spi_state.data = spi_state.screen;
+    bool dirty = atomic_cas8((U8*)&(spi_state.screen_dirty), FALSE);
+    spi_state.data = dirty ? spi_state.screen: NULL;
     if (!spi_state.data) {
       *AT91C_SPI_IDR = AT91C_SPI_ENDTX;
       return;
@@ -177,6 +182,7 @@ void spi_isr() {
    * here.
    */
   if (spi_state.page == 0 && !spi_state.send_padding) {
+    lcd_n_refreshes++;
     spi_write_command_byte(SET_COLUMN_ADDR0(0));
     spi_write_command_byte(SET_COLUMN_ADDR1(0));
     spi_write_command_byte(SET_PAGE_ADDR(0));
@@ -325,6 +331,18 @@ void lcd_init() {
 void lcd_set_display(U8 *display) {
   spi_state.screen = display;
   *AT91C_SPI_IER = AT91C_SPI_ENDTX;
+}
+
+
+inline void lcd_dirty_display() {
+  spi_state.screen_dirty = TRUE;
+}
+
+
+void lcd_1kHz_update() {
+  if (spi_state.screen_dirty) {
+    *AT91C_SPI_IER = AT91C_SPI_ENDTX;
+  }
 }
 
 

@@ -2,6 +2,7 @@
 #include "interrupts.h"
 #include "aic.h"
 #include "avr.h"
+#include "lcd.h"
 #include "systick.h"
 
 
@@ -20,6 +21,7 @@ systick_low_priority()
 {
   aic_clear(LOW_PRIORITY_IRQ);
   avr_1kHz_update();
+  lcd_1kHz_update();
 }
 
 // Called at 1000Hz

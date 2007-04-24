@@ -35,5 +35,7 @@ void
 main()
 {
   core_init();
+  tests_display();
+  tests_time();
   core_shutdown();
 }

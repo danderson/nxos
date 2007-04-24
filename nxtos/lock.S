@@ -9,6 +9,14 @@ atomic_cas32:
 	bx lr
 
 
+	.global atomic_cas8
+atomic_cas8:
+	mov r2, r0
+	swpb r0, r1, [r2]
+	and r0, r0, #0xFF
+	bx lr
+
+
 	.global spinlock_acquire_from_ref
 spinlock_acquire_from_ref:
 	mov r1, #1
