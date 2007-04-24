@@ -163,9 +163,6 @@ static void usb_isr() {
     return;
   }
 
- *AT91C_UDP_ISR;
-
-
   if (*AT91C_UDP_ISR & 1) /* endpoint 0 */
     usb.endpoint = 0;
   else if (*AT91C_UDP_ISR & (1 << 1)) /* endpoint 1 */
