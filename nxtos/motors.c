@@ -82,6 +82,8 @@ void motors_isr() {
   U32 changes;
   U32 pins;
 
+  interrupts_disable();
+
   /* Acknowledge the interrupt and grab the state of the pins. */
   changes = *AT91C_PIOA_ISR;
   pins = *AT91C_PIOA_PDSR;
@@ -115,6 +117,7 @@ void motors_isr() {
     }
   }
 
+  interrupts_enable();
 }
 
 
