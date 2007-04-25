@@ -189,9 +189,9 @@ void tests_tachy() {
   int i;
   hello();
 
-  motors_rotate(0, 80);
-  motors_rotate_angle(1, -80, 512, TRUE);
-  motors_rotate_angle(2, 80, 1024, TRUE);
+  motors_rotate_angle(0, 80, 512, TRUE);
+  motors_rotate_time(1, -80, 2000, TRUE);
+  motors_rotate(2, 80);
 
   for (i=0; i<20; i++) {
     display_clear();
@@ -215,7 +215,7 @@ void tests_tachy() {
     systick_wait_ms(250);
   }
 
-  motors_stop(0, TRUE);
+  motors_stop(2, TRUE);
 
   goodbye();
 }

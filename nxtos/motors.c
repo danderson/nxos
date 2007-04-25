@@ -47,6 +47,7 @@ static volatile struct {
   /* The mode this motor is currently in. */
   enum {
     MOTOR_STOP = 0,      /* No rotation. */
+    MOTOR_CONFIGURING,   /* Reconfiguration in progress. */
     MOTOR_ON_CONTINUOUS, /* Rotate until stopped. */
     MOTOR_ON_ANGLE,      /* Rotate a given angle. */
     MOTOR_ON_TIME,       /* Rotate a given time. */
@@ -82,6 +83,7 @@ void motors_isr() {
   int i;
   U32 changes;
   U32 pins;
+  U32 time;
 
   interrupts_disable();
 
@@ -89,8 +91,13 @@ void motors_isr() {
   changes = *AT91C_PIOA_ISR;
   pins = *AT91C_PIOA_PDSR;
 
+  /* Grab the time, as we're going to use it to check for timed
+   * rotation end.
+   */
+  time = systick_get_ms();
+
   /* Check each motor's tachymeter. */
-  for (i = 0; i<NXT_N_MOTORS; i++) {
+  for (i=0; i<NXT_N_MOTORS; i++) {
     if (changes & motors_state[i].pins.tach) {
       U32 tach = pins & motors_state[i].pins.tach;
       U32 dir = pins & motors_state[i].pins.dir;
@@ -110,8 +117,10 @@ void motors_isr() {
        * reached the target tachymeter value. If so, shut down the
        * motor.
        */
-      if (motors_state[i].mode == MOTOR_ON_ANGLE &&
-          motors_state[i].current_count == motors_state[i].target)
+      if ((motors_state[i].mode == MOTOR_ON_ANGLE &&
+           motors_state[i].current_count == motors_state[i].target) ||
+          (motors_state[i].mode == MOTOR_ON_TIME &&
+           time >= motors_state[i].target))
         motors_stop(i, motors_state[i].brake);
     }
   }
@@ -210,6 +219,12 @@ void motors_rotate_angle(U8 motor, S8 speed, U32 angle, bool brake) {
   else if (speed < 0 && speed < -100)
     speed = -100;
 
+  /* Set the motor to configuration mode. This way, if we are
+   * overriding another intelligent mode, the tachymeter interrupt
+   * handler will ignore the motor while we tweak its settings.
+   */
+  motors_state[motor].mode = MOTOR_CONFIGURING;
+
   /* Set the target tachymeter value based on the rotation
    * direction */
   if (speed < 0)
@@ -224,6 +239,46 @@ void motors_rotate_angle(U8 motor, S8 speed, U32 angle, bool brake) {
    */
   motors_state[motor].brake = brake;
   motors_state[motor].mode = MOTOR_ON_ANGLE;
+  avr_set_motor(motor, speed, 0);
+}
+
+
+/* Start rotating the motor at the given speed, and stop it (with the
+ * given braking mode) after given number of milliseconds.
+ */
+void motors_rotate_time(U8 motor, S8 speed, U32 ms, bool brake) {
+  /* If we're not moving, we can never reach the target. Take a
+   * shortcut.
+   */
+  if (speed == 0) {
+    motors_stop(motor, brake);
+    return;
+  }
+
+  /* Cannot rotate imaginary motors. */
+  if (motor > 2)
+    return;
+
+  /* Cap the given motor speed. */
+  if (speed > 0 && speed > 100)
+    speed = 100;
+  else if (speed < 0 && speed < -100)
+    speed = -100;
+
+  /* Set the motor to configuration mode. This way, if we are
+   * overriding another intelligent mode, the tachymeter interrupt
+   * handler will ignore the motor while we tweak its settings.
+   */
+  motors_state[motor].mode = MOTOR_CONFIGURING;
+
+  /* Set the target system time. */
+  motors_state[motor].target = systick_get_ms() + ms;
+
+  /* Remember the brake setting, change to angle target mode and fire
+   * up the motor.
+   */
+  motors_state[motor].brake = brake;
+  motors_state[motor].mode = MOTOR_ON_TIME;
   avr_set_motor(motor, speed, 0);
 }
 
