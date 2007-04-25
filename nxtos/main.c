@@ -35,9 +35,7 @@ static void core_shutdown() {
   avr_power_down();
 }
 
-void
-main()
-{
+void main() {
   core_init();
 
   core_shutdown();
