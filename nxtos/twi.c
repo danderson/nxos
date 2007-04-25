@@ -92,13 +92,10 @@ twi_init()
 
   interrupts_disable();
 
-  *AT91C_TWI_IDR = ~0;
-  aic_install_isr(AT91C_ID_TWI, AIC_PRIO_DRIVER, twi_isr);
-
-  *AT91C_TWI_IDR = ~0;
-
   *AT91C_PMC_PCER = ((1 << AT91C_ID_PIOA) |  /* Need PIO too */
                      (1 << AT91C_ID_TWI));   /* TWI clock domain */
+
+  *AT91C_TWI_IDR = ~0;
 
   /* Set up pin as an IO pin for clocking till clean */
   *AT91C_PIOA_MDER = (1 << 3) | (1 << 4);
@@ -123,6 +120,8 @@ twi_init()
   *AT91C_TWI_CR = 0x04;		/* Enable as master */
 
   twi_state = TWI_READY;
+
+  aic_install_isr(AT91C_ID_TWI, AIC_PRIO_DRIVER, twi_isr);
 
   interrupts_enable();
 }

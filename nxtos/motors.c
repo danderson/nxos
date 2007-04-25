@@ -14,6 +14,7 @@
 #include "systick.h"
 #include "aic.h"
 #include "avr.h"
+#include "motors.h"
 
 /* The following are easier mnemonics for the pins used by the
  * tachymeter. Each motor has a tach-pulse pin whose value flips at
@@ -110,10 +111,8 @@ void motors_isr() {
        * motor.
        */
       if (motors_state[i].mode == MOTOR_ON_ANGLE &&
-          motors_state[i].current_count == motors_state[i].target) {
-        motors_state[i].mode = MOTOR_STOP;
-        avr_set_motor(i, 0, (motors_state[i].brake ? 1: 0));
-      }
+          motors_state[i].current_count == motors_state[i].target)
+        motors_stop(i, motors_state[i].brake);
     }
   }
 
@@ -126,6 +125,8 @@ void motors_isr() {
  */
 void motors_init()
 {
+  interrupts_disable();
+
   /* Enable the PIO controller. */
   *AT91C_PMC_PCER = (1 << AT91C_ID_PIOA);
 
@@ -148,6 +149,8 @@ void motors_init()
 
   /* Trigger interrupts on changes to the state of the tachy pins. */
   *AT91C_PIOA_IER = MOTORS_TACH;
+
+  interrupts_enable();
 }
 
 

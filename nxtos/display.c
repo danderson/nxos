@@ -47,6 +47,7 @@ static inline void dirty_display() {
 /* Clear the display. */
 void display_clear() {
   memset(&display.buffer[0][0], 0, sizeof(display.buffer));
+  dirty_display();
 }
 
 
@@ -179,11 +180,12 @@ void display_uint(U32 val) {
  * Display initialization.
  */
 void display_init() {
+  display.auto_refresh = FALSE;
   display_clear();
-  display.auto_refresh = TRUE;
   display.cursor.x = 0;
   display.cursor.y = 0;
   display.cursor.ignore_lf = FALSE;
   lcd_set_display(&display.buffer[0][0]);
+  display.auto_refresh = TRUE;
   dirty_display();
 }

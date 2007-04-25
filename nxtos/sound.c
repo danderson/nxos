@@ -7,6 +7,7 @@
 #include "at91sam7s256.h"
 
 #include "mytypes.h"
+#include "interrupts.h"
 #include "aic.h"
 #include "systick.h"
 #include "sound.h"
@@ -52,13 +53,15 @@ sound_isr()
 void
 sound_init()
 {
+  interrupts_disable();
+
   /* Start by inhibiting all sound output. Then enable power to the
    * SSC peripheral and do a software reset. The combination of these
    * three actions will get the controller reinitialized whether we
    * are warm- or cold-booting the NXT.
    */
-  *AT91C_SSC_IDR = ~0;
   *AT91C_PMC_PCER = (1 << AT91C_ID_SSC);
+  *AT91C_SSC_IDR = ~0;
   *AT91C_SSC_CR = AT91C_SSC_SWRST;
 
   /* Configure the transmit clock to be based on the board master
@@ -89,6 +92,8 @@ sound_init()
    * controller when we are outputting data.
    */
   aic_install_isr(AT91C_ID_SSC, AT91C_AIC_PRIOR_LOWEST, sound_isr);
+
+  interrupts_enable();
 }
 
 
