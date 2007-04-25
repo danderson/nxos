@@ -193,7 +193,7 @@ void usb_init() {
 
   /* Install the interruption routine */
   aic_clear(AT91C_ID_UDP);
-  aic_install_isr(AT91C_ID_UDP, AIC_INT_LEVEL_NORMAL, usb_isr);
+  aic_install_isr(AT91C_ID_UDP, AIC_PRIO_DRIVER, usb_isr);
 
 
   /* enable interruption for the endpoint 0, 1, 2, 3 */

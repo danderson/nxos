@@ -15,12 +15,9 @@
 /* Initialise the Advanced Interrupt Controller.
  *
  * Note that this function leaves interrupts disabled in the ARM core
- * when it returns, so that other board drivers may register interrupt
- * handlers safely.
+ * when it returns.
  */
-void
-aic_init()
-{
+void aic_init() {
   int i;
 
   /* Prevent the ARM core from being interrupted while we set up the
@@ -72,9 +69,7 @@ aic_init()
  *         for a list of defined values.
  *   isr: A pointer to the interrupt service routine function.
  */
-void
-aic_install_isr(aic_vector_t vector, aic_priority_t prio, aic_isr_t isr)
-{
+void aic_install_isr(aic_vector_t vector, aic_priority_t prio, aic_isr_t isr) {
   /* Disable the interrupt we're installing. Getting interrupted while
    * we are tweaking it could be bad.
    */
@@ -93,9 +88,7 @@ aic_install_isr(aic_vector_t vector, aic_priority_t prio, aic_isr_t isr)
  * Args:
  *   vector: The peripheral ID of the interrupt line to enable.
  */
-void
-aic_enable(aic_vector_t vector)
-{
+void aic_enable(aic_vector_t vector) {
   *AT91C_AIC_IECR = (1 << vector);
 }
 
@@ -105,9 +98,7 @@ aic_enable(aic_vector_t vector)
  * Args:
  *   vector: The peripheral ID of the interrupt line to disable.
  */
-void
-aic_disable(aic_vector_t vector)
-{
+void aic_disable(aic_vector_t vector) {
   *AT91C_AIC_IDCR = (1 << vector);
 }
 
@@ -117,9 +108,7 @@ aic_disable(aic_vector_t vector)
  * Args:
  *   vector: The peripheral ID of the interrupt line to set.
  */
-void
-aic_set(aic_vector_t vector)
-{
+void aic_set(aic_vector_t vector) {
   *AT91C_AIC_ISCR = (1 << vector);
 }
 
@@ -129,8 +118,6 @@ aic_set(aic_vector_t vector)
  * Args:
  *   vector: The peripheral ID of the interrupt line to clear.
  */
-void
-aic_clear(aic_vector_t vector)
-{
+void aic_clear(aic_vector_t vector) {
   *AT91C_AIC_ICCR = (1 << vector);
 }

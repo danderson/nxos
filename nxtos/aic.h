@@ -7,9 +7,10 @@ typedef U32 aic_vector_t;
 
 /* Priority levels for interrupt lines. */
 typedef enum {
-  AIC_INT_LEVEL_LOW = 2,
-  AIC_INT_LEVEL_NORMAL = 4,
-  AIC_INT_LEVEL_ABOVE_NORMAL = 5,
+  AIC_PRIO_LOW = 2,     /* Stuff that doesn't mind waiting a little. */
+  AIC_PRIO_DRIVER = 4,  /* Most drivers go in here. */
+  AIC_PRIO_SOFTMAC = 6, /* Drivers that have no hardware controller. */
+  AIC_PRIO_TICK = 7,    /* Keeps the system clock accurate. */
 } aic_priority_t;
 
 typedef void (*aic_isr_t)();

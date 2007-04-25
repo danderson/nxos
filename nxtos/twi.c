@@ -93,7 +93,7 @@ twi_init()
   interrupts_disable();
 
   *AT91C_TWI_IDR = ~0;
-  aic_install_isr(AT91C_ID_TWI, AIC_INT_LEVEL_ABOVE_NORMAL, twi_isr);
+  aic_install_isr(AT91C_ID_TWI, AIC_PRIO_DRIVER, twi_isr);
 
   *AT91C_TWI_IDR = ~0;
 

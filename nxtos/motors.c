@@ -141,7 +141,7 @@ void motors_init()
   *AT91C_PIOA_ODR = MOTORS_ALL;
 
   /* Register the tachymeter interrupt handler. */
-  aic_install_isr(AT91C_ID_PIOA, AIC_INT_LEVEL_NORMAL, motors_isr);
+  aic_install_isr(AT91C_ID_PIOA, AIC_PRIO_DRIVER, motors_isr);
 
   /* Trigger interrupts on changes to the state of the tachy pins. */
   *AT91C_PIOA_IER = MOTORS_TACH;

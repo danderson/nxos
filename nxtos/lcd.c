@@ -224,7 +224,7 @@ static void spi_init() {
    * DMA transfers for SPI data. All SPI-related interrupt sources are
    * inhibited, so it won't bother us until we're ready.
    */
-  aic_install_isr(AT91C_ID_SPI, AIC_INT_LEVEL_LOW, spi_isr);
+  aic_install_isr(AT91C_ID_SPI, AIC_PRIO_DRIVER, spi_isr);
   *AT91C_SPI_PTCR = AT91C_PDC_TXTEN;
 
   interrupts_enable();
