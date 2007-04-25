@@ -184,13 +184,14 @@ void tests_sysinfo() {
   goodbye();
 }
 
+extern U32 motors_get_int_count();
 void tests_tachy() {
   int i;
   hello();
 
-  motors_rotate_angle(0, 80, 512, TRUE);
-  motors_rotate_angle(1, -80, 1024, TRUE);
-  motors_rotate_angle(2, 80, 2048, TRUE);
+  motors_rotate(0, 80);
+  motors_rotate_angle(1, -80, 512, TRUE);
+  motors_rotate_angle(2, 80, 1024, TRUE);
 
   for (i=0; i<20; i++) {
     display_clear();
@@ -213,6 +214,8 @@ void tests_tachy() {
 
     systick_wait_ms(250);
   }
+
+  motors_stop(0, TRUE);
 
   goodbye();
 }
