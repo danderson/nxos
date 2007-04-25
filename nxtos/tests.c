@@ -12,6 +12,7 @@
 #include "display.h"
 #include "sound.h"
 #include "memmap.h"
+#include "motors.h"
 
 static bool test_silent = FALSE;
 
@@ -183,6 +184,39 @@ void tests_sysinfo() {
   goodbye();
 }
 
+void tests_tachy() {
+  int i;
+  hello();
+
+  motors_rotate_angle(0, 80, 512, TRUE);
+  motors_rotate_angle(1, -80, 1024, TRUE);
+  motors_rotate_angle(2, 80, 2048, TRUE);
+
+  for (i=0; i<20; i++) {
+    display_clear();
+    display_cursor_set_pos(0,0);
+
+    display_string("Tachymeter  data\n"
+                   "----------------\n\n");
+
+    display_string("Tach A: ");
+    display_hex(motors_get_tach_count(0));
+    display_end_line();
+
+    display_string("Tach B: ");
+    display_hex(motors_get_tach_count(1));
+    display_end_line();
+
+    display_string("Tach C: ");
+    display_hex(motors_get_tach_count(2));
+    display_end_line();
+
+    systick_wait_ms(250);
+  }
+
+  goodbye();
+}
+
 
 void tests_all() {
   hello();
@@ -193,6 +227,7 @@ void tests_all() {
   tests_motor();
   tests_display();
   tests_time();
+  tests_tachy();
 
   test_silent = FALSE;
   goodbye();
