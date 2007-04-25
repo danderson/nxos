@@ -10,6 +10,7 @@
 #include "aic.h"
 #include "lcd.h"
 #include "util.h"
+#include "display.h"
 
 /* A simple 8x5 font. This is in a separate file because the embedded
  * font is converted from a .png at compile time.
