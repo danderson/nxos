@@ -73,6 +73,7 @@ static volatile struct {
   { { MOTOR_C_TACH, MOTOR_C_DIR }, MOTOR_STOP, TRUE, 0, 0 },
 };
 
+
 /* Tachymeter interrupt handler, triggered by a change of value of a
  * tachymeter pin.
  */
@@ -116,38 +117,20 @@ void motors_isr() {
 
 }
 
-
-/* Initialize the tachymeters, ready to drive the motors with the
- * high-level API.
- */
 void motors_init()
 {
-  /* Enable the PIO controller. */
   *AT91C_PMC_PCER = (1 << AT91C_ID_PIOA);
-
-  /* Disable all PIO interrupts until we are ready to handle them. */
   *AT91C_PIOA_IDR = ~0;
+  *AT91C_PIOA_IFER = (MOTORS_TACH | MOTORS_DIR);
+  *AT91C_PIOA_PPUDR = (MOTORS_TACH | MOTORS_DIR);
+  *AT91C_PIOA_PER = (MOTORS_TACH | MOTORS_DIR);
+  *AT91C_PIOA_ODR = (MOTORS_TACH | MOTORS_DIR);
 
-  /* Configure all tachymeter pins:
-   *  - Enable input glitch filtering
-   *  - Disable pull-up (externally driven pins)
-   *  - Assign pins to the PIO controller
-   *  - Set pins to be inputs
-   */
-  *AT91C_PIOA_IFER = MOTORS_ALL;
-  *AT91C_PIOA_PPUDR = MOTORS_ALL;
-  *AT91C_PIOA_PER = MOTORS_ALL;
-  *AT91C_PIOA_ODR = MOTORS_ALL;
-
-  /* Register the tachymeter interrupt handler. */
   aic_install_isr(AT91C_ID_PIOA, AIC_INT_LEVEL_NORMAL, motors_isr);
 
-  /* Trigger interrupts on changes to the state of the tachy pins. */
   *AT91C_PIOA_IER = MOTORS_TACH;
 }
 
-
-/* Immediately stop the given motor, either braking or coasting. */
 void motors_stop(U8 motor, bool brake) {
   /* Cannot rotate imaginary motors. */
   if (motor > 2)
@@ -157,33 +140,6 @@ void motors_stop(U8 motor, bool brake) {
   avr_set_motor(motor, 0, (brake ? 1: 0));
 }
 
-
-/* Start rotating the given motor continuously at the given speed. It
- * will continue to rotate until another motor command is issued to
- * it.
- */
-void motors_rotate(U8 motor, S8 speed) {
-  /* Cannot rotate imaginary motors. */
-  if (motor > 2)
-    return;
-
-  /* Cap the given motor speed. */
-  if (speed > 0 && speed > 100)
-    speed = 100;
-  else if (speed < 0 && speed < -100)
-    speed = -100;
-
-  /* Continuous mode has no target or brake parameter, just set the
-   * mode and fire up the motor.
-   */
-  motors_state[motor].mode = MOTOR_ON_CONTINUOUS;
-  avr_set_motor(motor, speed, 0);
-}
-
-
-/* Start rotating the motor at the given speed, and stop it (with the
- * given braking mode) after rotating the given number of degrees.
- */
 void motors_rotate_angle(U8 motor, S8 speed, U32 angle, bool brake) {
   /* If we're not moving, we can never reach the target. Take a
    * shortcut.
@@ -197,7 +153,6 @@ void motors_rotate_angle(U8 motor, S8 speed, U32 angle, bool brake) {
   if (motor > 2)
     return;
 
-  /* Cap the given motor speed. */
   if (speed > 0 && speed > 100)
     speed = 100;
   else if (speed < 0 && speed < -100)
@@ -220,15 +175,8 @@ void motors_rotate_angle(U8 motor, S8 speed, U32 angle, bool brake) {
   avr_set_motor(motor, speed, 0);
 }
 
-
-/* Get the current value of the tachymeter counter for the given
- * motor. This value is of no real use outside of the tachymeter
- * driver, but is useful for displaying motor activity.
- */
 U32 motors_get_tach_count(U8 motor) {
-  /* Cannot query imaginary motors. */
   if (motor > 2)
     return 0;
-
   return motors_state[motor].current_count;
 }

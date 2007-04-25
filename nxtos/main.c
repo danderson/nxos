@@ -11,7 +11,6 @@
 #include "display.h"
 #include "sound.h"
 #include "usb.h"
-#include "motors.h"
 
 #include "tests.h"
 
@@ -21,10 +20,10 @@ static void core_init() {
   systick_init();
   sound_init();
   avr_init();
-  motors_init();
   lcd_init();
   display_init();
-  //usb_init();
+  usb_init();
+
 
   /* Delay a little post-init, to let all the drivers settle down. */
   systick_wait_ms(100);
@@ -39,6 +38,12 @@ void
 main()
 {
   core_init();
+
+  //tests_display();
+  //tests_time();
+  //tests_sysinfo();
+
+  usb_test();
 
   core_shutdown();
 }
