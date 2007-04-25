@@ -5,9 +5,8 @@
 #include "util.h"
 
 #define AVR_ADDRESS 1
-#define AVR_N_OUTPUTS 3
 #define AVR_N_INPUTS  4
-#define AVR_N_MOTORS 3
+#define AVR_N_MOTORS NXT_N_MOTORS
 
 
 const char avr_brainwash_string[] =
@@ -22,7 +21,7 @@ static volatile struct {
     AVR_POWER_OFF,
     AVR_RESET_MODE,
   } power_mode;
-  S8 motor_speed[AVR_N_OUTPUTS];
+  S8 motor_speed[AVR_N_MOTORS];
   U8 motor_brake;
 
   /* TODO: enable controlling of input power. Currently everything is
