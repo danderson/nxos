@@ -3,6 +3,8 @@
 
 #include "mytypes.h"
 
+#define NXT_N_MOTORS 3
+
 void avr_init();
 void avr_1kHz_update();
 void avr_set_motor(U32 n, int power_percent, int brake);

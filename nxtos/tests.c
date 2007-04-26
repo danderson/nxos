@@ -57,28 +57,24 @@ void beep_word(U32 value) {
 }
 
 
-void tests_display() {
-  char buf[2] = { 0, 0 };
-  int i;
-
+void
+tests_motor() {
   hello();
 
-  display_clear();
-  display_cursor_set_pos(0, 0);
+  avr_set_motor(0, 80, 0);
+  systick_wait_ms(1000);
 
-  display_string("- Display test -\n"
-                 "----------------\n");
-  for (i=32; i<128; i++) {
-    buf[0] = i;
-    display_string(buf);
-    if ((i % 16) == 15)
-      display_string("\n");
-  }
+  avr_set_motor(0, -80, 0);
+  systick_wait_ms(1000);
 
-  systick_wait_ms(5000);
+  avr_set_motor(0, 80, 0);
+  systick_wait_ms(1000);
+
+  avr_set_motor(0, 0, 1);
+  systick_wait_ms(200);
+
   goodbye();
 }
-
 
 void tests_sound() {
   enum {
@@ -97,11 +93,6 @@ void tests_sound() {
 
   hello();
 
-  display_clear();
-  display_cursor_set_pos(0,0);
-  display_string("-- Sound test --\n"
-                 "----------------\n");
-
   while (pain[i] != end) {
     if (pain[i] == sleep500)
       systick_wait_ms(150);
@@ -115,32 +106,85 @@ void tests_sound() {
   goodbye();
 }
 
+void tests_display() {
+  char buf[2] = { 0, 0 };
+  int i;
 
-void
-tests_motor() {
   hello();
 
   display_clear();
-  display_cursor_set_pos(0,0);
-  display_string("--- AVR test ---\n"
+  display_cursor_set_pos(0, 0);
+
+  display_string("***** NxtOS ****\n"
                  "----------------\n");
+  for (i=32; i<128; i++) {
+    buf[0] = i;
+    display_string(buf);
+    if ((i % 16) == 15)
+      display_string("\n");
+  }
 
-  avr_set_motor(0, 80, 0);
-  systick_wait_ms(1000);
+  systick_wait_ms(5000);
+  goodbye();
+}
 
-  avr_set_motor(0, -80, 0);
-  systick_wait_ms(1000);
+void tests_time() {
+  int i;
+  int t;
 
-  avr_set_motor(0, 80, 0);
-  systick_wait_ms(1000);
+  hello();
 
-  avr_set_motor(0, 0, 1);
-  systick_wait_ms(200);
+  for (i=0; i<20; i++) {
+    t = systick_get_ms();
+
+    /* Manual screen refresh on even seconds, automatic on odd
+     * seconds.
+     */
+    display_auto_refresh((i % 2) ? TRUE : FALSE);
+
+    display_clear();
+    display_cursor_set_pos(0, 0);
+    display_string("  TX52 - NxtOS\n\n"
+                   "\n"
+                   "T(ms) : ");
+    display_uint(t);
+    display_string("\nT(hex): ");
+    display_hex(t);
+
+    /* If this is an even iteration, do the manual refresh. */
+    if (!(i % 2))
+      display_refresh();
+
+    systick_wait_ms(900);
+    sound_freq(1500, 100);
+  }
 
   goodbye();
 }
 
+void tests_sysinfo() {
+  hello();
 
+  display_clear();
+  display_cursor_set_pos(0,0);
+  display_string("- System Info. -\n\n");
+
+  display_string("Boot from ");
+  if (BOOTED_FROM_SAMBA)
+    display_string("SAM-BA");
+  else
+    display_string("ROM");
+  display_end_line();
+
+  display_string("Free RAM: ");
+  display_uint(FREE_SIZE);
+  display_end_line();
+
+  systick_wait_ms(5000);
+  goodbye();
+}
+
+extern U32 motors_get_int_count();
 void tests_tachy() {
   int i;
   hello();
@@ -153,10 +197,8 @@ void tests_tachy() {
     display_clear();
     display_cursor_set_pos(0,0);
 
-    display_clear();
-    display_cursor_set_pos(0,0);
-    display_string("Tachymeter  test\n"
-                   "----------------\n");
+    display_string("Tachymeter  data\n"
+                   "----------------\n\n");
 
     display_string("Tach A: ");
     display_hex(motors_get_tach_count(0));
@@ -179,52 +221,16 @@ void tests_tachy() {
 }
 
 
-void tests_sysinfo() {
-  int i, t;
-  hello();
-
-  for (i=0; i<10; i++) {
-    t = systick_get_ms();
-
-    display_clear();
-    display_cursor_set_pos(0,0);
-    display_string("- System  info -\n"
-                   "----------------\n");
-    display_end_line();
-
-    display_string("Time  : ");
-    display_uint(t);
-    display_end_line();
-    display_string(" (hex): ");
-    display_hex(t);
-    display_end_line();
-
-    display_string("Boot from ");
-    if (BOOT_FROM_SAMBA)
-      display_string("SAM-BA");
-    else
-      display_string("ROM");
-    display_end_line();
-
-    display_string("Free RAM: ");
-    display_uint(USERSPACE_SIZE);
-    display_end_line();
-
-    systick_wait_ms(1000);
-  }
-
-  goodbye();
-}
-
-
 void tests_all() {
+  hello();
   test_silent = TRUE;
 
-  tests_display();
+  tests_sysinfo();
   tests_sound();
   tests_motor();
+  tests_display();
+  tests_time();
   tests_tachy();
-  tests_sysinfo();
 
   test_silent = FALSE;
   goodbye();

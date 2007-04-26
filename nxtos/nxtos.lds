@@ -19,8 +19,6 @@
  * Memory definitions.
  */
 
-KERNEL_RAM = 10k;
-
 MEMORY {
 ROM_ONLY rom : ORIGIN = 1M, LENGTH =256k
 vector_ram   : ORIGIN = 2M, LENGTH = 64
@@ -33,14 +31,24 @@ RAM_BASE = 2M;
 RAM_SIZE = 64k;
 
 SECTIONS {
-  .reserved : {
-    . = (64k - 10k - 64);
-  } > ram
+  /*
+   * If the kernel is loaded by SAM-BA, reserve the bottom 8k of ram
+   * are reserved for SAM-BA.
+   */
+  SAMBA_ONLY .samba_reserved : {
+  SAMBA_ONLY     . = (8k - 64);
+  SAMBA_ONLY } > ram
+  SAMBA_ONLY __samba_ram_start__ = ADDR(.samba_reserved);
+  SAMBA_ONLY __samba_ram_end__   = (__samba_ram_start__ +
+  SAMBA_ONLY                        SIZEOF(.samba_reserved));
 
-  __userspace_start__ = ADDR(.reserved);
-  __userspace_end__   = (ADDR(.reserved) + SIZEOF(.reserved));
-  SAMBA_ONLY __boot_from_samba__ = 1;
-  PROVIDE(__boot_from_samba__ = 0);
+  /* Provide symbols if not defined above */
+  PROVIDE(__samba_ram_start__ = 0);
+  PROVIDE(__samba_ram_end__ = 0);
+
+  __extra_ram_start__ = __samba_ram_start__;
+  __extra_ram_end__   = __samba_ram_end__;
+
 
   /*
    * Interrupt vectors. These are loaded to the bottom of memory at

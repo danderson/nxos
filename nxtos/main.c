@@ -38,7 +38,5 @@ static void core_shutdown() {
 void main() {
   core_init();
 
-  tests_all();
-
   core_shutdown();
 }
