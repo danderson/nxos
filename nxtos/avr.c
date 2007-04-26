@@ -10,8 +10,26 @@
 const char avr_brainwash_string[] =
   "\xCC" "Let's samba nxt arm in arm, (c)LEGO System A/S";
 
-static volatile U32 avr_initialised;
-static volatile bool tx_done = FALSE;
+static volatile struct {
+  /* The current mode of the AVR state machine. */
+  enum {
+    AVR_UNINITIALIZED = 0,
+    AVR_INIT,
+    AVR_WAIT_2MS,
+    AVR_WAIT_1MS,
+    AVR_SEND,
+    AVR_RECV,
+  } mode;
+
+  bool initialized;
+
+  /* Used to check the state of TWI transmissions. */
+  bool tx_done;
+} avr_state = {
+  AVR_UNINITIALIZED, /* We start uninitialized. */
+  FALSE,
+  FALSE,             /* TX not done. */
+};
 
 static volatile struct {
   enum {
@@ -46,15 +64,16 @@ static U8 raw_to_avr[1 + /* Power mode    */
                      1]; /* Checksum */
 
 
-static void
-avr_start_read() {
-  memset(data_from_avr, 0, sizeof(data_from_avr));
-  twi_read_async(AVR_ADDRESS, data_from_avr,
-                 sizeof(data_from_avr), (bool*)&tx_done);
+static U16
+Unpack16(const U8 *x)
+{
+  U16 retval;
+
+  retval = (((U16) (x[0])) & 0xff) | ((((U16) (x[1])) << 8) & 0xff00);
+  return retval;
 }
 
-static void
-avr_start_send() {
+static void avr_pack_to_avr() {
   int i;
   U8 checksum = 0;
 
@@ -96,42 +115,10 @@ avr_start_send() {
   for (i=0; i<(sizeof(raw_to_avr)-1); i++)
     checksum += raw_to_avr[i];
   raw_to_avr[sizeof(raw_to_avr)-1] = ~checksum;
-
-  twi_write_async(AVR_ADDRESS, raw_to_avr, sizeof(raw_to_avr), (bool*)&tx_done);
-}
-
-void
-avr_power_down() {
-  while (1)
-    to_avr.power_mode = AVR_POWER_OFF;
 }
 
 
-void
-avr_firmware_update_mode() {
-  while (1)
-    to_avr.power_mode = AVR_RESET_MODE;
-}
-
-void
-avr_link_init() {
-  twi_write_async(AVR_ADDRESS, (U8*)avr_brainwash_string,
-                  sizeof(avr_brainwash_string)-1, (bool*)&tx_done);
-}
-
-
-static U16
-Unpack16(const U8 *x)
-{
-  U16 retval;
-
-  retval = (((U16) (x[0])) & 0xff) | ((((U16) (x[1])) << 8) & 0xff00);
-  return retval;
-}
-
-static void
-avr_unpack()
-{
+static void avr_unpack_from_avr() {
   U8 check_sum;
   U8 *p;
   U16 buttonsVal;
@@ -195,41 +182,74 @@ avr_unpack()
 
 
 void
+avr_power_down() {
+  while (1)
+    to_avr.power_mode = AVR_POWER_OFF;
+}
+
+
+void
+avr_firmware_update_mode() {
+  while (1)
+    to_avr.power_mode = AVR_RESET_MODE;
+}
+
+
+void
 avr_init()
 {
   twi_init();
 
-  avr_initialised = 1;
+  avr_state.initialized = TRUE;
 }
-
-static U32 update_count;
-static U32 link_running;
 
 void
 avr_1kHz_update()
 {
-  if (!avr_initialised)
+  if (!avr_state.initialized)
     return;
 
-  if (!link_running) {
+  switch (avr_state.mode) {
+  case AVR_UNINITIALIZED:
+    /* Zero the AVR data and send the hello string. */
     memset(data_from_avr, 0, sizeof(data_from_avr));
-    link_running = 1;
-    avr_link_init();
-    update_count = 0;
-    return;
-  }
+    twi_write_async(AVR_ADDRESS, (U8*)avr_brainwash_string,
+                    sizeof(avr_brainwash_string)-1,
+                    (bool*)&avr_state.tx_done);
+    avr_state.mode = AVR_INIT;
+    break;
 
-  if (!tx_done)
-    return;
+  case AVR_INIT:
+    if (avr_state.tx_done)
+      avr_state.mode = AVR_WAIT_2MS;
+    break;
 
-  if (twi_ready()) {
-    if (update_count & 1) {
-      avr_start_read();
-    } else {
-      avr_unpack();
-      avr_start_send();
+  case AVR_WAIT_2MS:
+    avr_state.mode = AVR_WAIT_1MS;
+    break;
+
+  case AVR_WAIT_1MS:
+    avr_state.mode = AVR_SEND;
+    avr_state.tx_done = TRUE;
+    break;
+
+  case AVR_SEND:
+    if (avr_state.tx_done) {
+      avr_state.mode = AVR_RECV;
+      memset(data_from_avr, 0, sizeof(data_from_avr));
+      twi_read_async(AVR_ADDRESS, data_from_avr,
+                     sizeof(data_from_avr), (bool*)&avr_state.tx_done);
     }
-    update_count++;
+
+  case AVR_RECV:
+    if (avr_state.tx_done) {
+      avr_unpack_from_avr();
+      avr_state.mode = AVR_SEND;
+      avr_pack_to_avr();
+      twi_write_async(AVR_ADDRESS, raw_to_avr, sizeof(raw_to_avr),
+                      (bool*)&avr_state.tx_done);
+    }
+    break;
   }
 }
 
