@@ -7,8 +7,8 @@
  * phase. They describe the memory map of the NXT in terms of
  * symbols.
  */
-extern U8 __samba_ram_start__;
-extern U8 __samba_ram_end__;
+extern U8 __userspace_start__;
+extern U8 __userspace_end__;
 
 extern U8 __ramtext_ram_start__;
 extern U8 __ramtext_ram_end__;
@@ -25,8 +25,7 @@ extern U8 __bss_end__;
 extern U8 __stack_start__;
 extern U8 __stack_end__;
 
-extern U8 __free_ram_start__;
-extern U8 __free_ram_end__;
+extern U8 __boot_from_samba__;
 
 /* Helper macro that converts a symbol value into a regular
  * integer. If we just addressed eg. __free_ram_start__ directly, the
@@ -44,10 +43,6 @@ extern U8 __free_ram_end__;
  * the kernel. We also define a _SIZE constant for each section, which
  * is just the number of bytes it uses.
  */
-#define SAMBA_START SYMVAL(__samba_ram_start__)
-#define SAMBA_END SYMVAL(__samba_ram_end__)
-#define SAMBA_SIZE (SAMBA_END - SAMBA_START)
-
 #define RAMTEXT_START SYMVAL(__ramtext_ram_start__)
 #define RAMTEXT_END SYMVAL(__ramtext_ram_end__)
 #define RAMTEXT_SIZE (RAMTEXT_END - RAMTEXT_START)
@@ -68,17 +63,11 @@ extern U8 __free_ram_end__;
 #define STACK_END SYMVAL(__stack_end__)
 #define STACK_SIZE (STACK_END - STACK_START)
 
-#define FREE_START SYMVAL(__free_ram_start__)
-#define FREE_END SYMVAL(__free_ram_end__)
-#define FREE_SIZE (FREE_END - FREE_START)
+#define USERSPACE_START SYMVAL(__userspace_start__)
+#define USERSPACE_END SYMVAL(__userspace_end__)
+#define USERSPACE_SIZE (USERSPACE_END - USERSPACE_START)
 
-/* If the kernel was booted from SAM-BA, the memory map defines an 8k
- * area reserved by SAM-BA. The ROM boot memory map sets this section
- * to zero size. Therefore, we can use the size of that section to
- * define two boolean constants, that tell the kernel how it was
- * booted.
- */
-#define BOOTED_FROM_SAMBA (SAMBA_SIZE ? TRUE : FALSE)
-#define BOOTED_FROM_ROM (!BOOTED_FROM_SAMBA)
+#define BOOT_FROM_SAMBA (SYMVAL(__boot_from_samba__) ? TRUE : FALSE)
+#define BOOT_FROM_ROM (!BOOT_FROM_SAMBA)
 
 #endif
