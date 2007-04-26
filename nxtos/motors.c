@@ -10,6 +10,7 @@
 #include "at91sam7s256.h"
 
 #include "mytypes.h"
+#include "nxt.h"
 #include "interrupts.h"
 #include "systick.h"
 #include "aic.h"

@@ -1,13 +1,11 @@
 #include "mytypes.h"
+#include "nxt.h"
 #include "systick.h"
 #include "twi.h"
 #include "avr.h"
 #include "util.h"
 
 #define AVR_ADDRESS 1
-#define AVR_N_INPUTS  4
-#define AVR_N_MOTORS NXT_N_MOTORS
-
 
 const char avr_brainwash_string[] =
   "\xCC" "Let's samba nxt arm in arm, (c)LEGO System A/S";
@@ -21,7 +19,7 @@ static volatile struct {
     AVR_POWER_OFF,
     AVR_RESET_MODE,
   } power_mode;
-  S8 motor_speed[AVR_N_MOTORS];
+  S8 motor_speed[NXT_N_MOTORS];
   U8 motor_brake;
 
   /* TODO: enable controlling of input power. Currently everything is
@@ -30,7 +28,7 @@ static volatile struct {
 } to_avr = { AVR_RUN, { 0, 0, 0 }, 0 };
 
 static volatile struct {
-  U16 adc_value[AVR_N_INPUTS];
+  U16 adc_value[NXT_N_SENSORS];
   U16 buttons;
   U16 battery_is_AA;
   U16 battery_mV;
@@ -38,7 +36,7 @@ static volatile struct {
   U8 avr_fw_version_minor;
 } io_from_avr;
 
-static U8 data_from_avr[(2 * AVR_N_INPUTS) + 5];
+static U8 data_from_avr[(2 * NXT_N_SENSORS) + 5];
 
 static U8 raw_to_avr[1 + /* Power mode    */
                      1 + /* PWM frequency */
@@ -85,6 +83,11 @@ avr_start_send() {
   raw_to_avr[2] = to_avr.motor_speed[0];
   raw_to_avr[3] = to_avr.motor_speed[1];
   raw_to_avr[4] = to_avr.motor_speed[2];
+
+  /* raw_to_avr[5] is the value for the 4th motor, which doesn't
+   * exist. This is probably a bug in the AVR firmware, but it is
+   * required. So we just latch the value to zero.
+   */
 
   /* Marshal the motor brake settings. */
   raw_to_avr[6] = to_avr.motor_brake;
@@ -149,7 +152,7 @@ avr_unpack()
   p = data_from_avr;
 
   // Marshall
-  for (i = 0; i < AVR_N_INPUTS; i++) {
+  for (i = 0; i < NXT_N_SENSORS; i++) {
     io_from_avr.adc_value[i] = Unpack16(p);
     p += 2;
   }
@@ -255,7 +258,7 @@ avr_sensor_adc(U32 n)
 void
 avr_set_motor(U32 n, int power_percent, int brake)
 {
-  if (n < AVR_N_MOTORS) {
+  if (n < NXT_N_MOTORS) {
     to_avr.motor_speed[n] = power_percent;
     if (brake)
       to_avr.motor_brake |= (1 << n);
@@ -263,15 +266,3 @@ avr_set_motor(U32 n, int power_percent, int brake)
       to_avr.motor_brake &= ~(1 << n);
   }
 }
-
-/* void */
-/* avr_set_input_power(U32 n, U32 power_type) */
-/* { */
-/*   // This does not correspond to the spec. */
-/*   // It is unclear how to set power always on. */
-/*   // Lego code has a bug in it. */
-/*   if (n < AVR_N_INPUTS && power_type <= 1) { */
-/*     io_to_avr.input_power &= ~(0x1 << (n)); */
-/*     io_to_avr.input_power |= (power_type << (n)); */
-/*   } */
-/* } */
