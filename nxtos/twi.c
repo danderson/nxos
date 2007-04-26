@@ -121,7 +121,8 @@ twi_init()
 
   twi_state = TWI_READY;
 
-  aic_install_isr(AT91C_ID_TWI, AIC_PRIO_DRIVER, twi_isr);
+  aic_install_isr(AT91C_ID_TWI, AIC_PRIO_DRIVER,
+                  AIC_TRIG_LEVEL, twi_isr);
 
   interrupts_enable();
 }

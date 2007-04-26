@@ -91,7 +91,8 @@ sound_init()
   /* Install the interrupt routine that will feed data to the DMA
    * controller when we are outputting data.
    */
-  aic_install_isr(AT91C_ID_SSC, AT91C_AIC_PRIOR_LOWEST, sound_isr);
+  aic_install_isr(AT91C_ID_SSC, AT91C_AIC_PRIOR_LOWEST,
+                  AIC_TRIG_LEVEL, sound_isr); // Level or edge?
 
   interrupts_enable();
 }

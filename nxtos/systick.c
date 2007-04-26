@@ -100,8 +100,10 @@ void systick_init() {
   /* Install both the low and high priority interrupt handlers, ready
    * to handle periodic updates.
    */
-  aic_install_isr(LOW_PRIORITY_SYSIRQ, AIC_PRIO_LOW, systick_low_priority);
-  aic_install_isr(AT91C_ID_SYS, AIC_PRIO_TICK, systick_isr);
+  aic_install_isr(LOW_PRIORITY_SYSIRQ, AIC_PRIO_LOW,
+                  AIC_TRIG_EDGE, systick_low_priority);
+  aic_install_isr(AT91C_ID_SYS, AIC_PRIO_TICK,
+                  AIC_TRIG_EDGE, systick_isr);
 
   /* Configure and enable the Periodic Interval Timer. The counter
    * value is 1/16th of the master clock (base frequency), divided by

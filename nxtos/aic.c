@@ -69,14 +69,15 @@ void aic_init() {
  *         for a list of defined values.
  *   isr: A pointer to the interrupt service routine function.
  */
-void aic_install_isr(aic_vector_t vector, aic_priority_t prio, aic_isr_t isr) {
+void aic_install_isr(aic_vector_t vector, aic_priority_t prio,
+                     aic_trigger_mode_t trig_mode, aic_isr_t isr) {
   /* Disable the interrupt we're installing. Getting interrupted while
    * we are tweaking it could be bad.
    */
   aic_disable(vector);
   aic_clear(vector);
 
-  AT91C_AIC_SMR[vector] = AT91C_AIC_SRCTYPE_INT_EDGE_TRIGGERED | prio;
+  AT91C_AIC_SMR[vector] = (trig_mode << 5) | prio;
   AT91C_AIC_SVR[vector] = (U32)isr;
 
   aic_enable(vector);

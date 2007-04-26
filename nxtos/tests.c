@@ -145,11 +145,11 @@ void tests_tachy() {
   int i;
   hello();
 
-  motors_rotate_angle(0, 80, 512, TRUE);
-  motors_rotate_time(1, -80, 2000, TRUE);
+  motors_rotate_angle(0, 80, 1024, TRUE);
+  motors_rotate_time(1, -80, 3000, FALSE);
   motors_rotate(2, 80);
 
-  for (i=0; i<20; i++) {
+  for (i=0; i<30; i++) {
     display_clear();
     display_cursor_set_pos(0,0);
 
@@ -168,6 +168,10 @@ void tests_tachy() {
 
     display_string("Tach C: ");
     display_hex(motors_get_tach_count(2));
+    display_end_line();
+
+    display_string("Refresh: ");
+    display_uint(i);
     display_end_line();
 
     systick_wait_ms(250);

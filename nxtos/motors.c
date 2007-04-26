@@ -86,8 +86,6 @@ void motors_isr() {
   U32 pins;
   U32 time;
 
-  interrupts_disable();
-
   /* Acknowledge the interrupt and grab the state of the pins. */
   changes = *AT91C_PIOA_ISR;
   pins = *AT91C_PIOA_PDSR;
@@ -125,8 +123,6 @@ void motors_isr() {
         motors_stop(i, motors_state[i].brake);
     }
   }
-
-  interrupts_enable();
 }
 
 
@@ -155,7 +151,8 @@ void motors_init()
   *AT91C_PIOA_ODR = MOTORS_ALL;
 
   /* Register the tachymeter interrupt handler. */
-  aic_install_isr(AT91C_ID_PIOA, AIC_PRIO_DRIVER, motors_isr);
+  aic_install_isr(AT91C_ID_PIOA, AIC_PRIO_SOFTMAC,
+                  AIC_TRIG_LEVEL, motors_isr);
 
   /* Trigger interrupts on changes to the state of the tachy pins. */
   *AT91C_PIOA_IER = MOTORS_TACH;

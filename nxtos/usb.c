@@ -331,7 +331,8 @@ void usb_init() {
    */
   /* other interruptions will be enabled when needed */
   aic_clear(AT91C_ID_UDP);
-  aic_install_isr(AT91C_ID_UDP, AIC_PRIO_DRIVER, usb_isr);
+  aic_install_isr(AT91C_ID_UDP, AIC_PRIO_DRIVER,
+                  AIC_TRIG_LEVEL, usb_isr);
 
 
   interrupts_enable();
