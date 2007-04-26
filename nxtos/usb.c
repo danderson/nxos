@@ -15,7 +15,7 @@
 #define USB_BMREQUEST_DIR_HOST_TO_DEVICE 0x0
 #define USB_BMREQUEST_DIR_DEVICE_TO_HOST 0x1
 
-#define USB_BMREQUEST_TYPE_STANDART 0x0
+#define USB_BMREQUEST_TYPE_STANDARD 0x0
 #define USB_BMREQUEST_TYPE_CLASS    0x1
 #define USB_BMREQUEST_TYPE_VENDOR   0x2
 #define USB_BMREQUEST_TYPE_RESERVED 0x3
@@ -217,7 +217,7 @@ void usb_manage_setup_packet() {
   udp_csr_clear_flag(0, AT91C_UDP_RXSETUP);
 
   if (packet.bmRequestType.details.direction    == USB_BMREQUEST_DIR_DEVICE_TO_HOST
-      && packet.bmRequestType.details.type      == USB_BMREQUEST_TYPE_STANDART
+      && packet.bmRequestType.details.type      == USB_BMREQUEST_TYPE_STANDARD
       && packet.bmRequestType.details.recipient == USB_BMREQUEST_REC_DEVICE
       && packet.bRequest == USB_BREQUEST_GET_DESCRIPTOR)
     {
