@@ -6,6 +6,7 @@ void tests_sound();
 void tests_display();
 void tests_time();
 void tests_sysinfo();
+void tests_sensors();
 void tests_tachy();
 
 void tests_all();

@@ -12,6 +12,7 @@
 #include "display.h"
 #include "sound.h"
 #include "memmap.h"
+#include "sensors.h"
 #include "motors.h"
 
 static bool test_silent = FALSE;
@@ -183,6 +184,42 @@ void tests_tachy() {
 }
 
 
+void tests_sensors() {
+  U32 i;
+  const U32 display_seconds = 15;
+  hello();
+
+  sensors_analog_enable(0);
+
+  for (i=0; i<(display_seconds*4); i++) {
+    display_clear();
+    display_cursor_set_pos(0,0);
+    display_string("- Sensor  info -\n"
+                   "----------------\n");
+
+    display_string("Port 1: ");
+    display_uint(sensors_analog_get(0));
+    display_end_line();
+
+    display_string("Port 2: ");
+    display_uint(sensors_analog_get(1));
+    display_end_line();
+
+    display_string("Port 3: ");
+    display_uint(sensors_analog_get(2));
+    display_end_line();
+
+    display_string("Port 4: ");
+    display_uint(sensors_analog_get(3));
+    display_end_line();
+
+    systick_wait_ms(250);
+  }
+
+  goodbye();
+}
+
+
 void tests_sysinfo() {
   U32 i, t;
   const U32 display_seconds = 15;
@@ -238,6 +275,7 @@ void tests_all() {
   tests_sound();
   tests_motor();
   tests_tachy();
+  tests_sensors();
   tests_sysinfo();
 
   test_silent = FALSE;

@@ -1,8 +1,8 @@
 TARGET = nxtos
 BUILD_DIR = build
 
-C_SOURCES = aic.c systick.c twi.c sound.c avr.c lcd.c display.c motors.c sensors.c \
-	util.c main.c tests.c usb.c
+C_SOURCES = aic.c systick.c twi.c sound.c avr.c lcd.c display.c motors.c \
+	sensors.c util.c main.c tests.c usb.c
 S_SOURCES = init.S interrupts.S vectors.S lock.S
 FONT_FILE = data/font.8x5.png
 
@@ -33,7 +33,8 @@ CFLAGS = -c -ffreestanding -fsigned-char -mcpu=arm7tdmi $(OPT_FLAGS) \
          -Wall -Werror -I. -msoft-float -mthumb-interwork -mthumb \
          -ffunction-sections -fdata-sections
 
-ASFLAGS = -Wall -Werror $(OPT_FLAGS) -Wa,-mcpu=arm7tdmi,-mfpu=softfpa,-mthumb-interwork
+ASFLAGS = -Wall -Werror $(OPT_FLAGS) \
+	-Wa,-mcpu=arm7tdmi,-mfpu=softfpa,-mthumb-interwork
 
 LIBS = $(LIBGCC)
 LDFLAGS = $(OPT_FLAGS) -Map $@.map -cref --gc-sections
