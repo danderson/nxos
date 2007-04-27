@@ -9,25 +9,49 @@
 
 #include "usb.h"
 
+#define MIN(x, y) (x < y ? x : y)
+
+
+
+/* number of endpoints ; there are 4, but we will only
+ * use 3 of them */
+#define NMB_ENDPOINTS 4
+
+
+/* max packet size in reception for each endpoint */
+#define MAX_RCV_SIZE 64
+
+/* max packet size when we send data */
+#define MAX_SND_SIZE 8
+
 
 /* used in setup packets : */
 
-#define USB_BMREQUEST_DIR_HOST_TO_DEVICE 0x0
-#define USB_BMREQUEST_DIR_DEVICE_TO_HOST 0x1
+/* see 'bmRequestType' in the specs of a setup packet
+ * H_TO_D == Host to Device
+ * D_TO_H == Device to Host
+ * STD    == Type : Standart
+ * CLS    == Type : Class
+ * VDR    == Type : Vendor
+ * RSV    == Type : Reserved
+ * DEV    == Recipient : Device
+ * INT    == Recipient : Interface
+ * EPT    == Recipient : Endpoint
+ * OTH    == Recipient : Other
+ */
+#define USB_BMREQUEST_D_TO_H         0x80
 
-#define USB_BMREQUEST_TYPE_STANDARD 0x0
-#define USB_BMREQUEST_TYPE_CLASS    0x1
-#define USB_BMREQUEST_TYPE_VENDOR   0x2
-#define USB_BMREQUEST_TYPE_RESERVED 0x3
-
-#define USB_BMREQUEST_REC_DEVICE    0x0
-#define USB_BMREQUEST_REC_INTERFACE 0x1
-#define USB_BMREQUEST_REC_ENDPOINT  0x2
-#define USB_BMREQUEST_REC_OTHER     0x4
+#define USB_BMREQUEST_H_TO_D_STD_DEV 0x0
+#define USB_BMREQUEST_D_TO_H_STD_DEV 0x80
+/* ... */
 
 #define USB_BREQUEST_SET_INTERFACE   0xB
 #define USB_BREQUEST_GET_DESCRIPTOR  0x6
 
+#define USB_WVALUE_TYPE        (0xFF << 8)
+#define USB_WVALUE_TYPE_DEVICE 1 << 8
+#define USB_WVALUE_TYPE_CONFIG 2 << 8
+#define USB_WVALUE_INDEX       0xFF
 
 
 /*
@@ -53,25 +77,34 @@ typedef struct usb_desc_header {
 static const struct {
   usb_desc_header_t header;
 
-  U16 bcdUsb;          /* USB Specification Number which device complies too ;
-			* 0x0200 (usb 2) */
-  U8  bDeviceClass;    /* Class Code ; lejOS : 0 here => specified by the
-			* interface */
-  U8  bDeviceSubClass; /* Sub class code ; lejOS : 0 */
-  U8  bDeviceProtocol; /* (lejOS : 0x00) */
-  U8  bMaxPacketSize;  /* max packet size for the endpoint 0 ;
-			* for the NXT, max = 64 */
-  U16 idVendor;        /* LEGO : 0x0694 */
-  U16 idProduct;       /* LEGO : 0x0002 ; NXTOS : 0xFF00 */
-  U16 bcdDevice;       /* Device release number : NXTOS : 0x0000 */
-  U8  iManufacturer;   /* Index of the manufacturer string descriptor : 0x01 */
-  U8  iProduct;        /* Index of Product String Descriptor : 0x02 */
-  U8  iSerialNumber;   /* Index of Serial Number String Descriptor : 0x03 */
-  U8  bNumConfigurations; /* Number of possible configurations : 0x01 */
+  U16 bcdUsb;          /* USB Specification Number which device complies too */
+  U8  bDeviceClass;    /* Class Code */
+  U8  bDeviceSubClass; /* Sub class code */
+  U8  bDeviceProtocol; /* device protocol */
+  U8  bMaxPacketSize;  /* max packet size for the endpoint 0 */
+  U16 idVendor;
+  U16 idProduct;
+  U16 bcdDevice;       /* Device release number */
+  U8  iManufacturer;   /* Index of manufacturer string descriptor */
+  U8  iProduct;        /* Index of Product String Descriptor */
+  U8  iSerialNumber;   /* Index of Serial Number String Descriptor */
+  U8  bNumConfigurations; /* Number of possible configurations */
 
 } usb_dev_desc = {
-  { 0 },
-  0
+  { 18, 1 }, /* header */
+  0x0200, /* bcdUsb : USB 2.0 */
+  0, /* class code : => specified by the interface  */
+  0, /* sub class code */
+  0, /* device protocol */
+  MAX_RCV_SIZE, /* max packet size for the end point 0 :
+		 * all the endpoint of the nxt can take 64 bytes */
+  0x0694, /* idVendor : LEGO */
+  0xFF00, /* idProduct : NXTOS */
+  0, /* bcdDevice */
+  0, /* index of manufacturer string */
+  0, /* index of product string */
+  0, /* index of serial number => none */
+  1, /* number of possible configuration */
 };
 
 
@@ -117,19 +150,7 @@ static const struct {
 
 
 typedef struct usb_setup_packet {
-  /* bmRequestType is a bit map, so with this union
-   * I can easily parse it
-   */
-  union {
-    struct {
-      U8  recipient:5;
-      U8  type     :2;
-      U8  direction:1;
-    } details;
-
-    U8 whole;
-  } bmRequestType;
-
+  U8  bmRequestType;  /* bit field : see the specs */
   U8  bRequest;      /* request */
   U16 wValue;        /* value */
   U16 wIndex;        /* index */
@@ -151,46 +172,62 @@ static volatile struct {
   U32 x;
   U32 y;
 
-} usb_state;
+
+  /* ds == Data to send */
+  /* ds_data : last position of the data pointer */
+  U8 *ds_data[NMB_ENDPOINTS];
+  /* ds_length : data remaining to send */
+  U32 ds_length[NMB_ENDPOINTS];
+
+} usb_state = {
+  0
+};
 
 
 
 
 
-/* THESE two functions are recommended by the ATMEL doc (34.6.10) */
+/* These two functions are recommended by the ATMEL doc (34.6.10) */
 //! Clear flags of UDP UDP_CSR register and waits for synchronization
-static inline void udp_csr_clear_flag(U8 endpoint, U32 flags)
+static inline void usb_csr_clear_flag(U8 endpoint, U32 flags)
 {
   AT91C_UDP_CSR[endpoint] &= ~(flags);
-  while (AT91C_UDP_CSR[endpoint] & (flags));
+  //while (AT91C_UDP_CSR[endpoint] & (flags));
 }
 
 //! Set flags of UDP UDP_CSR register and waits for synchronization
-static inline void udp_csr_set_flag(U8 endpoint, U32 flags)
+static inline void usb_csr_set_flag(U8 endpoint, U32 flags)
 {
   AT91C_UDP_CSR[endpoint] |= (flags);
-  while ( (AT91C_UDP_CSR[endpoint] & (flags)) != (flags) );
+  //while ( (AT91C_UDP_CSR[endpoint] & (flags)) != (flags) );
 }
 
 
 
 
 
-static inline void usb_send_null() {
-  /* we tell to the controller that we put something in the FIFO
-   */
-  AT91C_UDP_CSR[0] |= AT91C_UDP_TXPKTRDY;
+static void usb_send_data(int endpoint, U8 *ptr, U32 length) {
+  U32 packet_size;
 
-  while ( !((AT91C_UDP_CSR[0]) & AT91C_UDP_TXCOMP));
+  /* we can't send more than MAX_SND_SIZE each time */
+  packet_size = MIN(MAX_SND_SIZE, length);
 
-  udp_csr_clear_flag(0, AT91C_UDP_TXCOMP);
+  length -= packet_size;
+
+  /* we put the packet in the fifo */
+  while(packet_size--) {
+    AT91C_UDP_FDR[0] = *ptr++;
+  }
+
+  /* we prepare the next sending */
+  usb_state.ds_data[endpoint]   = ptr;
+  usb_state.ds_length[endpoint] = length;
+  usb_state.y = 1;
+
+  /* and next we tell the controller to send what is in the fifo */
+  usb_csr_set_flag(endpoint, AT91C_UDP_TXPKTRDY);
 }
 
-
-static inline void usb_send_stall() {
-  udp_csr_set_flag(0, AT91C_UDP_FORCESTALL);
-  udp_csr_clear_flag(0, AT91C_UDP_FORCESTALL | AT91C_UDP_ISOERROR);
-}
 
 
 
@@ -198,32 +235,51 @@ static inline void usb_send_stall() {
  * this function is called when
  * we receive a setup packet
  */
-void usb_manage_setup_packet() {
-  /* strangly, the value RXBYTECNT from the register UDP_CSR0
-   * is set to 0, but there are data in the fifo
-   */
-
+static void usb_manage_setup_packet() {
   usb_setup_packet_t packet;
 
   /* setup packet are always received
    * on the endpoint 0 */
-  packet.bmRequestType.whole = AT91C_UDP_FDR[0];
+  packet.bmRequestType = AT91C_UDP_FDR[0];
   packet.bRequest      = AT91C_UDP_FDR[0];
   packet.wValue        = (AT91C_UDP_FDR[0] & 0xFF) | (AT91C_UDP_FDR[0] << 8);
   packet.wIndex        = (AT91C_UDP_FDR[0] & 0xFF) | (AT91C_UDP_FDR[0] << 8);
   packet.wLength       = (AT91C_UDP_FDR[0] & 0xFF) | (AT91C_UDP_FDR[0] << 8);
 
 
-  udp_csr_clear_flag(0, AT91C_UDP_RXSETUP);
+  usb_csr_clear_flag(0, AT91C_UDP_RX_DATA_BK0);
+  usb_csr_clear_flag(0, AT91C_UDP_RXSETUP);
 
-  if (packet.bmRequestType.details.direction    == USB_BMREQUEST_DIR_DEVICE_TO_HOST
-      && packet.bmRequestType.details.type      == USB_BMREQUEST_TYPE_STANDARD
-      && packet.bmRequestType.details.recipient == USB_BMREQUEST_REC_DEVICE
+  if (packet.bmRequestType == USB_BMREQUEST_D_TO_H) {
+    usb_csr_set_flag(0, AT91C_UDP_DIR); /* we change the direction */
+  }
+
+
+
+  if (packet.bmRequestType == USB_BMREQUEST_D_TO_H_STD_DEV
       && packet.bRequest == USB_BREQUEST_GET_DESCRIPTOR)
     {
-      /* TODO */
+
+      if ((packet.wValue & USB_WVALUE_TYPE) == USB_WVALUE_TYPE_DEVICE) {
+	usb_send_data(0, (U8 *)(&usb_dev_desc),
+		      MIN(sizeof(usb_dev_desc), packet.wLength));
+
+      } else if ((packet.wValue & USB_WVALUE_TYPE) == USB_WVALUE_TYPE_CONFIG) {
+
+	usb_state.x = packet.bmRequestType;
+	usb_state.y = 1;
+
+      }
+
     }
+  else
+    {
+      //usb_state.x = packet.bmRequestType;
+      //usb_state.y = packet.bRequest;
+    }
+
 }
+
 
 
 
@@ -231,46 +287,52 @@ void usb_manage_setup_packet() {
 static void usb_isr() {
   U8 endpoint = 127;
 
-
   usb_state.nmb_int++;
-  usb_state.last_isr = systick_get_ms();
-  usb_state.last_udp_isr = *AT91C_UDP_ISR;
-  usb_state.last_udp_csr0 = AT91C_UDP_CSR[0];
-  usb_state.last_udp_csr1 = AT91C_UDP_CSR[1];
-
-
-
-  if (*AT91C_UDP_ISR & AT91C_UDP_EPINT0) {
-    endpoint = 0;
-  } else if (*AT91C_UDP_ISR & AT91C_UDP_EPINT1) {
-    endpoint = 1;
-  } else if (*AT91C_UDP_ISR & AT91C_UDP_EPINT2) {
-    endpoint = 2;
-  } else if (*AT91C_UDP_ISR & AT91C_UDP_EPINT3) {
-    endpoint = 3;
-  }
+  usb_state.last_isr      =  systick_get_ms();
+  usb_state.last_udp_isr  = *AT91C_UDP_ISR;
+  usb_state.last_udp_csr0 =  AT91C_UDP_CSR[0];
+  usb_state.last_udp_csr1 =  AT91C_UDP_CSR[1];
 
 
   if (*AT91C_UDP_ISR & AT91C_UDP_ENDBUSRES) {
+
+    /* we ack all these interruptions */
+    *AT91C_UDP_ICR = AT91C_UDP_ENDBUSRES;
+    *AT91C_UDP_ICR = AT91C_UDP_RXSUSP; /* suspend */
+    *AT91C_UDP_ICR = AT91C_UDP_RXRSM; /* resume */
+
     /* we reset the end points */
     *AT91C_UDP_RSTEP = ~0;
     *AT91C_UDP_RSTEP = 0;
 
-    /* we activate the 'function' ?! */
+    /* we activate the "function" (?!) */
     *AT91C_UDP_FADDR = AT91C_UDP_FEN;
 
-    /* then we activate the irq for the end point 0 */
+    /* then we activate the irq for the end point 0 (and only for this one) */
+    *AT91C_UDP_IDR = ~0;
     *AT91C_UDP_IER |= 0x1;
 
-    /* we must activate the end point 0  & parameter it */
+    /* we must activate the end point 0  & configure it */
     AT91C_UDP_CSR[0] = AT91C_UDP_EPEDS | AT91C_UDP_EPTYPE_CTRL;
 
-    /* we ack the endbusres interruption */
-    *AT91C_UDP_ICR = AT91C_UDP_ENDBUSRES;
 
     return;
   }
 
+
+  if (*AT91C_UDP_ISR & AT91C_UDP_RXSUSP) {
+    *AT91C_UDP_ICR = AT91C_UDP_RXSUSP;
+  }
+
+  if (*AT91C_UDP_ISR & AT91C_UDP_RXRSM) {
+    *AT91C_UDP_ICR = AT91C_UDP_RXRSM;
+  }
+
+
+  for (endpoint = 0; endpoint < NMB_ENDPOINTS ; endpoint++) {
+    if (*AT91C_UDP_ISR & (1 << endpoint))
+      break;
+  }
 
 
   if (endpoint == 0) {
@@ -278,25 +340,46 @@ static void usb_isr() {
 
     if (AT91C_UDP_CSR[0] & AT91C_UDP_RXSETUP) {
       usb_manage_setup_packet();
+      return;
+    }
+  }
+
+
+  if (endpoint < NMB_ENDPOINTS) { /* if an endpoint was specified */
+    if (AT91C_UDP_CSR[endpoint] & AT91C_UDP_TXCOMP) {
+      /* then it means that we sent a data and the host has acknowledged it */
+
+      /* so first we will reset this flag */
+      usb_csr_clear_flag(endpoint, AT91C_UDP_TXCOMP);
+
+      /* and we will send the following data */
+      if (usb_state.ds_length > 0)
+	usb_send_data(endpoint, usb_state.ds_data[endpoint],
+		      usb_state.ds_length[endpoint]);
+
+      return;
     }
 
-    return;
   }
+
 
   /* if we are here, it means we don't know what to do
    * with the interruption, so we simply ack it */
   *AT91C_UDP_ICR = *AT91C_UDP_ISR; /* << this is evil :P */
+}
+
+
+
+void usb_send(const U8 *data, U32 length) {
+
 
 }
 
 
+
+
 void usb_disable() {
-  usb_state.nmb_int = 0;
-  usb_state.last_udp_isr  = 0;
-  usb_state.last_udp_csr0 = 0;
-  usb_state.last_udp_csr1 = 0;
-  usb_state.x = 0;
-  usb_state.y = 0;
+
 }
 
 
@@ -327,12 +410,11 @@ void usb_init() {
   /* Install the interruption routine */
 
   /* the first interruption we will get is an ENDBUSRES
-   * this interruption is always emit (can't be disable with UDP_IER
+   * this interruption is always emit (can't be disable with UDP_IER)
    */
   /* other interruptions will be enabled when needed */
-  aic_clear(AT91C_ID_UDP);
   aic_install_isr(AT91C_ID_UDP, AIC_PRIO_DRIVER,
-                  AIC_TRIG_LEVEL, usb_isr);
+		  AIC_TRIG_EDGE, usb_isr);
 
 
   interrupts_enable();
@@ -340,9 +422,7 @@ void usb_init() {
 
   /* Enable the UDP pull up by outputting a zero on PA.16 */
   /* Enabling the pull up will tell to the host (the computer) that
-   * we are ready for a communication (are we ?)
-   * How do I know it's PA.16 who must be used ? I don't, I looked at Lejos
-   * source code (and they probably looked at Lego source code ... :)
+   * we are ready for a communication
    */
   *AT91C_PIOA_PER = (1 << 16);
   *AT91C_PIOA_OER = (1 << 16);

@@ -4,11 +4,12 @@
 #include "mytypes.h"
 
 
-/* see atmel documentation, p448 */
-#define MAX_ENDPOINT_SIZE 64
 
 void usb_init();
 void usb_disable();
+
+void usb_send(const U8 *data, U32 length);
+
 void usb_test();
 
 #endif
