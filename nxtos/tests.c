@@ -184,23 +184,24 @@ void tests_tachy() {
 
 
 void tests_sysinfo() {
-  int i, t;
+  U32 i, t;
+  const U32 display_seconds = 15;
+  U8 avr_major, avr_minor;
   hello();
 
-  for (i=0; i<10; i++) {
-    t = systick_get_ms();
+  avr_get_version(&avr_major, &avr_minor);
+
+  for (i=0; i<(display_seconds*4); i++) {
+    if (i % 4 == 0)
+      t = systick_get_ms();
 
     display_clear();
     display_cursor_set_pos(0,0);
     display_string("- System  info -\n"
                    "----------------\n");
-    display_end_line();
 
     display_string("Time  : ");
     display_uint(t);
-    display_end_line();
-    display_string(" (hex): ");
-    display_hex(t);
     display_end_line();
 
     display_string("Boot from ");
@@ -214,7 +215,16 @@ void tests_sysinfo() {
     display_uint(USERSPACE_SIZE);
     display_end_line();
 
-    systick_wait_ms(1000);
+    display_string("Buttons: ");
+    display_uint(avr_get_button());
+    display_end_line();
+
+    display_string("AVR Ver.: ");
+    display_uint(avr_major);
+    display_string(".");
+    display_uint(avr_minor);
+
+    systick_wait_ms(250);
   }
 
   goodbye();

@@ -168,7 +168,7 @@ void motors_stop(U8 motor, bool brake) {
     return;
 
   motors_state[motor].mode = MOTOR_STOP;
-  avr_set_motor(motor, 0, (brake ? 1: 0));
+  avr_set_motor(motor, 0, brake);
 }
 
 
@@ -191,7 +191,7 @@ void motors_rotate(U8 motor, S8 speed) {
    * mode and fire up the motor.
    */
   motors_state[motor].mode = MOTOR_ON_CONTINUOUS;
-  avr_set_motor(motor, speed, 0);
+  avr_set_motor(motor, speed, FALSE);
 }
 
 
@@ -237,7 +237,7 @@ void motors_rotate_angle(U8 motor, S8 speed, U32 angle, bool brake) {
    */
   motors_state[motor].brake = brake;
   motors_state[motor].mode = MOTOR_ON_ANGLE;
-  avr_set_motor(motor, speed, 0);
+  avr_set_motor(motor, speed, FALSE);
 }
 
 
@@ -277,7 +277,7 @@ void motors_rotate_time(U8 motor, S8 speed, U32 ms, bool brake) {
    */
   motors_state[motor].brake = brake;
   motors_state[motor].mode = MOTOR_ON_TIME;
-  avr_set_motor(motor, speed, 0);
+  avr_set_motor(motor, speed, FALSE);
 }
 
 

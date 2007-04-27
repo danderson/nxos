@@ -3,13 +3,27 @@
 
 #include "mytypes.h"
 
+typedef enum {
+  BUTTON_NONE = 0,
+  BUTTON_OK,
+  BUTTON_CANCEL,
+  BUTTON_LEFT,
+  BUTTON_RIGHT,
+} avr_button_t;
+
 void avr_init();
 void avr_1kHz_update();
-void avr_set_motor(U32 n, int power_percent, int brake);
+
 void avr_power_down();
-U32 avr_buttons_get();
-U32 avr_battery_voltage();
-U32 avr_sensor_adc(U32 n);
-void avr_set_input_power(U32 n, U32 power_type);
+void avr_firmware_update_mode();
+
+avr_button_t avr_get_button();
+U32 avr_get_battery_voltage();
+bool avr_battery_is_aa();
+U32 avr_get_sensor_value(U32 sensor);
+void avr_get_version(U8 *major, U8 *minor);
+
+void avr_set_motor(U32 motor, int power_percent, bool brake);
+void avr_set_input_power(U32 sensor, U32 power_type);
 
 #endif
