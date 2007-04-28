@@ -283,7 +283,7 @@ static volatile struct {
    * The first buffer is put into the second
    * one when the application flush the second buffer
    */
-  U8  dr_buffer[2][USB_BUFFER_SIZE];
+  U8  dr_buffer[2][USB_BUFFER_SIZE+1];
   U16 dr_buffer_used[2]; /* data size waiting in the buffer */
   U8  dr_overloaded;
 
@@ -330,9 +330,6 @@ static void usb_send_data(int endpoint, U8 *ptr, U32 length) {
 
   length -= packet_size;
 
-  if (packet_size > 0 && endpoint > 0)
-    usb_state.usb_status = USB_STATUS_WRITED_SOMETHING;
-
   /* we put the packet in the fifo */
   while(packet_size) {
     AT91C_UDP_FDR[endpoint] = *ptr;
@@ -340,8 +337,11 @@ static void usb_send_data(int endpoint, U8 *ptr, U32 length) {
     packet_size--;
   }
 
+  if (endpoint > 0)
+    usb_state.usb_status = USB_STATUS_WRITED_SOMETHING;
+
   /* we prepare the next sending */
-  usb_state.ds_data[endpoint]   = ptr;
+  usb_state.ds_data[endpoint]   = length ? ptr : NULL;
   usb_state.ds_length[endpoint] = length;
 
   /* and next we tell the controller to send what is in the fifo */
@@ -383,6 +383,8 @@ static void usb_read_data(int endpoint) {
     /* we read the data, and put them in the buffer */
     for (i = 0 ; i < total; i++)
       usb_state.dr_buffer[buf][i] = AT91C_UDP_FDR[1];
+
+    usb_state.dr_buffer[buf][i+1] = '\0';
 
     /* and then we tell the controller that we read the FIFO */
     usb_csr_clear_flag(1, usb_state.current_rx_bank);
@@ -684,7 +686,9 @@ static void usb_isr() {
       usb_csr_clear_flag(endpoint, AT91C_UDP_TXCOMP);
 
       /* and we will send the following data */
-      if (usb_state.ds_length > 0) {
+      if (usb_state.ds_length[endpoint] > 0
+	  && usb_state.ds_data[endpoint] != NULL) {
+
 	usb_send_data(endpoint, usb_state.ds_data[endpoint],
 		      usb_state.ds_length[endpoint]);
       }

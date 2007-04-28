@@ -269,6 +269,36 @@ void tests_sysinfo() {
 }
 
 
+/* returns 1 if they are identic
+ * 0 else
+ */
+static U8 compare(char *str_a, char *str_b, U32 max)
+{
+  while (*str_a != '\0'
+	 && *str_b != '\0'
+	 && max > 0)
+    {
+      if (*str_a != *str_b)
+	return 0;
+      str_a++;
+      str_b++;
+      max--;
+    }
+
+  if (*str_a != *str_b)
+    return 0;
+
+  return 1;
+}
+
+
+#define USB_HELP \
+"Help:\n" \
+" - Kikoo\n"
+
+#define USB_UNKNOWN \
+"Unknown command\n"
+
 void tests_usb() {
   U16 i;
   char *buffer;
@@ -291,6 +321,7 @@ void tests_usb() {
 
     i = usb_has_data();
 
+
     display_cursor_set_pos(0, 0);
     display_string("==");
     display_uint(i);
@@ -298,16 +329,21 @@ void tests_usb() {
     display_cursor_set_pos(0, 1);
     display_string(buffer);
 
-    usb_send((U8 *)"OK\n", 4);
+    display_cursor_set_pos(0, 2);
+    display_hex((U32)(USB_UNKNOWN));
+
+    /* Start interpreting */
+
+    if (compare(buffer, "help\n", 5))
+      usb_send((U8 *)USB_HELP, sizeof(USB_HELP));
+    else
+      usb_send((U8 *)USB_UNKNOWN, sizeof(USB_UNKNOWN));
+
+    /* Stop interpreting */
 
     systick_wait_ms(2000);
 
     display_clear();
-
-    /* Start interpreting */
-
-
-    /* Stop interpreting */
 
     usb_flush_buffer();
 
