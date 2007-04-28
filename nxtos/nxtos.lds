@@ -34,7 +34,7 @@ RAM_SIZE = 64k;
 
 SECTIONS {
   .reserved : {
-    . = (64k - 10k - 64);
+    . = (64k - 15k - 64);
   } > ram
 
   __userspace_start__ = ADDR(.reserved);
