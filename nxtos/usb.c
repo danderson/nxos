@@ -86,7 +86,7 @@
 /*
  * device descriptor
  */
-static U8 usb_dev_desc[] = {
+static const U8 usb_dev_desc[] = {
   18, USB_DESC_TYPE_DEVICE, /* header :
 			     * packet size: 18 ;
 			     * type : device description */
@@ -110,7 +110,7 @@ static U8 usb_dev_desc[] = {
 
 
 
-static U8 usb_nxtos_full_config[] = {
+static const U8 usb_nxtos_full_config[] = {
   /* configuration packet :
    * describe a configuration
    * only one is used with nxtos
@@ -220,7 +220,7 @@ static U8 usb_nxtos_full_config[] = {
  * string descriptor
  * explain to the host that we only speak english
  */
-static U8 usb_string_desc[] = {
+static const U8 usb_string_desc[] = {
   4, /* b_length */
   0x03, /* b_descriptor_type */
   0x09, 0x08 /* English (UK) */
@@ -230,14 +230,14 @@ static U8 usb_string_desc[] = {
  * b_length = 2 (header) + strlen(str) + 1 ('\0')
  * type = 0x03
  */
-static U8 usb_lego_str[] =
+static const U8 usb_lego_str[] =
   { 2+4+1, USB_DESC_TYPE_STR, 'L', 'E', 'G', 'O', '\0' };
 
-static U8 usb_nxt_str[] =
+static const U8 usb_nxt_str[] =
   { 2+3+1, USB_DESC_TYPE_STR, 'N', 'X', 'T', '\0' };
 
 
-static U8 *usb_strings[] = {
+static const U8 *usb_strings[] = {
   usb_lego_str,
   usb_nxt_str
 };
@@ -318,7 +318,7 @@ static inline void usb_csr_set_flag(U8 endpoint, U32 flags)
 
 
 
-static void usb_send_data(int endpoint, U8 *ptr, U32 length) {
+static void usb_send_data(int endpoint, const U8 *ptr, U32 length) {
   U32 packet_size;
 
   /* we can't send more than MAX_SND_SIZE each time */
@@ -341,13 +341,12 @@ static void usb_send_data(int endpoint, U8 *ptr, U32 length) {
     usb_state.usb_status = USB_STATUS_WRITED_SOMETHING;
 
   /* we prepare the next sending */
-  usb_state.ds_data[endpoint]   = length ? ptr : NULL;
+  usb_state.ds_data[endpoint]   = length ? (U8 *)ptr : NULL;
   usb_state.ds_length[endpoint] = length;
 
   /* and next we tell the controller to send what is in the fifo */
   usb_csr_set_flag(endpoint, AT91C_UDP_TXPKTRDY);
 
-  //AT91C_UDP_CSR[endpoint] &= ~(AT91C_UDP_RX_DATA_BK0);
 }
 
 
@@ -433,6 +432,7 @@ static void usb_send_null() {
 static void usb_manage_setup_packet() {
   usb_setup_packet_t packet;
   U16 value16;
+  U32 size;
   U8 index;
 
 
@@ -510,8 +510,9 @@ static void usb_manage_setup_packet() {
 	{
 	case (USB_DESC_TYPE_DEVICE):
 	  /* it wants infos about the device */
+	  size = usb_dev_desc[0];
 	  usb_send_data(0, usb_dev_desc,
-			MIN(usb_dev_desc[0], packet.w_length));
+			MIN(size, packet.w_length));
 	  break;
 
 	case (USB_DESC_TYPE_CONFIG):

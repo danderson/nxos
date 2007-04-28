@@ -16,6 +16,7 @@
 #include "motors.h"
 #include "usb.h"
 
+
 static bool test_silent = FALSE;
 
 static void hello() {
@@ -269,38 +270,41 @@ void tests_sysinfo() {
 }
 
 
+
 /* returns 1 if they are identic
  * 0 else
  */
-static U8 compare(char *str_a, char *str_b, U32 max)
+static U8 compare_str(char *str_a, char *str_b, U32 max)
 {
+
   while (*str_a != '\0'
 	 && *str_b != '\0'
 	 && max > 0)
     {
-      if (*str_a != *str_b)
+      if (*str_a != *str_b) {
 	return 0;
+      }
       str_a++;
       str_b++;
       max--;
     }
 
-  if (*str_a != *str_b)
+  if (*str_a != *str_b && max > 0) {
     return 0;
+  }
 
   return 1;
 }
 
 
-#define USB_HELP \
-"Help:\n" \
-" - Kikoo\n"
+#define USB_UNKNOWN "Unknown"
+#define USB_OK      "Ok"
 
-#define USB_UNKNOWN \
-"Unknown command\n"
+void tests_all();
 
 void tests_usb() {
   U16 i;
+  U32 lng;
   char *buffer;
 
   hello();
@@ -308,7 +312,7 @@ void tests_usb() {
   buffer = (char *)usb_get_buffer();
 
   while(1) {
-    for (i = 0 ; i < 100 && !usb_has_data(); i++)
+    for (i = 0 ; i < 500 && !usb_has_data(); i++)
     {
       //display_clear();
       display_cursor_set_pos(0, 0);
@@ -316,15 +320,15 @@ void tests_usb() {
       systick_wait_ms(200);
     }
 
-    if (i >= 100)
+    if (i >= 500)
       break;
 
-    i = usb_has_data();
+    lng = usb_has_data();
 
 
     display_cursor_set_pos(0, 0);
     display_string("==");
-    display_uint(i);
+    display_uint(lng);
 
     display_cursor_set_pos(0, 1);
     display_string(buffer);
@@ -334,14 +338,34 @@ void tests_usb() {
 
     /* Start interpreting */
 
-    if (compare(buffer, "help\n", 5))
-      usb_send((U8 *)USB_HELP, sizeof(USB_HELP));
-    else
+    i = 0;
+    if (compare_str(buffer, "motor", lng))
+      tests_motor();
+    else if (compare_str(buffer, "sound", lng))
+      tests_sound();
+    else if (compare_str(buffer, "display", lng))
+      tests_display();
+    else if (compare_str(buffer, "sysinfo", lng))
+      tests_sysinfo();
+    else if (compare_str(buffer, "sensors", lng))
+      tests_sensors();
+    else if (compare_str(buffer, "tachy", lng))
+      tests_tachy();
+    else if (compare_str(buffer, "all", lng))
+      tests_all();
+    else if (compare_str(buffer, "halt", lng))
+      break;
+    else {
+      i = 1;
       usb_send((U8 *)USB_UNKNOWN, sizeof(USB_UNKNOWN));
+    }
+
+    if (i == 0)
+      usb_send((U8 *)USB_OK, sizeof(USB_OK));
 
     /* Stop interpreting */
 
-    systick_wait_ms(2000);
+    systick_wait_ms(500);
 
     display_clear();
 
