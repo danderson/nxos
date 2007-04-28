@@ -80,216 +80,138 @@
 /*** OUTPUT DATA (from the NXT PoV) ****/
 
 
-/*
- * header common to all the usb descriptors (device, configuration, interface,
- * endpoint)
- */
-typedef struct usb_desc_header {
-  U8 b_length; /* length of the descriptor ; this whole header is counted in the
-	       * size ! */
-  U8 b_description_type; /* type of the descriptor */
-} usb_desc_header_t;
 
 
 
 /*
  * device descriptor
- * only one is used by nxtos
- * b_length = 18;
- * b_description_type = 0x1;
  */
-static const struct {
-  usb_desc_header_t header;
-
-  U16 bcd_usb;          /* USB Specification Number which device complies too */
-  U8  b_device_class;    /* Class Code */
-  U8  b_device_sub_class; /* Sub class code */
-  U8  b_device_protocol; /* device protocol */
-  U8  b_max_packet_size;  /* max packet size for the endpoint 0 */
-  U16 id_vendor;
-  U16 id_product;
-  U16 bcd_device;       /* Device release number */
-  U8  i_manufacturer;   /* Index of manufacturer string descriptor */
-  U8  i_product;        /* Index of Product String Descriptor */
-  U8  i_serial_number;   /* Index of Serial Number String Descriptor */
-  U8  b_num_configurations; /* Number of possible configurations */
-
-} usb_dev_desc = {
-
-  { 18, USB_DESC_TYPE_DEVICE }, /* header */
-  0x0200, /* bcd_usb : USB 2.0 */
-  2, /* class code : => specified by the interface  */
-  0, /* sub class code */
-  0, /* device protocol */
+static U8 usb_dev_desc[] = {
+  18, USB_DESC_TYPE_DEVICE, /* header :
+			     * packet size: 18 ;
+			     * type : device description */
+  0x00, 0x20, /* bcd_usb :
+	       * USB Specification Number which device complies to
+	       * Here : USB 2.0 */
+  2, /* Class code */
+  0, /* Sub class code */
+  0, /* Device protocol */
   MAX_ENDPT0_SIZE, /* max packet size for the end point 0 */
-  0x0694, /* id_vendor : LEGO */
-  0xFF00, /* id_product : NXTOS */
-  0, /* bcd_device */
-  1, /* index of manufacturer string */
-  2, /* index of product string */
-  0, /* index of serial number => none */
-  1, /* number of possible configuration */
+  0x94, 0x06, /* id_vendor : LEGO */
+  0x00, 0xFF, /* id_product : NXTOS */
+  0, 0, /* bcd_device (~ revision of the product) */
+  1, /* i_manufacturer : index of manufacturer string */
+  2, /* i_product : index of product string */
+  0, /* i_serial_number : index of serial number (here : none) */
+  1, /* b_num_configurations : number of possible config */
 };
 
 
-/*
- * describe a configuration
- * only one is used with nxtos
- * b_length = 9
- * b_descriptor_type = 0x02
- */
-typedef struct usb_config_desc {
-  usb_desc_header_t header;
 
-  U16 w_total_length;   /* Total length in bytes of data returned */
-  U8  b_num_interfaces; /* Number of Interfaces ; nxtos use only 1 */
-  U8  b_configuration_value; /* Value to use as an argument to select this
-			      * configuration will be used by the computer to select this config */
-  U8  i_configuration;  /* Index of String Descriptor describing this
-		 	 * configuration */
 
+
+static U8 usb_nxtos_full_config[] = {
+  /* configuration packet :
+   * describe a configuration
+   * only one is used with nxtos
+   */
+  0x09, /* b_length : size of the configuration packet */
+  0x02, /* b_descriptor_type : config packet */
+  0x20, 0x00, /* w_total_length
+	       * (here, 9 + 9 + 2*7 = 32)
+	       * sizeof(config packet) +
+	       * nmb interfaces sizeof(interface packet) +
+	       * nmb endpoints * sizeof(endpoint packet)
+	       * Note: if the total length exceed 0xFF, you must adapt
+	       *       the function usb_manage_setup_packet
+	       */
+  0x01, /* b_num_interfaces : number of interfaces */
+  0x01, /* b_configuration_value :
+	 * Value to use as an argument to select this
+	 * configuration will be used by the computer to select this config
+	 */
+  0x00, /* Index of String Descriptor describing this
+	 * configuration */
+
+
+  /* bm_attributes:
+   * Bitmap :
+   *  D7 Reserved, set to 1. (USB 1.0 Bus Powered)
+   *  D6 Self Powered
+   *  D5 Remote Wakeup
+   *  D4..0 Reserved, set to 0.
+   */
 #define BM_ATTR_RESERVED_7    0x80
 #define BM_ATTR_SELF_POWERED  0x40
 #define BM_ATTR_REMOTE_WAKEUP 0x20
 #define BM_ATTR_RESERVED_4_0  0x00
-  U8  bm_attributes;    /* Bitmap :
-			 *  D7 Reserved, set to 1. (USB 1.0 Bus Powered)
-			 *  D6 Self Powered
-			 *  D5 Remote Wakeup
-			 *  D4..0 Reserved, set to 0.*/
-  U8  b_max_power;      /* max power consumption (unit: 2mA) : 0 for the nxt */
-
-  /* the config descriptor is followed by all the other descriptors */
-} usb_config_desc_t;
+  BM_ATTR_RESERVED_7 | BM_ATTR_SELF_POWERED | BM_ATTR_RESERVED_4_0,
+  0, /* b_max_power : max power consumption (unit: 2mA) : 0 for the nxt */
 
 
-/*
- * interface descriptor
- * b_length = 9 bytes
- * b_descriptor_type = 0x04
- */
-typedef struct usb_int_desc {
-  usb_desc_header_t header;
-
-  U8 b_interface_number;    /* number of the given interface (start from 0) */
-  U8 b_alternate_setting;   /* specify alternative interfaces
-			     * (hmm, what if an alternative interface is the interface 0?) */
-  U8 b_num_endpoints;       /* number of endpoints for this interface */
-  U8 b_interface_class;     /* see the device parameter */
-  U8 b_interface_sub_class; /* see the device parameter */
-  U8 b_interface_protocol;  /* see the device parameter */
-  U8 i_interface;           /* Index of String Descriptor describing this
-			     * interface */
-} usb_int_desc_t;
+  /*
+   * interface descriptor
+   */
+  0x9,  /* b_length */
+  0x04, /* b_descriptor_type */
+  0x00, /* b_interface_number */
+  0x00, /* b_alternate_settings */
+  0x2,  /* b_num_endpoints : number of endpoints for this interface
+	 * (end point 0 not counted) */
+  0xFF, /* b_interface_class (see the device descriptor) */
+  0xFF, /* b_interface_sub_class (see the device descriptor) */
+  0xFF, /* b_interface_protocol (see the device descriptor) */
+  0x0,  /* i_interface : Index of String Descriptor describing this interface */
 
 
+  /*
+   * endpoint 1 descriptor
+   */
+  7, /* b_length */
+  USB_DESC_TYPE_ENDPT, /* desc type */
 
-/*
- * endpoint descriptor
- * b_length = 7 bytes;
- * b_description_type = 0x05
- */
-typedef struct usb_endpoint_desc {
-  usb_desc_header_t header;
-
-/* to OR with the endpoint number : */
+  /* b_endpoint_address:
+   * bitmap :
+   * Bits 0..3b Endpoint Number.
+   * Bits 4..6b Reserved. Set to Zero
+   * Bits 7 Direction 0 = Out, 1 = In (Ignored for Control Endpoints)
+   */
 #define B_ENDPOINT_ADDR_DIR_IN       0x80
 #define B_ENDPOINT_ADDR_RESERVED_6_4 0x00
-  U8 b_endpoint_address; /* bitmap :
-			  * Bits 0..3b Endpoint Number.
-			  * Bits 4..6b Reserved. Set to Zero
-			  * Bits 7 Direction 0 = Out, 1 = In (Ignored for Control Endpoints)
-			  */
+  B_ENDPOINT_ADDR_DIR_IN | B_ENDPOINT_ADDR_RESERVED_6_4 | 0x1,
 
+
+  /* bm_attributes:
+   * bitmap again:
+   * Bits 0..1 Transfer Type
+   *  00 = Control ; 01 = Isochronous ; 10 = Bulk ; 11 = Interrupt
+   *
+   * Bits 2..7 are reserved, but if Isochronous endpoint:
+   * - Bits 3..2 = Synchronisation Type (Iso Mode):
+   *   00 = No Synchonisation;01 = Asynchronous;10 = Adaptive;11 = Synchronous
+   * - Bits 5..4 = Usage Type (Iso Mode):
+   *   00 = Data Endpoint;01 = Feedback Endpoint;
+   */
 #define BM_ATTR_ENDPT_CONTROL     0x00
 #define BM_ATTR_ENDPT_ISOCHRONOUS 0x01
 #define BM_ATTR_ENDPT_BULK        0x02
 #define BM_ATTR_ENDPT_INTERRUPT   0x03
-  U8 bm_attributes;      /* bitmap again:
-			  * Bits 0..1 Transfer Type
-			  *  00 = Control ; 01 = Isochronous ; 10 = Bulk ; 11 = Interrupt
-			  *
-			  * Bits 2..7 are reserved, but if Isochronous endpoint:
-			  * - Bits 3..2 = Synchronisation Type (Iso Mode):
-			  *   00 = No Synchonisation;01 = Asynchronous;10 = Adaptive;11 = Synchronous
-			  * - Bits 5..4 = Usage Type (Iso Mode):
-			  *   00 = Data Endpoint;01 = Feedback Endpoint;
-			  *   10 = Explicit Feedback Data Endpoint;11 = Reserved
-			  */
-  U16 w_max_packet_size; /* max packet size */
-  U8 b_interval;         /* Interval for polling endpoint data transfers.
-			  * Value in frame counts. Ignored for Bulk & Control Endpoints.
-			  * Isochronous must equal 1 and field may range from 1 to 255
-			  * for interrupt endpoints.
-			  */
-
-} usb_endpoint_desc_t;
+  BM_ATTR_ENDPT_BULK,
+  MAX_RCV_SIZE, 0x00,      /* w_max_packet_size (64) : Max packet size */
+  0,                  /* b_interval */
 
 
-
-#define FULL_CONFIG_SIZE(nmb_interfaces, nmb_endpoints_per_int) \
- (sizeof(usb_config_desc_t) \
-  + (nmb_interfaces * sizeof(usb_int_desc_t)) \
-  + (nmb_interfaces * nmb_endpoints_per_int * sizeof(usb_endpoint_desc_t)))
-
-
-const static struct {
-  usb_config_desc_t   config;
-  usb_int_desc_t      interfaces[1];
-  usb_endpoint_desc_t endpoints[2];
-
-} usb_nxtos_full_config = {
-
-  /* config */
-  { { 9, USB_DESC_TYPE_CONFIG }, /* header */
-    FULL_CONFIG_SIZE(1, 2), /* w_total_length */
-    1, /* b_num_interfaces */
-    1, /* b_configuration_value */
-    0, /* i_configuration */
-    /* bm_attributes: */
-    BM_ATTR_RESERVED_7 | BM_ATTR_SELF_POWERED | BM_ATTR_RESERVED_4_0,
-    0 /* b_max_power */
-  },
-
-  /* interfaces */
-  { /* interface */
-    {
-      { 9, USB_DESC_TYPE_INT }, /* header */
-      0, /* b_interface_number */
-      0, /* b_alternate_setting */
-      2, /* b_num_endpoints : 1 & 2 ; 0 is forced by the spec */
-      0xFF, /* b_interface_class */
-      0xFF, /* b_interface_sub_class */
-      0xFF, /* b_interface_protocol */
-      0     /* i_interface */
-    }
-  },
-
-
-  /* endpoints */
-  { /* endpoint 0 settings are forced by the specs */
-
-    /* endpoint 1 */
-    {
-      { 7, USB_DESC_TYPE_ENDPT }, /* header */
-      /* b_endpoint_address: */
-      B_ENDPOINT_ADDR_DIR_IN | B_ENDPOINT_ADDR_RESERVED_6_4 | 0x1,
-      BM_ATTR_ENDPT_BULK, /* bm_Attribute */
-      MAX_RCV_SIZE,       /* w_max_packet_size (64) */
-      0,                  /* b_interval */
-    },
-
-    /* endpoint 2 */
-    {
-      { 7, USB_DESC_TYPE_ENDPT }, /* header */
-      /* b_endpoint_address: */
-      B_ENDPOINT_ADDR_RESERVED_6_4 | 0x2,
-      BM_ATTR_ENDPT_BULK, /* bm_Attribute */
-      MAX_SND_SIZE,       /* w_max_packet_size (64) */
-      0,                  /* b_interval */
-    },
-
-  }
+  /*
+   * endpoint 2 descriptor
+   */
+  7, /* b_length */
+  USB_DESC_TYPE_ENDPT, /* desc type */
+  /* b_endpoint_address: */
+  B_ENDPOINT_ADDR_RESERVED_6_4 | 0x2,
+  /* bm_attributes: */
+  BM_ATTR_ENDPT_BULK,
+  MAX_RCV_SIZE, 0x00,      /* w_max_packet_size (64) : Max packet size */
+  0
 };
 
 
@@ -297,38 +219,27 @@ const static struct {
 /*
  * string descriptor
  * explain to the host that we only speak english
- *
- * b_length = 4
- * b_descriptor_type = 0x03
  */
-static const struct {
-  usb_desc_header_t header;
-
-  U16 w_lang_id;
-
-} usb_string_desc = {
-
-  { 4, USB_DESC_TYPE_STR },
-  0x0809 /* English (UK) */
-
+static U8 usb_string_desc[] = {
+  4, /* b_length */
+  0x03, /* b_descriptor_type */
+  0x09, 0x08 /* English (UK) */
 };
-
-
 
 /*
  * b_length = 2 (header) + strlen(str) + 1 ('\0')
  * type = 0x03
  */
-typedef struct usb_string {
-  usb_desc_header_t header;
-  char str[]; /* unicode */
-} usb_string_t;
+static U8 usb_lego_str[] =
+  { 2+4+1, USB_DESC_TYPE_STR, 'L', 'E', 'G', 'O', '\0' };
+
+static U8 usb_nxt_str[] =
+  { 2+3+1, USB_DESC_TYPE_STR, 'N', 'X', 'T', '\0' };
 
 
-
-static const usb_string_t usb_strings[] = {
-  { { 2+4+1, USB_DESC_TYPE_STR }, "LEGO" },
-  { { 2+3+1, USB_DESC_TYPE_STR }, "NXT" }
+static U8 *usb_strings[] = {
+  usb_lego_str,
+  usb_nxt_str
 };
 
 
@@ -452,6 +363,15 @@ static void usb_read_data(int endpoint) {
   U16 i;
   U16 total;
 
+
+  /*
+   * If we were sending something, then we have been
+   * interrupted
+   */
+  //usb_state.ds_data[endpoint] = NULL;
+  //usb_state.ds_length[endpoint] = 0;
+
+
   if (endpoint == 1) {
 
     total = (AT91C_UDP_CSR[endpoint] & AT91C_UDP_RXBYTECNT) >> 16;
@@ -474,7 +394,7 @@ static void usb_read_data(int endpoint) {
       usb_state.dr_buffer[buf][i] = AT91C_UDP_FDR[1];
 
     /* and then we tell the controller that we read the FIFO */
-    AT91C_UDP_CSR[1] &= ~(usb_state.current_rx_bank);
+    usb_csr_clear_flag(1, usb_state.current_rx_bank);
 
     /* we switch on the other bank */
     if (usb_state.current_rx_bank == AT91C_UDP_RX_DATA_BK0)
@@ -485,7 +405,7 @@ static void usb_read_data(int endpoint) {
   } else {
 
     /* we ignore */
-    AT91C_UDP_CSR[endpoint] &= ~(AT91C_UDP_RX_DATA_BK0 | AT91C_UDP_RX_DATA_BK1);
+    usb_csr_clear_flag(endpoint, AT91C_UDP_RX_DATA_BK0 | AT91C_UDP_RX_DATA_BK1);
 
   }
 }
@@ -568,6 +488,7 @@ static void usb_manage_setup_packet() {
       break;
 
     case (USB_BREQUEST_CLEAR_FEATURE):
+    case (USB_BREQUEST_SET_INTERFACE):
     case (USB_BREQUEST_SET_FEATURE):
       /* ni ! */
       /* we send null to not be bothered by the host */
@@ -596,35 +517,38 @@ static void usb_manage_setup_packet() {
 	{
 	case (USB_DESC_TYPE_DEVICE):
 	  /* it wants infos about the device */
-	  usb_send_data(0, (U8 *)(&usb_dev_desc),
-			MIN(usb_dev_desc.header.b_length, packet.w_length));
+	  usb_send_data(0, usb_dev_desc,
+			MIN(usb_dev_desc[0], packet.w_length));
 	  break;
 
 	case (USB_DESC_TYPE_CONFIG):
 	  /* it wants infos about a specific config */
 	  /* we have only one configuration so ... */
-	  usb_send_data(0, (U8 *)(&usb_nxtos_full_config),
-			MIN(usb_nxtos_full_config.config.w_total_length, packet.w_length));
-	  if (usb_nxtos_full_config.config.w_total_length < packet.w_length)
+	  usb_send_data(0, usb_nxtos_full_config,
+			MIN(usb_nxtos_full_config[2], packet.w_length));
+	  if (usb_nxtos_full_config[2] < packet.w_length)
 	    usb_send_null();
-
 	  break;
 
 	case (USB_DESC_TYPE_STR):
 	  if ((packet.w_value & USB_WVALUE_INDEX) == 0) {
 	    /* the host want to know want language we support */
-	    usb_send_data(0, (U8 *)(&usb_string_desc),
-			  MIN(usb_string_desc.header.b_length, packet.w_length));
+	    usb_send_data(0, usb_string_desc,
+			  MIN(usb_string_desc[0], packet.w_length));
 	  } else {
 	    /* the host want a specific string */
 	    /* TODO : Check it asks an existing string ! */
-	    usb_send_data(0, (U8 *)(&usb_strings[index-1]),
-			  MIN(usb_strings[index-1].header.b_length,
+	    usb_send_data(0, usb_strings[index-1],
+			  MIN(usb_strings[index-1][0],
 			      packet.w_length));
 	  }
 	  break;
+	case (6):
+	  usb_send_null();
+	  break;
 
 	default:
+	  usb_state.y = packet.w_value;
 	  usb_send_stall();
 	  break;
       }
@@ -650,7 +574,6 @@ static void usb_manage_setup_packet() {
       break;
 
     case (USB_BREQUEST_GET_INTERFACE):
-    case (USB_BREQUEST_SET_INTERFACE):
     case (USB_BREQUEST_SET_DESCRIPTOR):
     default:
       usb_send_stall();
@@ -665,10 +588,13 @@ static void usb_manage_setup_packet() {
 
 static void usb_isr() {
   U8 endpoint = 127;
+  U32 csr, isr;
+
+  isr = *AT91C_UDP_ISR;
 
   usb_state.nmb_int++;
   usb_state.last_isr      =  systick_get_ms();
-  usb_state.last_udp_isr  = *AT91C_UDP_ISR;
+  usb_state.last_udp_isr  =  isr;
   usb_state.last_udp_csr0 =  AT91C_UDP_CSR[0];
   usb_state.last_udp_csr1 =  AT91C_UDP_CSR[1];
 
@@ -679,11 +605,13 @@ static void usb_isr() {
   }
 
 
-  if (*AT91C_UDP_ISR & AT91C_UDP_ENDBUSRES) {
+  if (isr & AT91C_UDP_ENDBUSRES) {
     /* we ack all these interruptions */
     *AT91C_UDP_ICR = AT91C_UDP_ENDBUSRES;
     *AT91C_UDP_ICR = AT91C_UDP_RXSUSP; /* suspend */
     *AT91C_UDP_ICR = AT91C_UDP_RXRSM; /* resume */
+    *AT91C_UDP_ICR = AT91C_UDP_SOFINT;
+    *AT91C_UDP_ICR = AT91C_UDP_WAKEUP;
 
     /* we reset the end points */
     *AT91C_UDP_RSTEP = ~0;
@@ -711,26 +639,38 @@ static void usb_isr() {
     return;
   }
 
+  if (isr & AT91C_UDP_WAKEUP) {
+    *AT91C_UDP_ICR = AT91C_UDP_WAKEUP;
+    isr &= ~AT91C_UDP_WAKEUP;
+  }
 
-  if (*AT91C_UDP_ISR & AT91C_UDP_RXSUSP) {
+
+  if (isr & AT91C_UDP_SOFINT) {
+    *AT91C_UDP_ICR = AT91C_UDP_SOFINT;
+    isr &= ~AT91C_UDP_SOFINT;
+  }
+
+
+  if (isr & AT91C_UDP_RXSUSP) {
     *AT91C_UDP_ICR = AT91C_UDP_RXSUSP;
+    isr &= ~AT91C_UDP_RXSUSP;
     usb_state.is_suspended = 1;
   }
 
-  if (*AT91C_UDP_ISR & AT91C_UDP_RXRSM) {
+  if (isr & AT91C_UDP_RXRSM) {
     *AT91C_UDP_ICR = AT91C_UDP_RXRSM;
+    isr &= ~AT91C_UDP_RXRSM;
     usb_state.is_suspended = 0;
   }
 
 
   for (endpoint = 0; endpoint < NMB_ENDPOINTS ; endpoint++) {
-    if (*AT91C_UDP_ISR & (1 << endpoint))
+    if (isr & (1 << endpoint))
       break;
   }
 
 
   if (endpoint == 0) {
-    *AT91C_UDP_ICR = AT91C_UDP_EPINT0;
 
     if (AT91C_UDP_CSR[0] & AT91C_UDP_RXSETUP) {
       usb_manage_setup_packet();
@@ -740,7 +680,17 @@ static void usb_isr() {
 
 
   if (endpoint < NMB_ENDPOINTS) { /* if an endpoint was specified */
-    if (AT91C_UDP_CSR[endpoint] & AT91C_UDP_TXCOMP) {
+    csr = AT91C_UDP_CSR[endpoint];
+
+    if (csr & AT91C_UDP_RX_DATA_BK0
+	|| csr & AT91C_UDP_RX_DATA_BK1) {
+      usb_read_data(endpoint);
+
+      return;
+    }
+
+    if (csr & AT91C_UDP_TXCOMP) {
+
       /* then it means that we sent a data and the host has acknowledged it */
 
       /* so first we will reset this flag */
@@ -755,19 +705,18 @@ static void usb_isr() {
       return;
     }
 
-
-    if (AT91C_UDP_CSR[endpoint] & AT91C_UDP_RXBYTECNT) {
-
-      usb_read_data(endpoint);
-
-      return;
-    }
   }
 
 
-  *AT91C_UDP_ICR = AT91C_UDP_WAKEUP;
-  *AT91C_UDP_ICR = AT91C_UDP_SOFINT;
-
+  /* We clear also the unused bits,
+   * just "to be sure" */
+  if (isr) {
+    usb_state.x = isr;
+    usb_state.y = usb_state.last_udp_csr0;
+    aic_disable(AT91C_ID_UDP);
+    aic_clear(AT91C_ID_UDP);
+    *AT91C_UDP_ICR = 0xFFFFC4F0;
+  }
 }
 
 
@@ -776,7 +725,11 @@ static void usb_isr() {
 
 
 void usb_disable() {
+  *AT91C_PIOA_PER = (1 << 16);
+  *AT91C_PIOA_OER = (1 << 16);
+  *AT91C_PIOA_SODR = (1 << 16);
 
+  systick_wait_ms(200);
 }
 
 
@@ -812,6 +765,7 @@ void usb_init() {
   *AT91C_PIOA_CODR = (1 << 16);
 
 
+  *AT91C_UDP_ICR = 0xFFFFFFFF;
 
   /* Install the interruption routine */
 
@@ -820,7 +774,7 @@ void usb_init() {
    */
   /* other interruptions will be enabled when needed */
   aic_install_isr(AT91C_ID_UDP, AIC_PRIO_DRIVER,
-		  AIC_TRIG_EDGE, usb_isr);
+		  AIC_TRIG_LEVEL, usb_isr);
 
 
   interrupts_enable();
@@ -907,7 +861,7 @@ void usb_test() {
 
     display_cursor_set_pos(0, 6);
     display_string("Y   :0x");
-    display_uint(usb_state.y);
+    display_hex(usb_state.y);
 
     systick_wait_ms(250);
   }
