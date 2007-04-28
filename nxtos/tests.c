@@ -14,6 +14,7 @@
 #include "memmap.h"
 #include "sensors.h"
 #include "motors.h"
+#include "usb.h"
 
 static bool test_silent = FALSE;
 
@@ -262,6 +263,54 @@ void tests_sysinfo() {
     display_uint(avr_minor);
 
     systick_wait_ms(250);
+  }
+
+  goodbye();
+}
+
+
+void tests_usb() {
+  U16 i;
+  char *buffer;
+
+  hello();
+
+  buffer = (char *)usb_get_buffer();
+
+  while(1) {
+    for (i = 0 ; i < 100 && !usb_has_data(); i++)
+    {
+      //display_clear();
+      display_cursor_set_pos(0, 0);
+      display_hex(usb_status());
+      systick_wait_ms(200);
+    }
+
+    if (i >= 100)
+      break;
+
+    i = usb_has_data();
+
+    display_cursor_set_pos(0, 0);
+    display_string("==");
+    display_uint(i);
+
+    display_cursor_set_pos(0, 1);
+    display_string(buffer);
+
+    usb_send((U8 *)"OK\n", 4);
+
+    systick_wait_ms(2000);
+
+    display_clear();
+
+    /* Start interpreting */
+
+
+    /* Stop interpreting */
+
+    usb_flush_buffer();
+
   }
 
   goodbye();

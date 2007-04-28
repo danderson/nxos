@@ -36,6 +36,13 @@
 
 #define USB_BUFFER_SIZE 64 /* usb packet size */
 
+#define USB_STATUS_NULL             0
+#define USB_STATUS_INIT_STARTED     1
+#define USB_STATUS_INIT_DONE        2
+#define USB_STATUS_WRITED_SOMETHING 3
+#define USB_STATUS_READ_SOMETHING   4
+#define USB_STATUS_CRASHED         -1
+
 
 void usb_init();
 void usb_disable();
@@ -48,7 +55,7 @@ U8 *usb_get_buffer();
 void usb_flush_buffer();
 U8 usb_overloaded();
 
-void usb_test();
+U8 usb_status();
 
 #endif
 

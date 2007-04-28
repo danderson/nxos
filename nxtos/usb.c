@@ -154,7 +154,7 @@ static U8 usb_nxtos_full_config[] = {
    */
   0x9,  /* b_length */
   0x04, /* b_descriptor_type */
-  0x00, /* b_interface_number */
+  0x01, /* b_interface_number */
   0x00, /* b_alternate_settings */
   0x2,  /* b_num_endpoints : number of endpoints for this interface
 	 * (end point 0 not counted) */
@@ -178,7 +178,7 @@ static U8 usb_nxtos_full_config[] = {
    */
 #define B_ENDPOINT_ADDR_DIR_IN       0x80
 #define B_ENDPOINT_ADDR_RESERVED_6_4 0x00
-  B_ENDPOINT_ADDR_DIR_IN | B_ENDPOINT_ADDR_RESERVED_6_4 | 0x1,
+  B_ENDPOINT_ADDR_RESERVED_6_4 | 0x1,
 
 
   /* bm_attributes:
@@ -207,7 +207,7 @@ static U8 usb_nxtos_full_config[] = {
   7, /* b_length */
   USB_DESC_TYPE_ENDPT, /* desc type */
   /* b_endpoint_address: */
-  B_ENDPOINT_ADDR_RESERVED_6_4 | 0x2,
+  B_ENDPOINT_ADDR_DIR_IN | B_ENDPOINT_ADDR_RESERVED_6_4 | 0x2,
   /* bm_attributes: */
   BM_ATTR_ENDPT_BULK,
   MAX_RCV_SIZE, 0x00,      /* w_max_packet_size (64) : Max packet size */
@@ -263,16 +263,7 @@ typedef struct usb_setup_packet {
 
 static volatile struct {
   /* for debug purpose : */
-  U8  isr;
-  U32 nmb_int;
-  U32 last_isr;
-  U32 last_udp_isr;
-  U32 last_udp_csr0;
-  U32 last_udp_csr1;
-  U32 x;
-  U32 y;
-
-
+  S8 usb_status;
 
   U8 current_config; /* 0 (none) or 1 (the only config) */
   U8 current_rx_bank;
@@ -339,9 +330,12 @@ static void usb_send_data(int endpoint, U8 *ptr, U32 length) {
 
   length -= packet_size;
 
+  if (packet_size > 0 && endpoint > 0)
+    usb_state.usb_status = USB_STATUS_WRITED_SOMETHING;
+
   /* we put the packet in the fifo */
   while(packet_size) {
-    AT91C_UDP_FDR[0] = *ptr;
+    AT91C_UDP_FDR[endpoint] = *ptr;
     ptr++;
     packet_size--;
   }
@@ -353,7 +347,7 @@ static void usb_send_data(int endpoint, U8 *ptr, U32 length) {
   /* and next we tell the controller to send what is in the fifo */
   usb_csr_set_flag(endpoint, AT91C_UDP_TXPKTRDY);
 
-  AT91C_UDP_CSR[0] &= ~(AT91C_UDP_RX_DATA_BK0);
+  //AT91C_UDP_CSR[endpoint] &= ~(AT91C_UDP_RX_DATA_BK0);
 }
 
 
@@ -364,17 +358,14 @@ static void usb_read_data(int endpoint) {
   U16 total;
 
 
-  /*
-   * If we were sending something, then we have been
-   * interrupted
-   */
-  //usb_state.ds_data[endpoint] = NULL;
-  //usb_state.ds_length[endpoint] = 0;
-
 
   if (endpoint == 1) {
 
-    total = (AT91C_UDP_CSR[endpoint] & AT91C_UDP_RXBYTECNT) >> 16;
+    total = ((AT91C_UDP_CSR[endpoint] & AT91C_UDP_RXBYTECNT) >> 16) & 0x7FF;
+
+    if (total > 0) {
+	usb_state.usb_status = USB_STATUS_READ_SOMETHING;
+    }
 
     /* by default we use the buffer for the interruption function */
     /* except if the buffer for the user application is already free */
@@ -417,7 +408,7 @@ static void usb_read_data(int endpoint) {
  * it must send a "stall"
  */
 static void usb_send_stall() {
-  usb_state.x = 0xFFFFFFFF;
+  usb_state.usb_status = USB_STATUS_CRASHED;
   usb_csr_set_flag(0, AT91C_UDP_FORCESTALL);
 }
 
@@ -548,7 +539,6 @@ static void usb_manage_setup_packet() {
 	  break;
 
 	default:
-	  usb_state.y = packet.w_value;
 	  usb_send_stall();
 	  break;
       }
@@ -560,7 +550,7 @@ static void usb_manage_setup_packet() {
       break;
 
     case (USB_BREQUEST_SET_CONFIG):
-
+      usb_state.usb_status = USB_STATUS_INIT_DONE;
       usb_state.current_config = packet.w_value;
 
       /* we ack */
@@ -570,7 +560,7 @@ static void usb_manage_setup_packet() {
       *AT91C_UDP_GLBSTATE = packet.w_value > 0 ?
 	(AT91C_UDP_CONFG | AT91C_UDP_FADDEN)
 	:AT91C_UDP_FADDEN;
-
+      
       break;
 
     case (USB_BREQUEST_GET_INTERFACE):
@@ -592,13 +582,6 @@ static void usb_isr() {
 
   isr = *AT91C_UDP_ISR;
 
-  usb_state.nmb_int++;
-  usb_state.last_isr      =  systick_get_ms();
-  usb_state.last_udp_isr  =  isr;
-  usb_state.last_udp_csr0 =  AT91C_UDP_CSR[0];
-  usb_state.last_udp_csr1 =  AT91C_UDP_CSR[1];
-
-
   if (AT91C_UDP_CSR[0] & AT91C_UDP_ISOERROR /* == STALLSENT */) {
     /* then it means that we sent a stall, and the host has ack the stall */
     usb_csr_clear_flag(0, AT91C_UDP_FORCESTALL | AT91C_UDP_ISOERROR);
@@ -606,6 +589,8 @@ static void usb_isr() {
 
 
   if (isr & AT91C_UDP_ENDBUSRES) {
+    usb_state.usb_status = USB_STATUS_INIT_STARTED;
+
     /* we ack all these interruptions */
     *AT91C_UDP_ICR = AT91C_UDP_ENDBUSRES;
     *AT91C_UDP_ICR = AT91C_UDP_RXSUSP; /* suspend */
@@ -631,10 +616,12 @@ static void usb_isr() {
     *AT91C_UDP_IDR = ~0;
     *AT91C_UDP_IER |= 0x7 /* endpts */ | (0x3 << 8) /* suspend / resume */;
 
+    usb_state.current_rx_bank = AT91C_UDP_RX_DATA_BK0;
+
     /* we redefine how the endpoints must work */
     AT91C_UDP_CSR[0] = AT91C_UDP_EPEDS | AT91C_UDP_EPTYPE_CTRL;
-    AT91C_UDP_CSR[1] = AT91C_UDP_EPEDS | AT91C_UDP_EPTYPE_BULK_IN;
-    AT91C_UDP_CSR[2] = AT91C_UDP_EPEDS | AT91C_UDP_EPTYPE_BULK_OUT;
+    AT91C_UDP_CSR[1] = AT91C_UDP_EPEDS | AT91C_UDP_EPTYPE_BULK_OUT;
+    AT91C_UDP_CSR[2] = AT91C_UDP_EPEDS | AT91C_UDP_EPTYPE_BULK_IN;
     AT91C_UDP_CSR[3] = 0;
     return;
   }
@@ -711,10 +698,6 @@ static void usb_isr() {
   /* We clear also the unused bits,
    * just "to be sure" */
   if (isr) {
-    usb_state.x = isr;
-    usb_state.y = usb_state.last_udp_csr0;
-    aic_disable(AT91C_ID_UDP);
-    aic_clear(AT91C_ID_UDP);
     *AT91C_UDP_ICR = 0xFFFFC4F0;
   }
 }
@@ -790,10 +773,10 @@ U8 usb_can_send() {
 void usb_send(U8 *data, U32 length) {
   /* wait until the end point is free */
   while(usb_state.is_suspended
-	|| usb_state.ds_length[1] > 0);
+	|| usb_state.ds_length[2] > 0);
 
   /* start sending the data */
-  usb_send_data(1, data, length);
+  usb_send_data(2, data, length);
 }
 
 
@@ -815,55 +798,15 @@ U8 usb_overloaded() {
 void usb_flush_buffer() {
   usb_state.dr_overloaded = 0;
 
-  memcpy(usb_state.dr_buffer[1], usb_state.dr_buffer[0],
-	 usb_state.dr_buffer_used[0]);
+  if (usb_state.dr_buffer_used[0] > 0)
+    memcpy(usb_state.dr_buffer[1], usb_state.dr_buffer[0],
+	   usb_state.dr_buffer_used[0]);
 
   usb_state.dr_buffer_used[1] = usb_state.dr_buffer_used[0];
   usb_state.dr_buffer_used[0] = 0;
 }
 
 
-void usb_test() {
-  int i;
-
-
-  display_clear();
-
-
-  for (i = 0 ; i < 40 ; i++) {
-    systick_wait_ms(250);
-
-    display_cursor_set_pos(0, 0);
-    display_string("nmb isr : ");
-    display_uint(usb_state.nmb_int);
-
-    display_cursor_set_pos(0, 1);
-    display_string("ISR: 0x");
-    display_hex(usb_state.last_udp_isr);
-
-    display_cursor_set_pos(0, 2);
-    display_string("CSR0:0x");
-    display_hex(usb_state.last_udp_csr0);
-
-    display_cursor_set_pos(0, 3);
-    display_string("CSR1:0x");
-    display_uint(usb_state.last_udp_csr1);
-
-    display_cursor_set_pos(0, 4);
-    display_string("Last:0x");
-    display_hex(usb_state.last_isr);
-    display_string("/0x");
-    display_hex(systick_get_ms());
-
-    display_cursor_set_pos(0, 5);
-    display_string("X   :0x");
-    display_hex(usb_state.x);
-
-    display_cursor_set_pos(0, 6);
-    display_string("Y   :0x");
-    display_hex(usb_state.y);
-
-    systick_wait_ms(250);
-  }
-
+U8 usb_status() {
+  return usb_state.usb_status;
 }
