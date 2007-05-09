@@ -67,11 +67,12 @@
 
 
 #define USB_WVALUE_TYPE        (0xFF << 8)
-#define USB_DESC_TYPE_DEVICE 1
-#define USB_DESC_TYPE_CONFIG 2
-#define USB_DESC_TYPE_STR    3
-#define USB_DESC_TYPE_INT    4
-#define USB_DESC_TYPE_ENDPT  5
+#define USB_DESC_TYPE_DEVICE           1
+#define USB_DESC_TYPE_CONFIG           2
+#define USB_DESC_TYPE_STR              3
+#define USB_DESC_TYPE_INT              4
+#define USB_DESC_TYPE_ENDPT            5
+#define USB_DESC_TYPE_DEVICE_QUALIFIER 6
 
 #define USB_WVALUE_INDEX       0xFF
 
@@ -107,6 +108,20 @@ static const U8 usb_dev_desc[] = {
 };
 
 
+
+static const U8 usb_dev_qualifier_desc[] = {
+  10, /* b_length */
+  USB_DESC_TYPE_DEVICE_QUALIFIER, /* b_descriptor_type */
+  0x00, 0x20, /* bcd_usb :
+	       * USB Specification Number which device complies to
+	       * Here : USB 2.0 */
+  2, /* Class code */
+  0, /* Sub class code */
+  0, /* Device protocol */
+  MAX_ENDPT0_SIZE, /* max packet size for the end point 0 */
+  1, /* b_num_configurations : number of possible config */
+  0 /* reserved : must be 0 */
+};
 
 
 
@@ -152,11 +167,11 @@ static const U8 usb_nxtos_full_config[] = {
   /*
    * interface descriptor
    */
-  0x9,  /* b_length */
+  0x09, /* b_length */
   0x04, /* b_descriptor_type */
-  0x01, /* b_interface_number */
+  0x00, /* b_interface_number */
   0x00, /* b_alternate_settings */
-  0x2,  /* b_num_endpoints : number of endpoints for this interface
+  0x02, /* b_num_endpoints : number of endpoints for this interface
 	 * (end point 0 not counted) */
   0xFF, /* b_interface_class (see the device descriptor) */
   0xFF, /* b_interface_sub_class (see the device descriptor) */
@@ -273,8 +288,12 @@ typedef struct usb_setup_packet {
 static volatile struct {
   /* for debug purpose : */
   S8 usb_status;
-  S8 has_sent_stall;
-  S32 nmb_int;
+  U8 has_sent_stall;
+  U32 stalling_isr;
+  U32 nmb_int;
+
+  U32 debug; /* various informations depending of the error code */
+
 
   U8 current_config; /* 0 (none) or 1 (the only config) */
   U8 current_rx_bank;
@@ -420,8 +439,8 @@ static void usb_read_data(int endpoint) {
  * when the nxt doesn't understand something from the host
  * it must send a "stall"
  */
-static void usb_send_stall() {
-  usb_state.usb_status = USB_STATUS_CRASHED;
+static void usb_send_stall(S8 reason) {
+  usb_state.usb_status = reason;
 
   if (usb_state.has_sent_stall == 0)
     usb_state.has_sent_stall = 1;
@@ -553,12 +572,16 @@ static void usb_manage_setup_packet() {
 			      packet.w_length));
 	  }
 	  break;
-	case (6):
-	  usb_send_null();
+
+	case (USB_DESC_TYPE_DEVICE_QUALIFIER):
+	  size = usb_dev_qualifier_desc[0];
+	  usb_send_data(0, usb_dev_qualifier_desc,
+	  		MIN(size, packet.w_length));
 	  break;
 
 	default:
-	  usb_send_stall();
+	  usb_state.debug=packet.w_value;
+	  usb_send_stall(USB_STATUS_UNKNOWN_DESCRIPTOR);
 	  break;
       }
 
@@ -585,7 +608,7 @@ static void usb_manage_setup_packet() {
     case (USB_BREQUEST_GET_INTERFACE):
     case (USB_BREQUEST_SET_DESCRIPTOR):
     default:
-      usb_send_stall();
+      usb_send_stall(USB_STATUS_UNMANAGED_REQUEST);
       break;
     }
 
@@ -648,6 +671,9 @@ static void usb_isr() {
     AT91C_UDP_CSR[1] = AT91C_UDP_EPEDS | AT91C_UDP_EPTYPE_BULK_OUT;
     AT91C_UDP_CSR[2] = AT91C_UDP_EPEDS | AT91C_UDP_EPTYPE_BULK_IN;
     AT91C_UDP_CSR[3] = 0;
+
+    //*AT91C_UDP_ICR = 0xFFFFFFFF;
+
     return;
   }
 
@@ -741,6 +767,17 @@ void usb_disable() {
 }
 
 
+static inline void usb_enable() {
+  /* Enable the UDP pull up by outputting a zero on PA.16 */
+  /* Enabling the pull up will tell to the host (the computer) that
+   * we are ready for a communication
+   */
+  *AT91C_PIOA_PER = (1 << 16);
+  *AT91C_PIOA_OER = (1 << 16);
+  *AT91C_PIOA_CODR = (1 << 16);
+}
+
+
 void usb_init() {
 
   usb_disable();
@@ -766,14 +803,7 @@ void usb_init() {
   *AT91C_UDP_RSTEP = 0xF;
   *AT91C_UDP_RSTEP = 0;
 
-  /* Enable the UDP pull up by outputting a zero on PA.16 */
-  /* Enabling the pull up will tell to the host (the computer) that
-   * we are ready for a communication
-   */
-  *AT91C_PIOA_PER = (1 << 16);
-  *AT91C_PIOA_OER = (1 << 16);
-  *AT91C_PIOA_CODR = (1 << 16);
-
+  usb_enable();
 
   *AT91C_UDP_ICR = 0xFFFFFFFF;
 
@@ -847,10 +877,12 @@ void usb_display_debug() {
 		 "----------------");
   display_string("\nNmb int:");
   display_uint(usb_state.nmb_int);
-  display_string("\nStatus: ");
-  display_uint(usb_state.usb_status);
+  display_string("\nStat.:0x");
+  display_hex(usb_state.usb_status);
   display_string("\nOverflowed: ");
   display_uint(usb_state.dr_overflowed);
   display_string("\nStalled: ");
   display_uint(usb_state.has_sent_stall);
+  display_string("\nDebug: 0x");
+  display_hex(usb_state.debug);
 }

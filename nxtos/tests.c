@@ -321,6 +321,8 @@ void tests_usb() {
     if (i >= 500)
       break;
 
+    display_clear();
+
     lng = usb_has_data();
 
 

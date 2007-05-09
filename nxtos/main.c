@@ -42,6 +42,7 @@ void main() {
   core_init();
 
   tests_usb();
+  //tests_all();
 
   core_shutdown();
 }
