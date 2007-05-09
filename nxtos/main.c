@@ -34,6 +34,7 @@ static void core_init() {
 
 static void core_shutdown() {
   lcd_shutdown();
+  usb_disable();
   avr_power_down();
 }
 

@@ -273,10 +273,13 @@ typedef struct usb_setup_packet {
 static volatile struct {
   /* for debug purpose : */
   S8 usb_status;
+  S8 has_sent_stall;
+  S32 nmb_int;
 
   U8 current_config; /* 0 (none) or 1 (the only config) */
   U8 current_rx_bank;
   U8 is_suspended;   /* true or false */
+
 
   /* ds == Data to send */
   /* ds_data : last position of the data pointer */
@@ -294,7 +297,7 @@ static volatile struct {
    */
   U8  dr_buffer[2][USB_BUFFER_SIZE+1];
   U16 dr_buffer_used[2]; /* data size waiting in the buffer */
-  U8  dr_overloaded;
+  U8  dr_overflowed;
 
 } usb_state = {
   0
@@ -382,7 +385,7 @@ static void usb_read_data(int endpoint) {
       buf = 1;
     else {
       if (usb_state.dr_buffer_used[0] > 0) /* if the isr buffer is already used */
-	usb_state.dr_overloaded = 1;
+	usb_state.dr_overflowed = 1;
       buf = 0;
     }
 
@@ -419,6 +422,10 @@ static void usb_read_data(int endpoint) {
  */
 static void usb_send_stall() {
   usb_state.usb_status = USB_STATUS_CRASHED;
+
+  if (usb_state.has_sent_stall == 0)
+    usb_state.has_sent_stall = 1;
+
   usb_csr_set_flag(0, AT91C_UDP_FORCESTALL);
 }
 
@@ -572,7 +579,7 @@ static void usb_manage_setup_packet() {
       *AT91C_UDP_GLBSTATE = packet.w_value > 0 ?
 	(AT91C_UDP_CONFG | AT91C_UDP_FADDEN)
 	:AT91C_UDP_FADDEN;
-      
+
       break;
 
     case (USB_BREQUEST_GET_INTERFACE):
@@ -594,8 +601,14 @@ static void usb_isr() {
 
   isr = *AT91C_UDP_ISR;
 
+  usb_state.nmb_int++;
+
   if (AT91C_UDP_CSR[0] & AT91C_UDP_ISOERROR /* == STALLSENT */) {
     /* then it means that we sent a stall, and the host has ack the stall */
+
+    if (usb_state.has_sent_stall < 2)
+      usb_state.has_sent_stall = 2;
+
     usb_csr_clear_flag(0, AT91C_UDP_FORCESTALL | AT91C_UDP_ISOERROR);
   }
 
@@ -725,14 +738,14 @@ void usb_disable() {
   *AT91C_PIOA_PER = (1 << 16);
   *AT91C_PIOA_OER = (1 << 16);
   *AT91C_PIOA_SODR = (1 << 16);
-
-  systick_wait_ms(200);
 }
 
 
 void usb_init() {
 
   usb_disable();
+
+  systick_wait_ms(200);
 
   interrupts_disable();
 
@@ -805,12 +818,12 @@ U8 *usb_get_buffer() {
 }
 
 
-U8 usb_overloaded() {
-  return usb_state.dr_overloaded;
+U8 usb_overflowed() {
+  return usb_state.dr_overflowed;
 }
 
 void usb_flush_buffer() {
-  usb_state.dr_overloaded = 0;
+  usb_state.dr_overflowed = 0;
 
   if (usb_state.dr_buffer_used[0] > 0)
     memcpy(usb_state.dr_buffer[1], usb_state.dr_buffer[0],
@@ -828,5 +841,16 @@ U8 usb_status() {
 
 
 void usb_display_debug() {
-
+  display_clear();
+  display_cursor_set_pos(0, 0);
+  display_string("--- USB infos --\n"
+		 "----------------");
+  display_string("\nNmb int:");
+  display_uint(usb_state.nmb_int);
+  display_string("\nStatus: ");
+  display_uint(usb_state.usb_status);
+  display_string("\nOverflowed: ");
+  display_uint(usb_state.dr_overflowed);
+  display_string("\nStalled: ");
+  display_uint(usb_state.has_sent_stall);
 }
