@@ -290,7 +290,6 @@ static volatile struct {
   S8 usb_status;
   U8 has_sent_stall;
   U32 stalling_isr;
-  U32 nmb_int;
 
   U32 debug; /* various informations depending of the error code */
 
@@ -624,7 +623,6 @@ static void usb_isr() {
 
   isr = *AT91C_UDP_ISR;
 
-  usb_state.nmb_int++;
 
   if (AT91C_UDP_CSR[0] & AT91C_UDP_ISOERROR /* == STALLSENT */) {
     /* then it means that we sent a stall, and the host has ack the stall */
@@ -875,8 +873,6 @@ void usb_display_debug() {
   display_cursor_set_pos(0, 0);
   display_string("--- USB infos --\n"
 		 "----------------");
-  display_string("\nNmb int:");
-  display_uint(usb_state.nmb_int);
   display_string("\nStat.:0x");
   display_hex(usb_state.usb_status);
   display_string("\nOverflowed: ");
