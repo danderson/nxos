@@ -291,9 +291,12 @@ static volatile struct {
   U8 has_sent_stall;
   U32 stalling_isr;
 
+  U32 nmb_int;
+
   U32 debug; /* various informations depending of the error code */
 
-
+  U32 addr_to_set; /* 0 usually, except when an adress must be set at the
+		    * next interruption received */
   U8 current_config; /* 0 (none) or 1 (the only config) */
   U8 current_rx_bank;
   U8 is_suspended;   /* true or false */
@@ -341,7 +344,7 @@ static inline void usb_csr_clear_flag(U8 endpoint, U32 flags)
 static inline void usb_csr_set_flag(U8 endpoint, U32 flags)
 {
   AT91C_UDP_CSR[endpoint] |= (flags);
-  while ( (AT91C_UDP_CSR[endpoint] & (flags)) != (flags) );
+  while ( (AT91C_UDP_CSR[endpoint] & (flags)) != (flags));
 }
 
 
@@ -463,7 +466,7 @@ static void usb_send_null() {
  * this function is called when
  * we receive a setup packet
  */
-static void usb_manage_setup_packet() {
+static U32 usb_manage_setup_packet() {
   usb_setup_packet_t packet;
   U16 value16;
   U32 size;
@@ -523,17 +526,27 @@ static void usb_manage_setup_packet() {
       break;
 
     case (USB_BREQUEST_SET_ADDRESS):
+      usb_state.addr_to_set = packet.w_value;
+
       /* we ack */
       usb_send_null();
 
-      /* we must be sure that the ack was sent & received */
-      while(!(AT91C_UDP_CSR[0] & AT91C_UDP_TXCOMP));
-      usb_csr_clear_flag(0, AT91C_UDP_TXCOMP);
+      /* we will wait for an interruption telling us that TXCOMP is
+       * set to 1 now.
+       * so for now, that's all.
+       */
 
-      /* we set the specified usb address in the controller */
-      *AT91C_UDP_FADDR    = AT91C_UDP_FEN | packet.w_value;
-      /* and we tell the controller that we are in addressed mode now */
-      *AT91C_UDP_GLBSTATE = packet.w_value > 0 ? AT91C_UDP_FADDEN : 0;
+      /* if the address must be reset to 0, we do it immediatly,
+       * because this driver is not made to manage this kind of
+       * situation else
+       */
+      if (usb_state.addr_to_set == 0) {
+	/* we set the specified usb address in the controller */
+	*AT91C_UDP_FADDR    = AT91C_UDP_FEN | 0;
+	/* and we tell the controller that we are not in addressed mode anymore  */
+	*AT91C_UDP_GLBSTATE = 0;
+      }
+
       break;
 
     case (USB_BREQUEST_GET_DESCRIPTOR):
@@ -602,6 +615,9 @@ static void usb_manage_setup_packet() {
 	(AT91C_UDP_CONFG | AT91C_UDP_FADDEN)
 	:AT91C_UDP_FADDEN;
 
+      AT91C_UDP_CSR[1] = AT91C_UDP_EPEDS | AT91C_UDP_EPTYPE_BULK_OUT;
+      AT91C_UDP_CSR[2] = AT91C_UDP_EPEDS | AT91C_UDP_EPTYPE_BULK_IN;
+      AT91C_UDP_CSR[3] = 0;
       break;
 
     case (USB_BREQUEST_GET_INTERFACE):
@@ -611,9 +627,8 @@ static void usb_manage_setup_packet() {
       break;
     }
 
+  return packet.b_request;
 }
-
-
 
 
 
@@ -623,6 +638,7 @@ static void usb_isr() {
 
   isr = *AT91C_UDP_ISR;
 
+  usb_state.nmb_int++;
 
   if (AT91C_UDP_CSR[0] & AT91C_UDP_ISOERROR /* == STALLSENT */) {
     /* then it means that we sent a stall, and the host has ack the stall */
@@ -648,27 +664,24 @@ static void usb_isr() {
     *AT91C_UDP_RSTEP = ~0;
     *AT91C_UDP_RSTEP = 0;
 
-
-    /* we activate the function (i.e. us),
-     * and set the usb address 0 */
-    *AT91C_UDP_FADDR = AT91C_UDP_FEN | 0x0;
-
+    usb_state.current_rx_bank = AT91C_UDP_RX_DATA_BK0;
     usb_state.current_config  = 0;
-    usb_state.current_rx_bank = 0;
     usb_state.is_suspended    = 0;
+
+    /* we redefine how the endpoints must work */
+    AT91C_UDP_CSR[0] = AT91C_UDP_EPEDS | AT91C_UDP_EPTYPE_CTRL;
 
     /* then we activate the irq for the end points 0, 1 and 2 */
     /* and for the suspend / resume */
     *AT91C_UDP_IDR = ~0;
     *AT91C_UDP_IER |= 0x7 /* endpts */ | (0x3 << 8) /* suspend / resume */;
 
+
     usb_state.current_rx_bank = AT91C_UDP_RX_DATA_BK0;
 
-    /* we redefine how the endpoints must work */
-    AT91C_UDP_CSR[0] = AT91C_UDP_EPEDS | AT91C_UDP_EPTYPE_CTRL;
-    AT91C_UDP_CSR[1] = AT91C_UDP_EPEDS | AT91C_UDP_EPTYPE_BULK_OUT;
-    AT91C_UDP_CSR[2] = AT91C_UDP_EPEDS | AT91C_UDP_EPTYPE_BULK_IN;
-    AT91C_UDP_CSR[3] = 0;
+    /* we activate the function (i.e. us),
+     * and set the usb address 0 */
+    *AT91C_UDP_FADDR = AT91C_UDP_FEN | 0x0;
 
     //*AT91C_UDP_ICR = 0xFFFFFFFF;
 
@@ -700,6 +713,7 @@ static void usb_isr() {
   }
 
 
+
   for (endpoint = 0; endpoint < NMB_ENDPOINTS ; endpoint++) {
     if (isr & (1 << endpoint))
       break;
@@ -709,7 +723,7 @@ static void usb_isr() {
   if (endpoint == 0) {
 
     if (AT91C_UDP_CSR[0] & AT91C_UDP_RXSETUP) {
-      usb_manage_setup_packet();
+      csr = usb_manage_setup_packet();
       return;
     }
   }
@@ -721,7 +735,6 @@ static void usb_isr() {
     if (csr & AT91C_UDP_RX_DATA_BK0
 	|| csr & AT91C_UDP_RX_DATA_BK1) {
       usb_read_data(endpoint);
-
       return;
     }
 
@@ -732,6 +745,19 @@ static void usb_isr() {
       /* so first we will reset this flag */
       usb_csr_clear_flag(endpoint, AT91C_UDP_TXCOMP);
 
+      if (usb_state.addr_to_set > 0) {
+	/* the previous message received was SET_ADDR */
+	/* now that the computer ACK our send_null(), we can
+	 * set this address for real */
+
+	/* we set the specified usb address in the controller */
+	*AT91C_UDP_FADDR    = AT91C_UDP_FEN | usb_state.addr_to_set;
+	/* and we tell the controller that we are in addressed mode now */
+	*AT91C_UDP_GLBSTATE = AT91C_UDP_FADDEN;
+	usb_state.addr_to_set = 0;
+      }
+
+
       /* and we will send the following data */
       if (usb_state.ds_length[endpoint] > 0
 	  && usb_state.ds_data[endpoint] != NULL) {
@@ -739,7 +765,6 @@ static void usb_isr() {
 	usb_send_data(endpoint, usb_state.ds_data[endpoint],
 		      usb_state.ds_length[endpoint]);
       }
-
       return;
     }
 
@@ -801,7 +826,7 @@ void usb_init() {
   *AT91C_UDP_RSTEP = 0xF;
   *AT91C_UDP_RSTEP = 0;
 
-  usb_enable();
+  //  usb_enable();
 
   *AT91C_UDP_ICR = 0xFFFFFFFF;
 
@@ -816,6 +841,8 @@ void usb_init() {
 
 
   interrupts_enable();
+
+  usb_enable();
 }
 
 
@@ -873,6 +900,8 @@ void usb_display_debug() {
   display_cursor_set_pos(0, 0);
   display_string("--- USB infos --\n"
 		 "----------------");
+  display_string("\nNmb int: ");
+  display_uint(usb_state.nmb_int);
   display_string("\nStat.:0x");
   display_hex(usb_state.usb_status);
   display_string("\nOverflowed: ");
