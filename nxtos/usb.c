@@ -223,18 +223,27 @@ static const U8 usb_nxtos_full_config[] = {
 static const U8 usb_string_desc[] = {
   4, /* b_length */
   0x03, /* b_descriptor_type */
-  0x09, 0x08 /* English (UK) */
+  0x09, 0x04 /* English (US) */
 };
 
 /*
- * b_length = 2 (header) + strlen(str) + 1 ('\0')
+ * b_length = 2 (header) + (2*strlen(str))
  * type = 0x03
  */
 static const U8 usb_lego_str[] =
-  { 2+4+1, USB_DESC_TYPE_STR, 'L', 'E', 'G', 'O', '\0' };
+  { 2+(2*4)+2, USB_DESC_TYPE_STR,
+    'L', 0,
+    'E', 0,
+    'G', 0,
+    'O', 0,
+    '\0', '\0'};
 
 static const U8 usb_nxt_str[] =
-  { 2+3+1, USB_DESC_TYPE_STR, 'N', 'X', 'T', '\0' };
+  { 2+(2*3)+2, USB_DESC_TYPE_STR,
+    'N', 0,
+    'X', 0,
+    'T', 0,
+    '\0', '\0'};
 
 
 static const U8 *usb_strings[] = {
@@ -814,4 +823,10 @@ void usb_flush_buffer() {
 
 U8 usb_status() {
   return usb_state.usb_status;
+}
+
+
+
+void usb_display_debug() {
+
 }

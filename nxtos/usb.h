@@ -57,5 +57,8 @@ U8 usb_overloaded();
 
 U8 usb_status();
 
+void usb_display_debug();
+
+
 #endif
 

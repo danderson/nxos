@@ -314,9 +314,7 @@ void tests_usb() {
   while(1) {
     for (i = 0 ; i < 500 && !usb_has_data(); i++)
     {
-      //display_clear();
-      display_cursor_set_pos(0, 0);
-      display_hex(usb_status());
+      usb_display_debug();
       systick_wait_ms(200);
     }
 

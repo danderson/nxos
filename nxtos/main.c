@@ -26,7 +26,7 @@ static void core_init() {
   lcd_init();
   display_init();
   sensors_init();
-  //usb_init();
+  usb_init();
 
   /* Delay a little post-init, to let all the drivers settle down. */
   systick_wait_ms(100);
@@ -40,7 +40,7 @@ static void core_shutdown() {
 void main() {
   core_init();
 
-  tests_all();
+  tests_usb();
 
   core_shutdown();
 }

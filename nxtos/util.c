@@ -17,3 +17,13 @@ void memset(U8 *dest, const U8 val, U32 len) {
     *dest++ = val;
   }
 }
+
+
+U32 strlen(char *str) {
+  U32 i = 0;
+
+  while (*str++)
+    i++;
+
+  return i;
+}
