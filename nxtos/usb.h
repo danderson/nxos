@@ -48,17 +48,50 @@
 void usb_init();
 void usb_disable();
 
-U8   usb_can_send();
+/*
+ * If you need to know when your data has been sent, you can
+ * use also this function
+ */
+bool usb_can_send();
+
+/*
+ * send the specified data.
+ * take care to not modify these data until usb_can_send() return true again
+ */
 void usb_send(U8 *data, U32 length);
 
+/*
+ * return the number of bytes waiting in the input buffer
+ */
 U16 usb_has_data();
-U8 *usb_get_buffer();
-void usb_flush_buffer();
-U8 usb_overloaded();
 
+/*
+ * return a pointer to the user buffer
+ * this buffer is always the same, so you can call this
+ * function only once.
+ */
+void *usb_get_buffer();
+
+/*
+ * erase the user buffer with the content of the driver buffer
+ * WARNING: Once you have handled the content of the user buffer
+ *          and don't need it anymore, you must call this function,
+ *          else, there will be a buffer overload.
+ */
+void usb_flush_buffer();
+
+/*
+ * return true if the buffers were overloaded : It means your program wasn't
+ * fast enought for reading data coming on the usb, and a packet has been lost.
+ */
+bool usb_overloaded();
+
+/*
+ * See the status defined above
+ */
 U8 usb_status();
 
-void usb_display_debug();
+void usb_display_debug_info();
 
 
 #endif

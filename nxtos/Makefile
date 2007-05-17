@@ -2,7 +2,7 @@ TARGET = nxtos
 BUILD_DIR = build
 
 C_SOURCES = aic.c systick.c twi.c sound.c avr.c lcd.c display.c motors.c \
-	sensors.c util.c main.c tests.c usb.c
+	sensors.c util.c main.c tests.c usb.c uart.c bt.c
 S_SOURCES = init.S interrupts.S vectors.S lock.S
 FONT_FILE = data/font.8x5.png
 

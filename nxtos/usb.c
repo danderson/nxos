@@ -846,7 +846,7 @@ void usb_init() {
 }
 
 
-U8 usb_can_send() {
+bool usb_can_send() {
   return (!usb_state.is_suspended
 	  && usb_state.ds_length[1] > 0);
 }
@@ -862,18 +862,17 @@ void usb_send(U8 *data, U32 length) {
 }
 
 
-
 U16 usb_has_data() {
   return usb_state.dr_buffer_used[1];
 }
 
 
-U8 *usb_get_buffer() {
+void *usb_get_buffer() {
   return (usb_state.dr_buffer[1]);
 }
 
 
-U8 usb_overflowed() {
+bool usb_overflowed() {
   return usb_state.dr_overflowed;
 }
 
@@ -895,7 +894,7 @@ U8 usb_status() {
 
 
 
-void usb_display_debug() {
+void usb_display_debug_info() {
   display_clear();
   display_cursor_set_pos(0, 0);
   display_string("--- USB infos --\n"
@@ -910,4 +909,6 @@ void usb_display_debug() {
   display_uint(usb_state.has_sent_stall);
   display_string("\nDebug: 0x");
   display_hex(usb_state.debug);
+  display_string("\nSuspended: 0x");
+  display_hex(usb_state.is_suspended);
 }

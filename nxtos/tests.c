@@ -302,9 +302,11 @@ static U8 compare_str(char *str_a, char *str_b, U32 max)
 
 void tests_all();
 
+#define MOVE_TIME 1000
+
 void tests_usb() {
   U16 i;
-  U32 lng;
+  S32 lng, t;
   char *buffer;
 
   hello();
@@ -314,7 +316,7 @@ void tests_usb() {
   while(1) {
     for (i = 0 ; i < 500 && !usb_has_data(); i++)
     {
-      usb_display_debug();
+      usb_display_debug_info();
       systick_wait_ms(200);
     }
 
@@ -355,6 +357,36 @@ void tests_usb() {
       tests_all();
     else if (compare_str(buffer, "halt", lng))
       break;
+    else if (compare_str(buffer, "Al", lng))
+      motors_rotate_angle(0, 70, 100, 1);
+    else if (compare_str(buffer, "Ar", lng))
+      motors_rotate_angle(0, -70, 100, 1);
+    else if (compare_str(buffer, "Ac", lng)) {
+      motors_rotate(0, 75);
+      while((t = motors_get_tach_count(0)) != 0) {
+	if (t < 0) {
+	  motors_rotate(0, 75);
+	} else {
+	  motors_rotate(0, -75);
+	}
+	display_cursor_set_pos(1, 1);
+	display_hex(t);
+	display_string("          ");
+      }
+      motors_stop(0, 1);
+    } else if (compare_str(buffer, "BCf", lng)) {
+      motors_rotate(1, -100);
+      motors_rotate(2, -100);
+      systick_wait_ms(MOVE_TIME);
+      motors_stop(1, 0);
+      motors_stop(2, 0);
+    } else if (compare_str(buffer, "BCr", lng)) {
+      motors_rotate(1, 80);
+      motors_rotate(2, 80);
+      systick_wait_ms(MOVE_TIME);
+      motors_stop(1, 0);
+      motors_stop(2, 0);
+    }
     else {
       i = 1;
       usb_send((U8 *)USB_UNKNOWN, sizeof(USB_UNKNOWN));
