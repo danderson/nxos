@@ -5,7 +5,8 @@
 #ifndef __NXTOS_NXT_H__
 #define __NXTOS_NXT_H__
 
-#define NXT_N_MOTORS 3
-#define NXT_N_SENSORS 4
+#define NXT_N_MOTORS   3
+#define NXT_N_SENSORS  4
+#define NXT_CLOCK_FREQ 48000000
 
 #endif
