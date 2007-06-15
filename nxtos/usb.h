@@ -8,8 +8,8 @@
  * Here, the goal of this driver is to provide a simplified mechanism
  * to exchange data over usb :
  *  - Endpoint 0 is used by the driver to control the usb connection
- *  - Endpoint 1 is used for uploads
- *  - Endpoint 2 is used for downloads
+ *  - Endpoint 1 is used for downloads (From the NXT PoV)
+ *  - Endpoint 2 is used for uploads   (From the NXT PoV)
  *
  * usb_send():
  *  - If the end point is free, the function is non-blocking
@@ -21,7 +21,7 @@
  *  - Returns 1 if no, 0 if yes.
  *
  * usb_has_data():
- *  - Return the number of bytes waiting in the buffer
+ *  - Return the number of bytes waiting in the read buffer
  *
  * usb_get_buffer():
  *  - Return a pointer to the user app buffer
@@ -47,6 +47,7 @@
 
 void usb_init();
 void usb_disable();
+bool usb_is_connected();
 
 /*
  * If you need to know when your data has been sent, you can

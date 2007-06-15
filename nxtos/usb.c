@@ -853,12 +853,19 @@ bool usb_can_send() {
 
 
 void usb_send(U8 *data, U32 length) {
+  if (usb_state.usb_status < USB_STATUS_INIT_DONE)
+    return;
+
   /* wait until the end point is free */
   while(usb_state.is_suspended
 	|| usb_state.ds_length[2] > 0);
 
   /* start sending the data */
   usb_send_data(2, data, length);
+}
+
+bool usb_is_connected() {
+  return !(usb_state.usb_status < USB_STATUS_INIT_DONE);
 }
 
 
