@@ -409,6 +409,34 @@ void tests_usb() {
 }
 
 
+void tests_usb_hardcore() {
+  int i, lng;
+
+  char *buffer;
+
+  hello();
+
+  buffer = (char *)usb_get_buffer();
+
+  systick_wait_ms(6000);
+
+  for (i = 0 ; i < 1800 ; i++) {
+
+    if ( (lng = usb_has_data()) > 0) {
+      if (compare_str(buffer, "halt", lng)) {
+	break;
+      }
+      usb_flush_buffer();
+    }
+
+
+    usb_send((U8 *)"TEST", 5);
+  }
+
+  goodbye();
+}
+
+
 void tests_all() {
   test_silent = TRUE;
 
