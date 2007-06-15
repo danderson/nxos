@@ -308,6 +308,7 @@ static volatile struct {
   /* ds_length : data remaining to send */
   U32 ds_length[NMB_ENDPOINTS];
 
+  U8 is_waiting_ack;
 
   /* dr == Data received */
   /* The first buffer is where the interruption
@@ -378,6 +379,7 @@ static void usb_send_data(int endpoint, const U8 *ptr, U32 length) {
   usb_state.ds_length[endpoint] = length;
 
   /* and next we tell the controller to send what is in the fifo */
+  usb_state.is_waiting_ack = 1;
   usb_csr_set_flag(endpoint, AT91C_UDP_TXPKTRDY);
 
 }
@@ -741,7 +743,7 @@ static void usb_isr() {
     if (csr & AT91C_UDP_TXCOMP) {
 
       /* then it means that we sent a data and the host has acknowledged it */
-
+      usb_state.is_waiting_ack = 0;
       /* so first we will reset this flag */
       usb_csr_clear_flag(endpoint, AT91C_UDP_TXCOMP);
 
@@ -847,8 +849,9 @@ void usb_init() {
 
 
 bool usb_can_send() {
-  return (!usb_state.is_suspended
-	  && usb_state.ds_length[1] > 0);
+  return ( (!usb_state.is_suspended
+	    && usb_state.ds_length[2] == 0)
+	   && usb_state.is_waiting_ack == 0);
 }
 
 
@@ -857,8 +860,9 @@ void usb_send(U8 *data, U32 length) {
     return;
 
   /* wait until the end point is free */
-  while(usb_state.is_suspended
-	|| usb_state.ds_length[2] > 0);
+  while( (usb_state.is_suspended
+	  || usb_state.ds_length[2] > 0)
+	 || usb_state.is_waiting_ack > 0);
 
   /* start sending the data */
   usb_send_data(2, data, length);
