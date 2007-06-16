@@ -242,153 +242,134 @@ static volatile struct {
 };
 
 
-
-
-
-/***** FUNCTIONS ******/
-
-
-
-/* These two functions are recommended by the ATMEL doc (34.6.10) */
-//! Clear flags of UDP UDP_CSR register and waits for synchronization
-static inline void usb_csr_clear_flag(U8 endpoint, U32 flags)
-{
+/* The flags in the UDP_CSR register are a little strange: writing to
+ * them does not instantly change their value. Their value will change
+ * to reflect the write when the USB controller has taken the change
+ * into account. The driver must wait until the controller
+ * acknowledges changes to CSR.
+ *
+ * These helpers set/clear CSR flags, and then loop waiting for the
+ * controller to synchronize
+ */
+static inline void usb_csr_clear_flag(U8 endpoint, U32 flags) {
   AT91C_UDP_CSR[endpoint] &= ~(flags);
   while (AT91C_UDP_CSR[endpoint] & (flags));
 }
 
-//! Set flags of UDP UDP_CSR register and waits for synchronization
-static inline void usb_csr_set_flag(U8 endpoint, U32 flags)
-{
+static inline void usb_csr_set_flag(U8 endpoint, U32 flags) {
   AT91C_UDP_CSR[endpoint] |= (flags);
   while ( (AT91C_UDP_CSR[endpoint] & (flags)) != (flags));
 }
 
 
-
-
-
+/* Starts sending data to the host. If the data cannot fit into a
+ * single USB packet, the data is split and scheduled to be sent in
+ * several packets.
+ */
 static void usb_send_data(int endpoint, const U8 *ptr, U32 length) {
   U32 packet_size;
 
-  /* we can't send more than MAX_SND_SIZE each time */
-  if (endpoint == 0) {
+  /* The bus is now busy. */
+  usb_state.status = USB_BUSY;
+
+  if (endpoint == 0)
     packet_size = MIN(MAX_EP0_SIZE, length);
-  } else {
+  else
     packet_size = MIN(MAX_SND_SIZE, length);
+
+  /* If there is more data than can fit in a single packet, queue the
+   * rest up.
+   */
+  if (length > packet_size) {
+    length -= packet_size;
+    usb_state.tx_data[endpoint] = (U8*)(ptr + packet_size);
+    usb_state.tx_len[endpoint] = length;
   }
 
-  length -= packet_size;
-
-  /* we put the packet in the fifo */
+  /* Push a packet into the USB FIFO, and tell the controller to send. */
   while(packet_size) {
     AT91C_UDP_FDR[endpoint] = *ptr;
     ptr++;
     packet_size--;
   }
-
-  /* we prepare the next sending */
-  usb_state.tx_data[endpoint]   = length ? (U8 *)ptr : NULL;
-  usb_state.tx_len[endpoint] = length;
-
-  /* and next we tell the controller to send what is in the fifo */
-  usb_state.status = USB_BUSY;
   usb_csr_set_flag(endpoint, AT91C_UDP_TXPKTRDY);
-
 }
 
 
-
+/* Read one data packet from the USB controller. */
 static void usb_read_data(int endpoint) {
   U8 buf;
   U16 i;
   U16 total;
 
-
-
-  if (endpoint == 1) {
-
-    total = ((AT91C_UDP_CSR[endpoint] & AT91C_UDP_RXBYTECNT) >> 16) & 0x7FF;
-
-    /* by default we use the buffer for the interruption function */
-    /* except if the buffer for the user application is already free */
-
-    if (usb_state.rx_buffer_size[1] == 0) /* if the user buffer is free */
-      buf = 1;
-    else {
-      if (usb_state.rx_buffer_size[0] > 0) /* if the isr buffer is already used */
-	usb_state.rx_overflow = TRUE;
-      buf = 0;
-    }
-
-    usb_state.rx_buffer_size[buf] = total;
-
-    /* we read the data, and put them in the buffer */
-    for (i = 0 ; i < total; i++)
-      usb_state.rx_buffer[buf][i] = AT91C_UDP_FDR[1];
-
-    usb_state.rx_buffer[buf][i+1] = '\0';
-
-    /* and then we tell the controller that we read the FIFO */
-    usb_csr_clear_flag(1, usb_state.current_rx_bank);
-
-    /* we switch on the other bank */
-    if (usb_state.current_rx_bank == AT91C_UDP_RX_DATA_BK0)
-      usb_state.current_rx_bank = AT91C_UDP_RX_DATA_BK1;
-    else
-      usb_state.current_rx_bank = AT91C_UDP_RX_DATA_BK0;
-
-  } else {
-
-    /* we ignore */
+  /* Given our configuration, we should only be getting packets on
+   * endpoint 1. Ignore data on any other endpoint.
+   */
+  if (endpoint != 1) {
     usb_csr_clear_flag(endpoint, AT91C_UDP_RX_DATA_BK0 | AT91C_UDP_RX_DATA_BK1);
-
+    return;
   }
+
+  total = (AT91C_UDP_CSR[endpoint] & AT91C_UDP_RXBYTECNT) >> 16;
+
+  /* by default we use the buffer for the interruption function */
+  /* except if the buffer for the user application is already free */
+  /* TODO: ^ WTF? */
+
+  if (usb_state.rx_buffer_size[1] == 0) {
+    buf = 1;
+  } else {
+    if (usb_state.rx_buffer_size[0] > 0)
+      usb_state.rx_overflow = TRUE;
+    buf = 0;
+  }
+
+  usb_state.rx_buffer_size[buf] = total;
+  for (i = 0 ; i < total; i++)
+    usb_state.rx_buffer[buf][i] = AT91C_UDP_FDR[1];
+
+  /* TODO: Remove this. Who says we're transferring strings? */
+  usb_state.rx_buffer[buf][i+1] = '\0';
+
+  /* Acknowledge reading the current RX bank, and switch to the other. */
+  usb_csr_clear_flag(1, usb_state.current_rx_bank);
+  if (usb_state.current_rx_bank == AT91C_UDP_RX_DATA_BK0)
+    usb_state.current_rx_bank = AT91C_UDP_RX_DATA_BK1;
+  else
+    usb_state.current_rx_bank = AT91C_UDP_RX_DATA_BK0;
 }
 
 
-
-/*
- * when the nxt doesn't understand something from the host
- * it must send a "stall"
+/* A stall is USB's way of sending back an error (either "not
+ * understood" or "not handled by this device").
  */
 static void usb_send_stall(S8 reason) { /* TODO: remove reason. */
   usb_csr_set_flag(0, AT91C_UDP_FORCESTALL);
 }
 
 
-/*
- * when we receive a setup packet
- * we must sometimes answer with a null packet
- */
+/* During setup, we need to send packets with null data. */
 static void usb_send_null() {
   usb_send_data(0, NULL, 0);
 }
 
 
-
-
-/**
- * this function is called when
- * we receive a setup packet
- */
+/* Handle receiving and responding to setup packets on EP0. */
 static U32 usb_manage_setup_packet() {
   /* The structure of a USB setup packet. */
   struct {
-    U8  request_attrs; /* Request characteristics. */
-    U8  request; /* Request type. */
+    U8 request_attrs; /* Request characteristics. */
+    U8 request; /* Request type. */
     U16 value; /* Request-specific value. */
     U16 index; /* Request-specific index. */
     U16 length; /* The number of bytes transferred in the (optional)
-                   * second phase of the control transfer. */
+                 * second phase of the control transfer. */
   } packet;
-  U16 value16;
+  U16 response;
   U32 size;
   U8 index;
 
-
-  /* setup packet are always received
-   * on the endpoint 0 */
+  /* Read the packet from the FIFO into the above packet struct. */
   packet.request_attrs = AT91C_UDP_FDR[0];
   packet.request       = AT91C_UDP_FDR[0];
   packet.value         = (AT91C_UDP_FDR[0] & 0xFF) | (AT91C_UDP_FDR[0] << 8);
@@ -397,127 +378,114 @@ static U32 usb_manage_setup_packet() {
 
 
   if ((packet.request_attrs & USB_BMREQUEST_DIR) == USB_BMREQUEST_D_TO_H) {
-    usb_csr_set_flag(0, AT91C_UDP_DIR); /* we change the direction */
+    usb_csr_set_flag(0, AT91C_UDP_DIR); /* TODO: contradicts atmel doc p475 */
   }
 
   usb_csr_clear_flag(0, AT91C_UDP_RXSETUP);
 
 
-  value16 = 0;
+  response = 0;
 
 
-  /* let's see what the host want from us */
+  /* Respond to the control request. */
+  switch (packet.request) {
+  case USB_BREQUEST_GET_STATUS:
+    /* The host wants to know our status.
+     *
+     * If it wants the device status, just reply that the NXT is still
+     * self-powered (as first declared by the setup packets). If it
+     * wants endpoint status, reply that the endpoint has not
+     * halted. Any other status request types are reserved, which
+     * translates to replying zero.
+     */
+    if ((packet.request_attrs & USB_BMREQUEST_RCPT) == USB_BMREQUEST_RCPT_DEV)
+      response = 1;
+    else
+      response = 0;
 
-  switch (packet.request)
-    {
-    case (USB_BREQUEST_GET_STATUS):
+    usb_send_data(0, (U8*)&response, 2);
+    break;
 
-      switch (packet.request_attrs & USB_BMREQUEST_RCPT)
-	{
-	case (USB_BMREQUEST_RCPT_DEV):
-	  value16 = 1; /* self powered but can't wake up the host */
-	  break;
-	case (USB_BMREQUEST_RCPT_INT):
-	  value16 = 0;
-	  break;
-	case (USB_BMREQUEST_RCPT_EPT):
-	  value16 = 0; /* endpoint not halted */
-	  /* TODO : Check what the host has sent ! */
-	default:
-	  break;
-	}
+  case USB_BREQUEST_CLEAR_FEATURE:
+  case USB_BREQUEST_SET_INTERFACE:
+  case USB_BREQUEST_SET_FEATURE:
+    /* TODO: Refer back to the specs and send the right
+     * replies. This is wrong, even though it happens to not break
+     * on linux.
+     */
+    usb_send_null();
+    break;
 
-      usb_send_data(0, (U8 *)&value16, 2);
+  case USB_BREQUEST_SET_ADDRESS:
+    /* The host has given the NXT a new USB address. This address
+     * must be set AFTER sending the ack packet. Therefore, we just
+     * remember the new address, and the interrupt handler will set
+     * it when the transmission completes.
+     */
+    usb_state.new_device_address = packet.value;
+    usb_send_null();
 
-      break;
-
-    case (USB_BREQUEST_CLEAR_FEATURE):
-    case (USB_BREQUEST_SET_INTERFACE):
-    case (USB_BREQUEST_SET_FEATURE):
-      /* ni ! */
-      /* we send null to not be bothered by the host */
-      usb_send_null();
-      break;
-
-    case (USB_BREQUEST_SET_ADDRESS):
-      usb_state.new_device_address = packet.value;
-
-      /* we ack */
-      usb_send_null();
-
-      /* we will wait for an interruption telling us that TXCOMP is
-       * set to 1 now.
-       * so for now, that's all.
-       */
-
-      /* if the address must be reset to 0, we do it immediatly,
-       * because this driver is not made to manage this kind of
-       * situation else
-       */
-      if (usb_state.new_device_address == 0) {
-	/* we set the specified usb address in the controller */
-	*AT91C_UDP_FADDR    = AT91C_UDP_FEN | 0;
-	/* and we tell the controller that we are not in addressed mode anymore  */
-	*AT91C_UDP_GLBSTATE = 0;
+    /* If the address change is to 0, do it immediately.
+     *
+     * TODO: Why? And when does this happen?
+     */
+    if (usb_state.new_device_address == 0) {
+      *AT91C_UDP_FADDR = AT91C_UDP_FEN;
+      *AT91C_UDP_GLBSTATE = 0;
       }
+    break;
 
+  case USB_BREQUEST_GET_DESCRIPTOR:
+    /* The host requested a descriptor. */
+
+    index = (packet.value & USB_WVALUE_INDEX);
+    switch ((packet.value & USB_WVALUE_TYPE) >> 8) {
+    case USB_DESC_TYPE_DEVICE: /* Device descriptor */
+      size = usb_device_descriptor[0];
+      usb_send_data(0, usb_device_descriptor,
+                    MIN(size, packet.length));
       break;
 
-    case (USB_BREQUEST_GET_DESCRIPTOR):
-      /* the host want some informations about us */
-      index = (packet.value & USB_WVALUE_INDEX);
+    case USB_DESC_TYPE_CONFIG: /* Configuration descriptor */
+      usb_send_data(0, usb_nxos_full_config,
+                    MIN(usb_nxos_full_config[2], packet.length));
 
-      switch ((packet.value & USB_WVALUE_TYPE) >> 8)
-	{
-	case (USB_DESC_TYPE_DEVICE):
-	  /* it wants infos about the device */
-	  size = usb_device_descriptor[0];
-	  usb_send_data(0, usb_device_descriptor,
-			MIN(size, packet.length));
-	  break;
+      /* TODO: Why? This is not specified in the USB specs. */
+      if (usb_nxos_full_config[2] < packet.length)
+        usb_send_null();
+      break;
 
-	case (USB_DESC_TYPE_CONFIG):
-	  /* it wants infos about a specific config */
-	  /* we have only one configuration so ... */
-	  usb_send_data(0, usb_nxos_full_config,
-			MIN(usb_nxos_full_config[2], packet.length));
-	  if (usb_nxos_full_config[2] < packet.length)
-	    usb_send_null();
-	  break;
-
-	case (USB_DESC_TYPE_STR):
-	  if ((packet.value & USB_WVALUE_INDEX) == 0) {
-	    /* the host want to know want language we support */
-	    usb_send_data(0, usb_string_desc,
-			  MIN(usb_string_desc[0], packet.length));
-	  } else {
-	    /* the host want a specific string */
-	    /* TODO : Check it asks an existing string ! */
-	    usb_send_data(0, usb_strings[index-1],
-			  MIN(usb_strings[index-1][0],
-			      packet.length));
-	  }
-	  break;
-
-	case (USB_DESC_TYPE_DEVICE_QUALIFIER):
-	  size = usb_dev_qualifier_desc[0];
-	  usb_send_data(0, usb_dev_qualifier_desc,
-	  		MIN(size, packet.length));
-	  break;
-
-	default:
-	  usb_send_stall(USB_STATUS_UNKNOWN_DESCRIPTOR);
-	  break;
+    case USB_DESC_TYPE_STR: /* String or language info. */
+      if ((packet.value & USB_WVALUE_INDEX) == 0) {
+        usb_send_data(0, usb_string_desc,
+                      MIN(usb_string_desc[0], packet.length));
+      } else {
+        /* The host wants a specific string. */
+        /* TODO: This should check if the requested string exists. */
+        usb_send_data(0, usb_strings[index-1],
+                      MIN(usb_strings[index-1][0],
+                          packet.length));
       }
-
       break;
 
-    case (USB_BREQUEST_GET_CONFIG):
+    case USB_DESC_TYPE_DEVICE_QUALIFIER: /* Device qualifier descriptor. */
+      size = usb_dev_qualifier_desc[0];
+      usb_send_data(0, usb_dev_qualifier_desc,
+                    MIN(size, packet.length));
+      break;
+
+    default: /* Unknown descriptor, tell the host by stalling. */
+      usb_send_stall(USB_STATUS_UNKNOWN_DESCRIPTOR);
+    }
+    break;
+
+    case USB_BREQUEST_GET_CONFIG:
+      /* The host wants to know the ID of the current configuration. */
       usb_send_data(0, (U8 *)&(usb_state.current_config), 1);
       break;
 
-    case (USB_BREQUEST_SET_CONFIG):
-      usb_state.status = USB_READY;
+    case USB_BREQUEST_SET_CONFIG:
+      /* The host selected a new configuration. */
       usb_state.current_config = packet.value;
 
       /* we ack */
@@ -529,16 +497,21 @@ static U32 usb_manage_setup_packet() {
 	:AT91C_UDP_FADDEN;
 
       AT91C_UDP_CSR[1] = AT91C_UDP_EPEDS | AT91C_UDP_EPTYPE_BULK_OUT;
+      while (AT91C_UDP_CSR[1] != (AT91C_UDP_EPEDS | AT91C_UDP_EPTYPE_BULK_OUT));
       AT91C_UDP_CSR[2] = AT91C_UDP_EPEDS | AT91C_UDP_EPTYPE_BULK_IN;
+      while (AT91C_UDP_CSR[2] != (AT91C_UDP_EPEDS | AT91C_UDP_EPTYPE_BULK_IN));
       AT91C_UDP_CSR[3] = 0;
+      while (AT91C_UDP_CSR[3] != 0);
+
+      usb_state.status = USB_READY;
       break;
 
-    case (USB_BREQUEST_GET_INTERFACE):
-    case (USB_BREQUEST_SET_DESCRIPTOR):
-    default:
-      usb_send_stall(USB_STATUS_UNMANAGED_REQUEST);
-      break;
-    }
+  case USB_BREQUEST_GET_INTERFACE: /* TODO: This should respond, not stall. */
+  case USB_BREQUEST_SET_DESCRIPTOR:
+  default:
+    usb_send_stall(USB_STATUS_UNMANAGED_REQUEST);
+    break;
+  }
 
   return packet.request;
 }
