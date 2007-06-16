@@ -77,13 +77,6 @@
 #define USB_WVALUE_INDEX       0xFF
 
 
-
-/*** OUTPUT DATA (from the NXT PoV) ****/
-
-
-
-
-
 /*
  * device descriptor
  */
@@ -99,7 +92,7 @@ static const U8 usb_dev_desc[] = {
   0, /* Device protocol */
   MAX_ENDPT0_SIZE, /* max packet size for the end point 0 */
   0x94, 0x06, /* id_vendor : LEGO */
-  0x00, 0xFF, /* id_product : NXTOS */
+  0x00, 0xFF, /* id_product : NXOS */
   0, 0, /* bcd_device (~ revision of the product) */
   1, /* i_manufacturer : index of manufacturer string */
   2, /* i_product : index of product string */
@@ -125,10 +118,10 @@ static const U8 usb_dev_qualifier_desc[] = {
 
 
 
-static const U8 usb_nxtos_full_config[] = {
+static const U8 usb_nxos_full_config[] = {
   /* configuration packet :
    * describe a configuration
-   * only one is used with nxtos
+   * only one is used with nxos
    */
   0x09, /* b_length : size of the configuration packet */
   0x02, /* b_descriptor_type : config packet */
@@ -567,9 +560,9 @@ static U32 usb_manage_setup_packet() {
 	case (USB_DESC_TYPE_CONFIG):
 	  /* it wants infos about a specific config */
 	  /* we have only one configuration so ... */
-	  usb_send_data(0, usb_nxtos_full_config,
-			MIN(usb_nxtos_full_config[2], packet.w_length));
-	  if (usb_nxtos_full_config[2] < packet.w_length)
+	  usb_send_data(0, usb_nxos_full_config,
+			MIN(usb_nxos_full_config[2], packet.w_length));
+	  if (usb_nxos_full_config[2] < packet.w_length)
 	    usb_send_null();
 	  break;
 

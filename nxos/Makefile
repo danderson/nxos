@@ -6,7 +6,7 @@ C_SOURCES = $(wildcard kernel/*.c drivers/*.c)
 #	sensors.c util.c main.c tests.c usb.c uart.c bt.c
 S_SOURCES = $(wildcard kernel/*.S)
 #init.S interrupts.S vectors.S lock.S
-FONT_FILE = data/font.8x5.png
+FONT_FILE = fonts/font.8x5.png
 
 OPT_FLAGS = -Os
 #OPT_FLAGS = -O0 -g
