@@ -15,10 +15,6 @@
 #include "util.h"
 #include "usb.h"
 
-
-/* TODO: Get rid of this. */
-#include "display.h"
-
 /* TODO: Move to util.h */
 #define MIN(x, y) (x < y ? x : y)
 
@@ -813,6 +809,4 @@ U8 usb_status() { /* TODO: remove this, internal state leakage. */
 
 
 void usb_display_debug_info() { /* TODO: Remove this. */
-  display_clear();
-  display_cursor_set_pos(0, 0);
 }
