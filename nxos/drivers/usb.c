@@ -284,6 +284,9 @@ static void usb_send_data(int endpoint, const U8 *ptr, U32 length) {
     length -= packet_size;
     usb_state.tx_data[endpoint] = (U8*)(ptr + packet_size);
     usb_state.tx_len[endpoint] = length;
+  } else {
+    usb_state.tx_data[endpoint] = NULL;
+    usb_state.tx_len[endpoint] = 0;
   }
 
   /* Push a packet into the USB FIFO, and tell the controller to send. */
@@ -496,6 +499,7 @@ static U32 usb_manage_setup_packet() {
 	(AT91C_UDP_CONFG | AT91C_UDP_FADDEN)
 	:AT91C_UDP_FADDEN;
 
+      /* TODO: Make this a little nicer. Not quite sure how. */
       AT91C_UDP_CSR[1] = AT91C_UDP_EPEDS | AT91C_UDP_EPTYPE_BULK_OUT;
       while (AT91C_UDP_CSR[1] != (AT91C_UDP_EPEDS | AT91C_UDP_EPTYPE_BULK_OUT));
       AT91C_UDP_CSR[2] = AT91C_UDP_EPEDS | AT91C_UDP_EPTYPE_BULK_IN;
@@ -517,53 +521,52 @@ static U32 usb_manage_setup_packet() {
 }
 
 
-
+/* The main USB interrupt handler. */
 static void usb_isr() {
   U8 endpoint = 127;
   U32 csr, isr;
 
   isr = *AT91C_UDP_ISR;
 
-  if (AT91C_UDP_CSR[0] & AT91C_UDP_ISOERROR /* == STALLSENT */) {
-    /* then it means that we sent a stall, and the host has ack the stall */
-
+  /* We sent a stall, the host has acknowledged the stall. */
+  if (AT91C_UDP_CSR[0] & AT91C_UDP_ISOERROR)
     usb_csr_clear_flag(0, AT91C_UDP_FORCESTALL | AT91C_UDP_ISOERROR);
-  }
 
-
+  /* End of bus reset. Starting the device setup procedure. */
   if (isr & AT91C_UDP_ENDBUSRES) {
     usb_state.status = USB_UNINITIALIZED;
 
-    /* we ack all these interruptions */
-    *AT91C_UDP_ICR = AT91C_UDP_ENDBUSRES;
-    *AT91C_UDP_ICR = AT91C_UDP_RXSUSP; /* suspend */
-    *AT91C_UDP_ICR = AT91C_UDP_RXRSM; /* resume */
-    *AT91C_UDP_ICR = AT91C_UDP_SOFINT;
-    *AT91C_UDP_ICR = AT91C_UDP_WAKEUP;
+    /* Disable and clear all interruptions, reverting to the base
+     * state.
+     */
+    *AT91C_UDP_IDR = ~0;
+    *AT91C_UDP_ICR = ~0;
 
-    /* we reset the end points */
+    /* Reset all endpoint FIFOs. */
     *AT91C_UDP_RSTEP = ~0;
     *AT91C_UDP_RSTEP = 0;
 
+    /* Reset internal state. */
     usb_state.current_rx_bank = AT91C_UDP_RX_DATA_BK0;
     usb_state.current_config  = 0;
 
-    /* we redefine how the endpoints must work */
+    /* Reset EP0 to a basic control endpoint. */
+    /* TODO: The while is ugly. Fix it. */
     AT91C_UDP_CSR[0] = AT91C_UDP_EPEDS | AT91C_UDP_EPTYPE_CTRL;
+    while (AT91C_UDP_CSR[0] != (AT91C_UDP_EPEDS | AT91C_UDP_EPTYPE_CTRL));
 
-    /* then we activate the irq for the end points 0, 1 and 2 */
-    /* and for the suspend / resume */
-    *AT91C_UDP_IDR = ~0;
-    *AT91C_UDP_IER |= 0x7 /* endpts */ | (0x3 << 8) /* suspend / resume */;
+    /* Enable interrupt handling for all three endpoints, as well as
+     * suspend/resume.
+     */
+    *AT91C_UDP_IER = (AT91C_UDP_EPINT0 | AT91C_UDP_EPINT1 |
+                      AT91C_UDP_EPINT2 | AT91C_UDP_EPINT3 |
+                      AT91C_UDP_RXSUSP | AT91C_UDP_RXRSM);
 
-
-    usb_state.current_rx_bank = AT91C_UDP_RX_DATA_BK0;
-
-    /* we activate the function (i.e. us),
-     * and set the usb address 0 */
-    *AT91C_UDP_FADDR = AT91C_UDP_FEN | 0x0;
-
-    //*AT91C_UDP_ICR = 0xFFFFFFFF;
+    /* Enable the function endpoints, setting address 0, and return
+     * immediately. Given that we've just reset everything, there's no
+     * point in continuing.
+     */
+    *AT91C_UDP_FADDR = AT91C_UDP_FEN;
 
     return;
   }
@@ -733,8 +736,11 @@ bool usb_can_send() {
 
 
 void usb_send(U8 *data, U32 length) {
-  if (usb_state.status != USB_READY)
+  if (usb_state.status == USB_UNINITIALIZED
+      || usb_state.status == USB_SUSPENDED)
     return;
+
+  while (usb_state.status != USB_READY);
 
   /* start sending the data */
   usb_send_data(2, data, length);

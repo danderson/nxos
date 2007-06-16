@@ -41,8 +41,8 @@ static void core_shutdown() {
 void main() {
   core_init();
 
-  //tests_usb();
-  tests_all();
+  tests_usb();
+  //tests_all();
 
   core_shutdown();
 }
