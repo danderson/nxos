@@ -15,10 +15,6 @@
 #include "util.h"
 #include "usb.h"
 
-/* TODO: Move to util.h */
-#define MIN(x, y) (x < y ? x : y)
-
-
 /* The USB controller supports up to 4 endpoints. */
 #define N_ENDPOINTS 4
 
