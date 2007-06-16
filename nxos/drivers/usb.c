@@ -165,21 +165,19 @@ static const U8 usb_string_desc[] = {
 };
 
 static const U8 usb_lego_str[] = {
-  12, USB_DESC_TYPE_STR,
+  10, USB_DESC_TYPE_STR,
   'L', 0,
   'E', 0,
   'G', 0,
-  'O', 0,
-  '\0', '\0', /* TODO: USB spec p274 sez this is useless. */
+  'O', 0
 };
 
 static const U8 usb_nxt_str[] = {
-  12, USB_DESC_TYPE_STR,
+  10, USB_DESC_TYPE_STR,
   'N', 0,
   'x', 0,
   'O', 0,
   'S', 0,
-  '\0', '\0', /* TODO: USB spec p274 sez this is useless. */
 };
 
 
@@ -204,7 +202,6 @@ static volatile struct {
     USB_BUSY,
     USB_SUSPENDED,
   } status;
-  /* TODO: above state replaces is_suspended and is_waiting_ack. */
 
   /* Holds the status the bus was in before entering suspend. */
   enum usb_status pre_suspend_status;
