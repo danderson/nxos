@@ -229,8 +229,9 @@ static volatile struct {
    * double-buffered, and the reader must flush the current buffer to
    * gain access to the other buffer.
    */
-  U8 rx_buffer[2][USB_BUFFER_SIZE+1];
-  U16 rx_buffer_size[2]; /* data size waiting in the buffer */
+  U8   rx_current_user_buffer_idx; /* 0 or 1 */
+  U8   rx_buffer[2][USB_BUFFER_SIZE];
+  U16  rx_buffer_size[2]; /* data size waiting in the buffer */
   bool rx_overflow;
 
   /* The USB controller has two hardware input buffers. This remembers
@@ -315,24 +316,25 @@ static void usb_read_data(int endpoint) {
 
   total = (AT91C_UDP_CSR[endpoint] & AT91C_UDP_RXBYTECNT) >> 16;
 
-  /* by default we use the buffer for the interruption function */
-  /* except if the buffer for the user application is already free */
-  /* TODO: ^ WTF? */
+  /* if the buffer currently used by the user program is empty, then
+   * we will write in this one, else we will write in the other one */
 
-  if (usb_state.rx_buffer_size[1] == 0) {
-    buf = 1;
+  if (usb_state.rx_buffer_size[usb_state.rx_current_user_buffer_idx] == 0) {
+    buf = usb_state.rx_current_user_buffer_idx;
   } else {
-    if (usb_state.rx_buffer_size[0] > 0)
-      usb_state.rx_overflow = TRUE;
-    buf = 0;
+    buf = (usb_state.rx_current_user_buffer_idx == 0 ? 1 : 0);
+  }
+
+  /* if we are writing in a buffer containing something,
+   * it means we are overloaded */
+  if (usb_state.rx_buffer_size[buf] > 0) {
+    usb_state.rx_overflow = TRUE;
   }
 
   usb_state.rx_buffer_size[buf] = total;
   for (i = 0 ; i < total; i++)
     usb_state.rx_buffer[buf][i] = AT91C_UDP_FDR[1];
 
-  /* TODO: Remove this. Who says we're transferring strings? */
-  usb_state.rx_buffer[buf][i+1] = '\0';
 
   /* Acknowledge reading the current RX bank, and switch to the other. */
   usb_csr_clear_flag(1, usb_state.current_rx_bank);
@@ -345,8 +347,10 @@ static void usb_read_data(int endpoint) {
 
 /* A stall is USB's way of sending back an error (either "not
  * understood" or "not handled by this device").
+ * The connexion will be reinitialized by the host.
  */
-static void usb_send_stall(S8 reason) { /* TODO: remove reason. */
+static void usb_send_stall() {
+  usb_state.status = USB_UNINITIALIZED;
   usb_csr_set_flag(0, AT91C_UDP_FORCESTALL);
 }
 
@@ -478,7 +482,7 @@ static U32 usb_manage_setup_packet() {
       break;
 
     default: /* Unknown descriptor, tell the host by stalling. */
-      usb_send_stall(USB_STATUS_UNKNOWN_DESCRIPTOR);
+      usb_send_stall();
     }
     break;
 
@@ -513,7 +517,7 @@ static U32 usb_manage_setup_packet() {
   case USB_BREQUEST_GET_INTERFACE: /* TODO: This should respond, not stall. */
   case USB_BREQUEST_SET_DESCRIPTOR:
   default:
-    usb_send_stall(USB_STATUS_UNMANAGED_REQUEST);
+    usb_send_stall();
     break;
   }
 
@@ -668,6 +672,8 @@ static void usb_isr() {
 
 
 void usb_disable() {
+  aic_disable(AT91C_ID_UDP);
+
   *AT91C_PIOA_PER = (1 << 16);
   *AT91C_PIOA_OER = (1 << 16);
   *AT91C_PIOA_SODR = (1 << 16);
@@ -750,12 +756,12 @@ bool usb_is_connected() {
 
 
 U16 usb_has_data() {
-  return usb_state.rx_buffer_size[1];
+  return usb_state.rx_buffer_size[usb_state.rx_current_user_buffer_idx];
 }
 
 
 void *usb_get_buffer() {
-  return (usb_state.rx_buffer[1]);
+  return (usb_state.rx_buffer[usb_state.rx_current_user_buffer_idx]);
 }
 
 
@@ -766,20 +772,11 @@ bool usb_overloaded() {
 void usb_flush_buffer() {
   usb_state.rx_overflow = FALSE;
 
-  if (usb_state.rx_buffer_size[0] > 0)
-    memcpy(usb_state.rx_buffer[1], usb_state.rx_buffer[0],
-	   usb_state.rx_buffer_size[0]);
+  usb_state.rx_buffer_size[usb_state.rx_current_user_buffer_idx] = 0;
 
-  usb_state.rx_buffer_size[1] = usb_state.rx_buffer_size[0];
-  usb_state.rx_buffer_size[0] = 0;
-}
-
-
-U8 usb_status() { /* TODO: remove this, internal state leakage. */
-  return usb_state.status;
+  usb_state.rx_current_user_buffer_idx =
+    (usb_state.rx_current_user_buffer_idx == 0) ? 1 : 0;
 }
 
 
 
-void usb_display_debug_info() { /* TODO: Remove this. */
-}

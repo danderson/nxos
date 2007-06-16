@@ -36,15 +36,6 @@
 
 #define USB_BUFFER_SIZE 64 /* usb packet size */
 
-#define USB_STATUS_NULL               0
-#define USB_STATUS_INIT_STARTED       1
-#define USB_STATUS_INIT_DONE          2
-#define USB_STATUS_WRITED_SOMETHING   3
-#define USB_STATUS_READ_SOMETHING     4
-#define USB_STATUS_CRASHED            -1 /* no more informations */
-#define USB_STATUS_UNKNOWN_DESCRIPTOR -2
-#define USB_STATUS_UNMANAGED_REQUEST  -3
-
 void usb_init();
 void usb_disable();
 bool usb_is_connected();
@@ -86,13 +77,6 @@ void usb_flush_buffer();
  * fast enought for reading data coming on the usb, and a packet has been lost.
  */
 bool usb_overloaded();
-
-/*
- * See the status defined above
- */
-U8 usb_status();
-
-void usb_display_debug_info();
 
 
 #endif

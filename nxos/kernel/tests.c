@@ -312,12 +312,12 @@ void tests_usb() {
 
   hello();
 
-  buffer = (char *)usb_get_buffer();
-
   while(1) {
+    display_cursor_set_pos(0, 0);
+    display_string("Waiting command ...");
+
     for (i = 0 ; i < 500 && !usb_has_data(); i++)
     {
-      usb_display_debug_info();
       systick_wait_ms(200);
     }
 
@@ -328,6 +328,11 @@ void tests_usb() {
 
     lng = usb_has_data();
 
+    buffer = (char *)usb_get_buffer();
+    if ((lng+1) < USB_BUFFER_SIZE)
+      buffer[lng+1] = '\0';
+    else
+      buffer[USB_BUFFER_SIZE-1] = '\0';
 
     display_cursor_set_pos(0, 0);
     display_string("==");
@@ -421,13 +426,12 @@ void tests_usb_hardcore() {
 
   hello();
 
-  buffer = (char *)usb_get_buffer();
-
   systick_wait_ms(6000);
 
   for (i = 0 ; i < 1800 ; i++) {
 
     if ( (lng = usb_has_data()) > 0) {
+      buffer = (char *)usb_get_buffer();
       if (compare_str(buffer, "halt", lng)) {
 	break;
       }
