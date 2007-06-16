@@ -1,5 +1,5 @@
-#ifndef __NXTOS_SYSTICK_H__
-#define __NXTOS_SYSTICK_H__
+#ifndef __NXOS_SYSTICK_H__
+#define __NXOS_SYSTICK_H__
 
 #include "mytypes.h"
 

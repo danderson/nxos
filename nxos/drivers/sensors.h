@@ -1,5 +1,5 @@
-#ifndef __NXTOS_SENSORS_H__
-#define __NXTOS_SENSORS_H__
+#ifndef __NXOS_SENSORS_H__
+#define __NXOS_SENSORS_H__
 
 #include "mytypes.h"
 

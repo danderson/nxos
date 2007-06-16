@@ -1,5 +1,5 @@
-#ifndef __NXTOS_USB_H__
-#define __NXTOS_USB_H__
+#ifndef __NXOS_USB_H__
+#define __NXOS_USB_H__
 
 #include "mytypes.h"
 

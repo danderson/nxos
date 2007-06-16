@@ -1,5 +1,5 @@
-#ifndef __NXTOS_MOTORS_H__
-#define __NXTOS_MOTORS_H__
+#ifndef __NXOS_MOTORS_H__
+#define __NXOS_MOTORS_H__
 
 #include "mytypes.h"
 

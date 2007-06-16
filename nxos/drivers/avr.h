@@ -1,5 +1,5 @@
-#ifndef __NXTOS_AVR_H__
-#define __NXTOS_AVR_H__
+#ifndef __NXOS_AVR_H__
+#define __NXOS_AVR_H__
 
 #include "mytypes.h"
 

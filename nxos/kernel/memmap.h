@@ -1,5 +1,5 @@
-#ifndef __NXTOS_MEMMAP_H__
-#define __NXTOS_MEMMAP_H__
+#ifndef __NXOS_MEMMAP_H__
+#define __NXOS_MEMMAP_H__
 
 #include "mytypes.h"
 

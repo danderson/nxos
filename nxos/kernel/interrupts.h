@@ -1,5 +1,5 @@
-#ifndef __NXTOS_INTERRUPTS_H__
-#define __NXTOS_INTERRUPTS_H__
+#ifndef __NXOS_INTERRUPTS_H__
+#define __NXOS_INTERRUPTS_H__
 
 void interrupts_disable();
 void interrupts_enable();

@@ -1,5 +1,5 @@
-#ifndef __NXTOS_BT_H__
-#define __NXTOS_BT_H__
+#ifndef __NXOS_BT_H__
+#define __NXOS_BT_H__
 
 #include "mytypes.h"
 

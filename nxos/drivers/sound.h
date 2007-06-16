@@ -1,5 +1,5 @@
-#ifndef __NXTOS_SOUND_H__
-#define __NXTOS_SOUND_H__
+#ifndef __NXOS_SOUND_H__
+#define __NXOS_SOUND_H__
 
 #include "mytypes.h"
 

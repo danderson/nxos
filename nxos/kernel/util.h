@@ -1,5 +1,5 @@
-#ifndef __NXTOS_UTIL_H__
-#define __NXTOS_UTIL_H__
+#ifndef __NXOS_UTIL_H__
+#define __NXOS_UTIL_H__
 
 #include "mytypes.h"
 

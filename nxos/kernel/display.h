@@ -1,5 +1,5 @@
-#ifndef __NXTOS_DISPLAY_H__
-#define __NXTOS_DISPLAY_H__
+#ifndef __NXOS_DISPLAY_H__
+#define __NXOS_DISPLAY_H__
 
 #include "mytypes.h"
 

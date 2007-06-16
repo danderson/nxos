@@ -1,5 +1,5 @@
-#ifndef __NXTOS_UART_H__
-#define __NXTOS_UART_H__
+#ifndef __NXOS_UART_H__
+#define __NXOS_UART_H__
 
 #include "mytypes.h"
 

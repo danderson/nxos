@@ -1,5 +1,5 @@
-#ifndef __NXTOS_MYTYPES_H__
-#define __NXTOS_MYTYPES_H__
+#ifndef __NXOS_MYTYPES_H__
+#define __NXOS_MYTYPES_H__
 
 typedef unsigned char U8;
 typedef signed char S8;

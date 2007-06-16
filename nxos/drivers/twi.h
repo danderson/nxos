@@ -1,5 +1,5 @@
-#ifndef __NXTOS_TWI_H__
-#define __NXTOS_TWI_H__
+#ifndef __NXOS_TWI_H__
+#define __NXOS_TWI_H__
 
 #include "mytypes.h"
 

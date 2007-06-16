@@ -1,5 +1,5 @@
-#ifndef __NXTOS_LCD_H__
-#define __NXTOS_LCD_H__
+#ifndef __NXOS_LCD_H__
+#define __NXOS_LCD_H__
 
 /* Width and height of the LCD display. */
 #define LCD_WIDTH 100 /* pixels */

@@ -1,5 +1,5 @@
-#ifndef __NXTOS_AIC_H__
-#define __NXTOS_AIC_H__
+#ifndef __NXOS_AIC_H__
+#define __NXOS_AIC_H__
 
 #include "mytypes.h"
 
