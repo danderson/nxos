@@ -671,6 +671,7 @@ void usb_disable() {
   *AT91C_PIOA_PER = (1 << 16);
   *AT91C_PIOA_OER = (1 << 16);
   *AT91C_PIOA_SODR = (1 << 16);
+  systick_wait_ms(200);
 }
 
 
@@ -682,14 +683,13 @@ static inline void usb_enable() {
   *AT91C_PIOA_PER = (1 << 16);
   *AT91C_PIOA_OER = (1 << 16);
   *AT91C_PIOA_CODR = (1 << 16);
+  systick_wait_ms(200);
 }
 
 
 void usb_init() {
 
   usb_disable();
-
-  systick_wait_ms(200);
 
   interrupts_disable();
 
@@ -709,8 +709,6 @@ void usb_init() {
   /* reset all the endpoints */
   *AT91C_UDP_RSTEP = 0xF;
   *AT91C_UDP_RSTEP = 0;
-
-  //  usb_enable();
 
   *AT91C_UDP_ICR = 0xFFFFFFFF;
 
