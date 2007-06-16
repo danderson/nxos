@@ -1,4 +1,4 @@
-TARGET = nxtos
+TARGET = nxos
 BUILD_DIR = build
 
 C_SOURCES = $(wildcard kernel/*.c drivers/*.c)
@@ -19,7 +19,7 @@ include environment.mak
 
 ROM_LDS      = $(BUILD_DIR)/$(TARGET)_rom.lds
 SAMBA_LDS    = $(BUILD_DIR)/$(TARGET)_samba.lds
-SOURCE_LDS   = $(TARGET).lds
+SOURCE_LDS   = kernel/$(TARGET).lds
 
 S_OBJECTS    = $(addprefix $(BUILD_DIR)/, $(S_SOURCES:.S=.o))
 C_OBJECTS    = $(addprefix $(BUILD_DIR)/, $(C_SOURCES:.c=.o) $(C_RAMSOURCES:.c=.oram))
@@ -116,4 +116,4 @@ $(BUILD_DIR)/%.oram: %.c
 $(BUILD_DIR)/kernel/display.o: kernel/display.c $(FONT_INCLUDE)
 
 $(FONT_INCLUDE): $(FONT_FILE) kernel/font.h.base
-	./generate_fonts.py $(FONT_FILE) kernel/font.h.base $(FONT_INCLUDE)
+	./scripts/generate_fonts.py $(FONT_FILE) kernel/font.h.base $(FONT_INCLUDE)
