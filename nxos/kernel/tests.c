@@ -297,8 +297,9 @@ static U8 compare_str(char *str_a, char *str_b, U32 max)
 }
 
 
-#define USB_UNKNOWN "Unknown"
-#define USB_OK      "Ok"
+#define USB_UNKNOWN    "Unknown"
+#define USB_OK         "Ok"
+#define USB_OVERLOADED "Ok but overloaded"
 
 void tests_all();
 
@@ -392,8 +393,12 @@ void tests_usb() {
       usb_send((U8 *)USB_UNKNOWN, sizeof(USB_UNKNOWN));
     }
 
-    if (i == 0)
-      usb_send((U8 *)USB_OK, sizeof(USB_OK));
+    if (i == 0) {
+      if (!usb_overloaded())
+	usb_send((U8 *)USB_OK, sizeof(USB_OK));
+      else
+	usb_send((U8 *)USB_OVERLOADED, sizeof(USB_OVERLOADED));
+    }
 
     /* Stop interpreting */
 

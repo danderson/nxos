@@ -761,7 +761,7 @@ void *usb_get_buffer() {
 }
 
 
-bool usb_overflowed() {
+bool usb_overloaded() {
   return usb_state.rx_overflow;
 }
 
