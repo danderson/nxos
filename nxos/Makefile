@@ -1,9 +1,11 @@
 TARGET = nxtos
 BUILD_DIR = build
 
-C_SOURCES = aic.c systick.c twi.c sound.c avr.c lcd.c display.c motors.c \
-	sensors.c util.c main.c tests.c usb.c uart.c bt.c
-S_SOURCES = init.S interrupts.S vectors.S lock.S
+C_SOURCES = $(wildcard kernel/*.c drivers/*.c)
+#aic.c systick.c twi.c sound.c avr.c lcd.c display.c motors.c \
+#	sensors.c util.c main.c tests.c usb.c uart.c bt.c
+S_SOURCES = $(wildcard kernel/*.S)
+#init.S interrupts.S vectors.S lock.S
 FONT_FILE = data/font.8x5.png
 
 OPT_FLAGS = -Os
@@ -22,7 +24,7 @@ SOURCE_LDS   = $(TARGET).lds
 S_OBJECTS    = $(addprefix $(BUILD_DIR)/, $(S_SOURCES:.S=.o))
 C_OBJECTS    = $(addprefix $(BUILD_DIR)/, $(C_SOURCES:.c=.o) $(C_RAMSOURCES:.c=.oram))
 ALL_OBJECTS  = $(C_OBJECTS) $(S_OBJECTS)
-FONT_INCLUDE = font.h
+FONT_INCLUDE = kernel/font.h
 
 ROM_TARGET   = $(TARGET)_rom.bin
 SAMBA_TARGET = $(TARGET)_samba.bin
@@ -30,11 +32,11 @@ SAMBA_TARGET = $(TARGET)_samba.bin
 ALL_TARGETS = $(SAMBA_TARGET) $(ROM_TARGET)
 
 CFLAGS = -c -ffreestanding -fsigned-char -mcpu=arm7tdmi $(OPT_FLAGS) \
-         -Wall -Werror -I. -msoft-float -mthumb-interwork -mthumb \
-         -ffunction-sections -fdata-sections
+         -Wall -Werror -Ikernel -Idrivers -msoft-float -mthumb-interwork \
+         -mthumb -ffunction-sections -fdata-sections
 
 ASFLAGS = -Wall -Werror $(OPT_FLAGS) \
-	-Wa,-mcpu=arm7tdmi,-mfpu=softfpa,-mthumb-interwork
+          -Wa,-mcpu=arm7tdmi,-mfpu=softfpa,-mthumb-interwork
 
 LIBS = $(LIBGCC)
 LDFLAGS = $(OPT_FLAGS) -Map $@.map -cref --gc-sections
@@ -56,7 +58,7 @@ clean:
 	@rm -f *~
 
 ensure-build-dir:
-	@mkdir -p $(BUILD_DIR)
+	@mkdir -p $(dir $(ALL_OBJECTS))
 
 #
 # Final binary image targets.
@@ -111,7 +113,7 @@ $(BUILD_DIR)/%.oram: %.c
 # Specific rule: the display driver has a dependency on the generated
 # font.h file.
 #
-$(BUILD_DIR)/display.o: display.c $(FONT_INCLUDE)
+$(BUILD_DIR)/kernel/display.o: kernel/display.c $(FONT_INCLUDE)
 
-$(FONT_INCLUDE): $(FONT_FILE) font.h.base
-	./generate_fonts.py $(FONT_FILE) font.h.base $(FONT_INCLUDE)
+$(FONT_INCLUDE): $(FONT_FILE) kernel/font.h.base
+	./generate_fonts.py $(FONT_FILE) kernel/font.h.base $(FONT_INCLUDE)

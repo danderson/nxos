@@ -47,7 +47,7 @@ SECTIONS {
    * boot time.
    */
   .vectors : {
-    KEEP(build/vectors.o (*.text *.text.*))
+    KEEP(build/kernel/vectors.o (*.text *.text.*))
     . = ALIGN(16);
   } > vector_ram
   ROM_ONLY AT> rom
@@ -63,7 +63,7 @@ SECTIONS {
    * The base bootstrapping code for the NXT.
    */
   .init : {
-    build/init.o (*.text *.text.*)
+    build/kernel/init.o (*.text *.text.*)
     . = ALIGN(16);
   }
   ROM_ONLY > rom
