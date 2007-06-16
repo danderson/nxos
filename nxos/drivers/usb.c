@@ -1,47 +1,44 @@
+/* Driver for the NXT's USB port.
+ *
+ * This driver drives the onboard USB controller to make the NXT into
+ * a functional USB 2.0 peripheral. Note that given the limitations of
+ * the controller hardware, the brick cannot function as a host, only
+ * as a peripheral.
+ */
 
 #include "at91sam7s256.h"
 
-#include "aic.h"
-
-#include "systick.h"
-#include "display.h"
+#include "mytypes.h"
 #include "interrupts.h"
+#include "systick.h"
+#include "aic.h"
 #include "util.h"
-
 #include "usb.h"
 
+
+/* TODO: Get rid of this. */
+#include "display.h"
+
+/* TODO: Move to util.h */
 #define MIN(x, y) (x < y ? x : y)
 
 
+/* The USB controller supports up to 4 endpoints. */
+#define N_ENDPOINTS 4
 
-/* number of endpoints ; there are 4, but we will only
- * use 3 of them */
-#define NMB_ENDPOINTS 4
-#define NMB_USED_ENDPOINTS 3
-
-/* maximum packet size for the endpoint 0 */
-#define MAX_ENDPT0_SIZE 8
-
-/* max packet size in reception for each endpoint */
+/* Maximum data packet sizes. Endpoint 0 is a special case (control
+ * endpoint).
+ *
+ * TODO: Discuss the need/use for separating recv/send.
+ */
+#define MAX_EP0_SIZE 8
 #define MAX_RCV_SIZE 64
-
-/* max packet size when we send data */
 #define MAX_SND_SIZE 64
 
 
-/* used in setup packets : */
-
-/* see 'bmRequestType' in the specs of a setup packet
- * H_TO_D == Host to Device
- * D_TO_H == Device to Host
- * STD    == Type : Standart
- * CLS    == Type : Class
- * VDR    == Type : Vendor
- * RSV    == Type : Reserved
- * DEV    == Recipient : Device
- * INT    == Recipient : Interface
- * EPT    == Recipient : Endpoint
- * OTH    == Recipient : Other
+/* Various constants for the setup packets.
+ *
+ * TODO: clean up these. Most are unused.
  */
 #define USB_BMREQUEST_DIR            0x80
 #define USB_BMREQUEST_H_TO_D         0x0
@@ -52,7 +49,6 @@
 #define USB_BMREQUEST_RCPT_INT       0x1 /* interface */
 #define USB_BMREQUEST_RCPT_EPT       0x2 /* endpoint */
 #define USB_BMREQUEST_RCPT_OTH       0x3 /* other */
-
 
 #define USB_BREQUEST_GET_STATUS      0x0
 #define USB_BREQUEST_CLEAR_FEATURE   0x1
@@ -65,7 +61,6 @@
 #define USB_BREQUEST_GET_INTERFACE   0xA
 #define USB_BREQUEST_SET_INTERFACE   0xB
 
-
 #define USB_WVALUE_TYPE        (0xFF << 8)
 #define USB_DESC_TYPE_DEVICE           1
 #define USB_DESC_TYPE_CONFIG           2
@@ -77,243 +72,179 @@
 #define USB_WVALUE_INDEX       0xFF
 
 
-/*
- * device descriptor
+/* The following definitions are 'raw' USB setup packets. They are all
+ * standard responses to various setup requests by the USB host. These
+ * packets are all constant, and mostly boilerplate. Don't be too
+ * bothered if you skip over these to real code.
+ *
+ * If you want to understand the full meaning of every bit of these
+ * packets, you should refer to the USB 2.0 specifications.
+ *
+ * One point of interest: the USB device space is partitionned by
+ * vendor and product ID. As we are lacking money and real need, we
+ * don't have a vendor ID to use. Therefore, we are currently
+ * piggybacking on Lego's device space, using an unused product ID.
  */
-static const U8 usb_dev_desc[] = {
-  18, USB_DESC_TYPE_DEVICE, /* header :
-			     * packet size: 18 ;
-			     * type : device description */
-  0x00, 0x20, /* bcd_usb :
-	       * USB Specification Number which device complies to
-	       * Here : USB 2.0 */
-  2, /* Class code */
-  0, /* Sub class code */
-  0, /* Device protocol */
-  MAX_ENDPT0_SIZE, /* max packet size for the end point 0 */
-  0x94, 0x06, /* id_vendor : LEGO */
-  0x00, 0xFF, /* id_product : NXOS */
-  0, 0, /* bcd_device (~ revision of the product) */
-  1, /* i_manufacturer : index of manufacturer string */
-  2, /* i_product : index of product string */
-  0, /* i_serial_number : index of serial number (here : none) */
-  1, /* b_num_configurations : number of possible config */
+static const U8 usb_device_descriptor[] = {
+  18, USB_DESC_TYPE_DEVICE, /* Packet size and type. */
+  0x00, 0x20, /* This packet is USB 2.0. */
+  2, /* Class code. */
+  0, /* Sub class code. */
+  0, /* Device protocol. */
+  MAX_EP0_SIZE, /* Maximum packet size for EP0 (control endpoint). */
+  0x94, 0x06, /* Vendor ID : LEGO */
+  0x00, 0xFF, /* Product ID : NXOS */
+  0x00, 0x00, /* Product revision. */
+  1, /* Index of the vendor string. */
+  2, /* Index of the product string. */
+  0, /* Index of the serial number (none for us). */
+  1, /* The number of possible configurations. */
 };
-
-
 
 static const U8 usb_dev_qualifier_desc[] = {
-  10, /* b_length */
-  USB_DESC_TYPE_DEVICE_QUALIFIER, /* b_descriptor_type */
-  0x00, 0x20, /* bcd_usb :
-	       * USB Specification Number which device complies to
-	       * Here : USB 2.0 */
+  10, USB_DESC_TYPE_DEVICE_QUALIFIER, /* Packet size and type. */
+  0x00, 0x20, /* This packet is USB 2.0. */
   2, /* Class code */
   0, /* Sub class code */
   0, /* Device protocol */
-  MAX_ENDPT0_SIZE, /* max packet size for the end point 0 */
-  1, /* b_num_configurations : number of possible config */
-  0 /* reserved : must be 0 */
+  MAX_EP0_SIZE, /* Maximum packet size for EP0. */
+  1, /* The number of possible configurations. */
+  0 /* Reserved for future use, must be zero. */
 };
-
 
 
 static const U8 usb_nxos_full_config[] = {
-  /* configuration packet :
-   * describe a configuration
-   * only one is used with nxos
-   */
-  0x09, /* b_length : size of the configuration packet */
-  0x02, /* b_descriptor_type : config packet */
-  0x20, 0x00, /* w_total_length
-	       * (here, 9 + 9 + 2*7 = 32)
-	       * sizeof(config packet) +
-	       * nmb interfaces sizeof(interface packet) +
-	       * nmb endpoints * sizeof(endpoint packet)
-	       * Note: if the total length exceed 0xFF, you must adapt
-	       *       the function usb_manage_setup_packet
-	       */
-  0x01, /* b_num_interfaces : number of interfaces */
-  0x01, /* b_configuration_value :
-	 * Value to use as an argument to select this
-	 * configuration will be used by the computer to select this config
-	 */
-  0x00, /* Index of String Descriptor describing this
-	 * configuration */
+  0x09, USB_DESC_TYPE_CONFIG, /* Descriptor size and type. */
+  0x20, 0x00, /* Total length of the configuration, interface
+               * description included.
+               */
+  1, /* The number of interfaces declared by this configuration. */
+  1, /* The ID for this configuration. */
+  0, /* Index of the configuration description string (none). */
 
-
-  /* bm_attributes:
-   * Bitmap :
-   *  D7 Reserved, set to 1. (USB 1.0 Bus Powered)
-   *  D6 Self Powered
-   *  D5 Remote Wakeup
-   *  D4..0 Reserved, set to 0.
+  /* Configuration attributes bitmap. Bit 7 (MSB) must be 1, bit 6 is
+   * 1 because the NXT is self-powered, bit 5 is 0 because the NXT
+   * doesn't support remote wakeup, and bits 0-4 are 0 (reserved).
    */
-#define BM_ATTR_RESERVED_7    0x80
-#define BM_ATTR_SELF_POWERED  0x40
-#define BM_ATTR_REMOTE_WAKEUP 0x20
-#define BM_ATTR_RESERVED_4_0  0x00
-  BM_ATTR_RESERVED_7 | BM_ATTR_SELF_POWERED | BM_ATTR_RESERVED_4_0,
-  0, /* b_max_power : max power consumption (unit: 2mA) : 0 for the nxt */
+  0x40,
+  0, /* Device power consumption, for non self-powered devices. */
 
 
   /*
-   * interface descriptor
+   * This is the descriptor for the interface associated with the
+   * configuration.
    */
-  0x09, /* b_length */
-  0x04, /* b_descriptor_type */
-  0x00, /* b_interface_number */
-  0x00, /* b_alternate_settings */
-  0x02, /* b_num_endpoints : number of endpoints for this interface
-	 * (end point 0 not counted) */
-  0xFF, /* b_interface_class (see the device descriptor) */
-  0xFF, /* b_interface_sub_class (see the device descriptor) */
-  0xFF, /* b_interface_protocol (see the device descriptor) */
-  0x0,  /* i_interface : Index of String Descriptor describing this interface */
+  0x09, USB_DESC_TYPE_INT, /* Descriptor size and type. */
+  0x00, /* Interface index. */
+  0x00, /* ID for this interface configuration. */
+  0x02, /* The number of endpoints defined by this interface
+         * (excluding EP0).
+         */
+  0xFF, /* Interface class ("Vendor specific"). */
+  0xFF, /* Interface subclass (see above). */
+  0xFF, /* Interface protocol (see above). */
+  0x00, /* Index of the string descriptor for this interface (none). */
 
 
   /*
-   * endpoint 1 descriptor
+   * Descriptor for EP1.
    */
-  7, /* b_length */
-  USB_DESC_TYPE_ENDPT, /* desc type */
-
-  /* b_endpoint_address:
-   * bitmap :
-   * Bits 0..3b Endpoint Number.
-   * Bits 4..6b Reserved. Set to Zero
-   * Bits 7 Direction 0 = Out, 1 = In (Ignored for Control Endpoints)
-   */
-#define B_ENDPOINT_ADDR_DIR_IN       0x80
-#define B_ENDPOINT_ADDR_RESERVED_6_4 0x00
-  B_ENDPOINT_ADDR_RESERVED_6_4 | 0x1,
-
-
-  /* bm_attributes:
-   * bitmap again:
-   * Bits 0..1 Transfer Type
-   *  00 = Control ; 01 = Isochronous ; 10 = Bulk ; 11 = Interrupt
-   *
-   * Bits 2..7 are reserved, but if Isochronous endpoint:
-   * - Bits 3..2 = Synchronisation Type (Iso Mode):
-   *   00 = No Synchonisation;01 = Asynchronous;10 = Adaptive;11 = Synchronous
-   * - Bits 5..4 = Usage Type (Iso Mode):
-   *   00 = Data Endpoint;01 = Feedback Endpoint;
-   */
-#define BM_ATTR_ENDPT_CONTROL     0x00
-#define BM_ATTR_ENDPT_ISOCHRONOUS 0x01
-#define BM_ATTR_ENDPT_BULK        0x02
-#define BM_ATTR_ENDPT_INTERRUPT   0x03
-  BM_ATTR_ENDPT_BULK,
-  MAX_RCV_SIZE, 0x00,      /* w_max_packet_size (64) : Max packet size */
-  0,                  /* b_interval */
+  7, USB_DESC_TYPE_ENDPT, /* Descriptor length and type. */
+  0x1, /* Endpoint number. MSB is zero, meaning this is an OUT EP. */
+  0x2, /* Endpoint type (bulk). */
+  MAX_RCV_SIZE, 0x00, /* Maximum packet size (64). */
+  0, /* EP maximum NAK rate (device never NAKs). */
 
 
   /*
-   * endpoint 2 descriptor
+   * Descriptor for EP2.
    */
-  7, /* b_length */
-  USB_DESC_TYPE_ENDPT, /* desc type */
-  /* b_endpoint_address: */
-  B_ENDPOINT_ADDR_DIR_IN | B_ENDPOINT_ADDR_RESERVED_6_4 | 0x2,
-  /* bm_attributes: */
-  BM_ATTR_ENDPT_BULK,
-  MAX_RCV_SIZE, 0x00,      /* w_max_packet_size (64) : Max packet size */
-  0
+  7, USB_DESC_TYPE_ENDPT, /* Descriptor length and type. */
+  0x82, /* Endpoint number. MSB is one, meaning this is an IN EP. */
+  0x2, /* Endpoint type (bulk). */
+  MAX_RCV_SIZE, 0x00, /* Maximum packet size (64). */
+  0, /* EP maximum NAK rate (device never NAKs). */
 };
 
 
-
-/*
- * string descriptor
- * explain to the host that we only speak english
- */
 static const U8 usb_string_desc[] = {
-  4, /* b_length */
-  0x03, /* b_descriptor_type */
-  0x09, 0x04 /* English (US) */
+  4, USB_DESC_TYPE_STR, /* Descriptor length and type. */
+  0x09, 0x04, /* Supported language ID (US English). */
 };
 
-/*
- * b_length = 2 (header) + (2*strlen(str))
- * type = 0x03
+static const U8 usb_lego_str[] = {
+  12, USB_DESC_TYPE_STR,
+  'L', 0,
+  'E', 0,
+  'G', 0,
+  'O', 0,
+  '\0', '\0', /* TODO: USB spec p274 sez this is useless. */
+};
+
+static const U8 usb_nxt_str[] = {
+  12, USB_DESC_TYPE_STR,
+  'N', 0,
+  'x', 0,
+  'O', 0,
+  'S', 0,
+  '\0', '\0', /* TODO: USB spec p274 sez this is useless. */
+};
+
+
+/* Internal lookup table mapping string descriptors to their indices
+ * in the USB string descriptor table.
  */
-static const U8 usb_lego_str[] =
-  { 2+(2*4)+2, USB_DESC_TYPE_STR,
-    'L', 0,
-    'E', 0,
-    'G', 0,
-    'O', 0,
-    '\0', '\0'};
-
-static const U8 usb_nxt_str[] =
-  { 2+(2*3)+2, USB_DESC_TYPE_STR,
-    'N', 0,
-    'X', 0,
-    'T', 0,
-    '\0', '\0'};
-
-
 static const U8 *usb_strings[] = {
   usb_lego_str,
-  usb_nxt_str
+  usb_nxt_str,
 };
 
 
-
-/** INPUT DATA (from the NXT PoV) ****/
-
-
-typedef struct usb_setup_packet {
-  U8  bm_request_type;  /* bit field : see the specs */
-  U8  b_request;      /* request */
-  U16 w_value;        /* value */
-  U16 w_index;        /* index */
-  U16 w_length;       /* number of bytes to transfer if there is a data phase */
-} usb_setup_packet_t;
-
-
-
-
-
-/** INTERNAL **/
-
+/*
+ * The USB device state. Contains the current USB state (selected
+ * configuration, etc.) and transitory state for data transfers.
+ */
 static volatile struct {
-  /* for debug purpose : */
-  S8 usb_status;
-  U8 has_sent_stall;
-  U32 stalling_isr;
+  /* The current state of the device. */
+  enum usb_status {
+    USB_UNINITIALIZED = 0,
+    USB_READY,
+    USB_BUSY,
+    USB_SUSPENDED,
+  } status;
+  /* TODO: above state replaces is_suspended and is_waiting_ack. */
 
-  U32 nmb_int;
+  /* Holds the status the bus was in before entering suspend. */
+  enum usb_status pre_suspend_status;
 
-  U32 debug; /* various informations depending of the error code */
-
-  U32 addr_to_set; /* 0 usually, except when an adress must be set at the
-		    * next interruption received */
-  U8 current_config; /* 0 (none) or 1 (the only config) */
-  U8 current_rx_bank;
-  U8 is_suspended;   /* true or false */
-
-
-  /* ds == Data to send */
-  /* ds_data : last position of the data pointer */
-  U8 *ds_data[NMB_ENDPOINTS];
-  /* ds_length : data remaining to send */
-  U32 ds_length[NMB_ENDPOINTS];
-
-  U8 is_waiting_ack;
-
-  /* dr == Data received */
-  /* The first buffer is where the interruption
-   *  function will write
-   * The second buffer is where the user app read
-   * The first buffer is put into the second
-   * one when the application flush the second buffer
+  /* When the host gives us an address, we must send a null ACK packet
+   * back before actually changing addresses. This field stores the
+   * address that should be set once the ACK is sent.
    */
-  U8  dr_buffer[2][USB_BUFFER_SIZE+1];
-  U16 dr_buffer_used[2]; /* data size waiting in the buffer */
-  U8  dr_overflowed;
+  U32 new_device_address;
 
+  /* The currently selected USB configuration. */
+  U8 current_config;
+
+  /* Holds the state of the data transmissions on both EP0 and
+   * EP1. This only gets used if the transmission needed to be split
+   * into several USB packets.
+   */
+  U8 *tx_data[N_ENDPOINTS]; /* TODO: Switch to 2, memory waste. */
+  U32 tx_len[N_ENDPOINTS];
+
+  /* Holds received data shifted from the controller. Receiving is
+   * double-buffered, and the reader must flush the current buffer to
+   * gain access to the other buffer.
+   */
+  U8 rx_buffer[2][USB_BUFFER_SIZE+1];
+  U16 rx_buffer_size[2]; /* data size waiting in the buffer */
+  bool rx_overflow;
+
+  /* The USB controller has two hardware input buffers. This remembers
+   * the one currently in use.
+   */
+  U8 current_rx_bank;
 } usb_state = {
   0
 };
@@ -350,7 +281,7 @@ static void usb_send_data(int endpoint, const U8 *ptr, U32 length) {
 
   /* we can't send more than MAX_SND_SIZE each time */
   if (endpoint == 0) {
-    packet_size = MIN(MAX_ENDPT0_SIZE, length);
+    packet_size = MIN(MAX_EP0_SIZE, length);
   } else {
     packet_size = MIN(MAX_SND_SIZE, length);
   }
@@ -364,15 +295,12 @@ static void usb_send_data(int endpoint, const U8 *ptr, U32 length) {
     packet_size--;
   }
 
-  if (endpoint > 0)
-    usb_state.usb_status = USB_STATUS_WRITED_SOMETHING;
-
   /* we prepare the next sending */
-  usb_state.ds_data[endpoint]   = length ? (U8 *)ptr : NULL;
-  usb_state.ds_length[endpoint] = length;
+  usb_state.tx_data[endpoint]   = length ? (U8 *)ptr : NULL;
+  usb_state.tx_len[endpoint] = length;
 
   /* and next we tell the controller to send what is in the fifo */
-  usb_state.is_waiting_ack = 1;
+  usb_state.status = USB_BUSY;
   usb_csr_set_flag(endpoint, AT91C_UDP_TXPKTRDY);
 
 }
@@ -390,28 +318,24 @@ static void usb_read_data(int endpoint) {
 
     total = ((AT91C_UDP_CSR[endpoint] & AT91C_UDP_RXBYTECNT) >> 16) & 0x7FF;
 
-    if (total > 0) {
-	usb_state.usb_status = USB_STATUS_READ_SOMETHING;
-    }
-
     /* by default we use the buffer for the interruption function */
     /* except if the buffer for the user application is already free */
 
-    if (usb_state.dr_buffer_used[1] == 0) /* if the user buffer is free */
+    if (usb_state.rx_buffer_size[1] == 0) /* if the user buffer is free */
       buf = 1;
     else {
-      if (usb_state.dr_buffer_used[0] > 0) /* if the isr buffer is already used */
-	usb_state.dr_overflowed = 1;
+      if (usb_state.rx_buffer_size[0] > 0) /* if the isr buffer is already used */
+	usb_state.rx_overflow = TRUE;
       buf = 0;
     }
 
-    usb_state.dr_buffer_used[buf] = total;
+    usb_state.rx_buffer_size[buf] = total;
 
     /* we read the data, and put them in the buffer */
     for (i = 0 ; i < total; i++)
-      usb_state.dr_buffer[buf][i] = AT91C_UDP_FDR[1];
+      usb_state.rx_buffer[buf][i] = AT91C_UDP_FDR[1];
 
-    usb_state.dr_buffer[buf][i+1] = '\0';
+    usb_state.rx_buffer[buf][i+1] = '\0';
 
     /* and then we tell the controller that we read the FIFO */
     usb_csr_clear_flag(1, usb_state.current_rx_bank);
@@ -436,12 +360,7 @@ static void usb_read_data(int endpoint) {
  * when the nxt doesn't understand something from the host
  * it must send a "stall"
  */
-static void usb_send_stall(S8 reason) {
-  usb_state.usb_status = reason;
-
-  if (usb_state.has_sent_stall == 0)
-    usb_state.has_sent_stall = 1;
-
+static void usb_send_stall(S8 reason) { /* TODO: remove reason. */
   usb_csr_set_flag(0, AT91C_UDP_FORCESTALL);
 }
 
@@ -462,7 +381,15 @@ static void usb_send_null() {
  * we receive a setup packet
  */
 static U32 usb_manage_setup_packet() {
-  usb_setup_packet_t packet;
+  /* The structure of a USB setup packet. */
+  struct {
+    U8  request_attrs; /* Request characteristics. */
+    U8  request; /* Request type. */
+    U16 value; /* Request-specific value. */
+    U16 index; /* Request-specific index. */
+    U16 length; /* The number of bytes transferred in the (optional)
+                   * second phase of the control transfer. */
+  } packet;
   U16 value16;
   U32 size;
   U8 index;
@@ -470,14 +397,14 @@ static U32 usb_manage_setup_packet() {
 
   /* setup packet are always received
    * on the endpoint 0 */
-  packet.bm_request_type = AT91C_UDP_FDR[0];
-  packet.b_request       = AT91C_UDP_FDR[0];
-  packet.w_value         = (AT91C_UDP_FDR[0] & 0xFF) | (AT91C_UDP_FDR[0] << 8);
-  packet.w_index         = (AT91C_UDP_FDR[0] & 0xFF) | (AT91C_UDP_FDR[0] << 8);
-  packet.w_length        = (AT91C_UDP_FDR[0] & 0xFF) | (AT91C_UDP_FDR[0] << 8);
+  packet.request_attrs = AT91C_UDP_FDR[0];
+  packet.request       = AT91C_UDP_FDR[0];
+  packet.value         = (AT91C_UDP_FDR[0] & 0xFF) | (AT91C_UDP_FDR[0] << 8);
+  packet.index         = (AT91C_UDP_FDR[0] & 0xFF) | (AT91C_UDP_FDR[0] << 8);
+  packet.length        = (AT91C_UDP_FDR[0] & 0xFF) | (AT91C_UDP_FDR[0] << 8);
 
 
-  if ((packet.bm_request_type & USB_BMREQUEST_DIR) == USB_BMREQUEST_D_TO_H) {
+  if ((packet.request_attrs & USB_BMREQUEST_DIR) == USB_BMREQUEST_D_TO_H) {
     usb_csr_set_flag(0, AT91C_UDP_DIR); /* we change the direction */
   }
 
@@ -489,11 +416,11 @@ static U32 usb_manage_setup_packet() {
 
   /* let's see what the host want from us */
 
-  switch (packet.b_request)
+  switch (packet.request)
     {
     case (USB_BREQUEST_GET_STATUS):
 
-      switch (packet.bm_request_type & USB_BMREQUEST_RCPT)
+      switch (packet.request_attrs & USB_BMREQUEST_RCPT)
 	{
 	case (USB_BMREQUEST_RCPT_DEV):
 	  value16 = 1; /* self powered but can't wake up the host */
@@ -521,7 +448,7 @@ static U32 usb_manage_setup_packet() {
       break;
 
     case (USB_BREQUEST_SET_ADDRESS):
-      usb_state.addr_to_set = packet.w_value;
+      usb_state.new_device_address = packet.value;
 
       /* we ack */
       usb_send_null();
@@ -535,7 +462,7 @@ static U32 usb_manage_setup_packet() {
        * because this driver is not made to manage this kind of
        * situation else
        */
-      if (usb_state.addr_to_set == 0) {
+      if (usb_state.new_device_address == 0) {
 	/* we set the specified usb address in the controller */
 	*AT91C_UDP_FADDR    = AT91C_UDP_FEN | 0;
 	/* and we tell the controller that we are not in addressed mode anymore  */
@@ -546,48 +473,47 @@ static U32 usb_manage_setup_packet() {
 
     case (USB_BREQUEST_GET_DESCRIPTOR):
       /* the host want some informations about us */
-      index = (packet.w_value & USB_WVALUE_INDEX);
+      index = (packet.value & USB_WVALUE_INDEX);
 
-      switch ((packet.w_value & USB_WVALUE_TYPE) >> 8)
+      switch ((packet.value & USB_WVALUE_TYPE) >> 8)
 	{
 	case (USB_DESC_TYPE_DEVICE):
 	  /* it wants infos about the device */
-	  size = usb_dev_desc[0];
-	  usb_send_data(0, usb_dev_desc,
-			MIN(size, packet.w_length));
+	  size = usb_device_descriptor[0];
+	  usb_send_data(0, usb_device_descriptor,
+			MIN(size, packet.length));
 	  break;
 
 	case (USB_DESC_TYPE_CONFIG):
 	  /* it wants infos about a specific config */
 	  /* we have only one configuration so ... */
 	  usb_send_data(0, usb_nxos_full_config,
-			MIN(usb_nxos_full_config[2], packet.w_length));
-	  if (usb_nxos_full_config[2] < packet.w_length)
+			MIN(usb_nxos_full_config[2], packet.length));
+	  if (usb_nxos_full_config[2] < packet.length)
 	    usb_send_null();
 	  break;
 
 	case (USB_DESC_TYPE_STR):
-	  if ((packet.w_value & USB_WVALUE_INDEX) == 0) {
+	  if ((packet.value & USB_WVALUE_INDEX) == 0) {
 	    /* the host want to know want language we support */
 	    usb_send_data(0, usb_string_desc,
-			  MIN(usb_string_desc[0], packet.w_length));
+			  MIN(usb_string_desc[0], packet.length));
 	  } else {
 	    /* the host want a specific string */
 	    /* TODO : Check it asks an existing string ! */
 	    usb_send_data(0, usb_strings[index-1],
 			  MIN(usb_strings[index-1][0],
-			      packet.w_length));
+			      packet.length));
 	  }
 	  break;
 
 	case (USB_DESC_TYPE_DEVICE_QUALIFIER):
 	  size = usb_dev_qualifier_desc[0];
 	  usb_send_data(0, usb_dev_qualifier_desc,
-	  		MIN(size, packet.w_length));
+	  		MIN(size, packet.length));
 	  break;
 
 	default:
-	  usb_state.debug=packet.w_value;
 	  usb_send_stall(USB_STATUS_UNKNOWN_DESCRIPTOR);
 	  break;
       }
@@ -599,14 +525,14 @@ static U32 usb_manage_setup_packet() {
       break;
 
     case (USB_BREQUEST_SET_CONFIG):
-      usb_state.usb_status = USB_STATUS_INIT_DONE;
-      usb_state.current_config = packet.w_value;
+      usb_state.status = USB_READY;
+      usb_state.current_config = packet.value;
 
       /* we ack */
       usb_send_null();
 
       /* we set the register in configured mode */
-      *AT91C_UDP_GLBSTATE = packet.w_value > 0 ?
+      *AT91C_UDP_GLBSTATE = packet.value > 0 ?
 	(AT91C_UDP_CONFG | AT91C_UDP_FADDEN)
 	:AT91C_UDP_FADDEN;
 
@@ -622,7 +548,7 @@ static U32 usb_manage_setup_packet() {
       break;
     }
 
-  return packet.b_request;
+  return packet.request;
 }
 
 
@@ -633,20 +559,15 @@ static void usb_isr() {
 
   isr = *AT91C_UDP_ISR;
 
-  usb_state.nmb_int++;
-
   if (AT91C_UDP_CSR[0] & AT91C_UDP_ISOERROR /* == STALLSENT */) {
     /* then it means that we sent a stall, and the host has ack the stall */
-
-    if (usb_state.has_sent_stall < 2)
-      usb_state.has_sent_stall = 2;
 
     usb_csr_clear_flag(0, AT91C_UDP_FORCESTALL | AT91C_UDP_ISOERROR);
   }
 
 
   if (isr & AT91C_UDP_ENDBUSRES) {
-    usb_state.usb_status = USB_STATUS_INIT_STARTED;
+    usb_state.status = USB_UNINITIALIZED;
 
     /* we ack all these interruptions */
     *AT91C_UDP_ICR = AT91C_UDP_ENDBUSRES;
@@ -661,7 +582,6 @@ static void usb_isr() {
 
     usb_state.current_rx_bank = AT91C_UDP_RX_DATA_BK0;
     usb_state.current_config  = 0;
-    usb_state.is_suspended    = 0;
 
     /* we redefine how the endpoints must work */
     AT91C_UDP_CSR[0] = AT91C_UDP_EPEDS | AT91C_UDP_EPTYPE_CTRL;
@@ -698,18 +618,19 @@ static void usb_isr() {
   if (isr & AT91C_UDP_RXSUSP) {
     *AT91C_UDP_ICR = AT91C_UDP_RXSUSP;
     isr &= ~AT91C_UDP_RXSUSP;
-    usb_state.is_suspended = 1;
+    usb_state.pre_suspend_status = usb_state.status;
+    usb_state.status = USB_SUSPENDED;
   }
 
   if (isr & AT91C_UDP_RXRSM) {
     *AT91C_UDP_ICR = AT91C_UDP_RXRSM;
     isr &= ~AT91C_UDP_RXRSM;
-    usb_state.is_suspended = 0;
+    usb_state.status = usb_state.pre_suspend_status;
   }
 
 
 
-  for (endpoint = 0; endpoint < NMB_ENDPOINTS ; endpoint++) {
+  for (endpoint = 0; endpoint < N_ENDPOINTS ; endpoint++) {
     if (isr & (1 << endpoint))
       break;
   }
@@ -724,7 +645,7 @@ static void usb_isr() {
   }
 
 
-  if (endpoint < NMB_ENDPOINTS) { /* if an endpoint was specified */
+  if (endpoint < N_ENDPOINTS) { /* if an endpoint was specified */
     csr = AT91C_UDP_CSR[endpoint];
 
     if (csr & AT91C_UDP_RX_DATA_BK0
@@ -736,29 +657,29 @@ static void usb_isr() {
     if (csr & AT91C_UDP_TXCOMP) {
 
       /* then it means that we sent a data and the host has acknowledged it */
-      usb_state.is_waiting_ack = 0;
+      usb_state.status = USB_READY; /* TODO: check for race with
+                                       usb_send_data further down. */
       /* so first we will reset this flag */
       usb_csr_clear_flag(endpoint, AT91C_UDP_TXCOMP);
 
-      if (usb_state.addr_to_set > 0) {
+      if (usb_state.new_device_address > 0) {
 	/* the previous message received was SET_ADDR */
 	/* now that the computer ACK our send_null(), we can
 	 * set this address for real */
 
 	/* we set the specified usb address in the controller */
-	*AT91C_UDP_FADDR    = AT91C_UDP_FEN | usb_state.addr_to_set;
+	*AT91C_UDP_FADDR    = AT91C_UDP_FEN | usb_state.new_device_address;
 	/* and we tell the controller that we are in addressed mode now */
 	*AT91C_UDP_GLBSTATE = AT91C_UDP_FADDEN;
-	usb_state.addr_to_set = 0;
+	usb_state.new_device_address = 0;
       }
 
 
       /* and we will send the following data */
-      if (usb_state.ds_length[endpoint] > 0
-	  && usb_state.ds_data[endpoint] != NULL) {
-
-	usb_send_data(endpoint, usb_state.ds_data[endpoint],
-		      usb_state.ds_length[endpoint]);
+      if (usb_state.tx_len[endpoint] > 0
+	  && usb_state.tx_data[endpoint] != NULL) {
+	usb_send_data(endpoint, usb_state.tx_data[endpoint],
+		      usb_state.tx_len[endpoint]);
       }
       return;
     }
@@ -842,77 +763,56 @@ void usb_init() {
 
 
 bool usb_can_send() {
-  return ( (!usb_state.is_suspended
-	    && usb_state.ds_length[2] == 0)
-	   && usb_state.is_waiting_ack == 0);
+  return (usb_state.status == USB_READY);
 }
 
 
 void usb_send(U8 *data, U32 length) {
-  if (usb_state.usb_status < USB_STATUS_INIT_DONE)
+  if (usb_state.status != USB_READY)
     return;
-
-  /* wait until the end point is free */
-  while( (usb_state.is_suspended
-	  || usb_state.ds_length[2] > 0)
-	 || usb_state.is_waiting_ack > 0);
 
   /* start sending the data */
   usb_send_data(2, data, length);
 }
 
 bool usb_is_connected() {
-  return !(usb_state.usb_status < USB_STATUS_INIT_DONE);
+  return (usb_state.status != USB_UNINITIALIZED);
 }
 
 
 U16 usb_has_data() {
-  return usb_state.dr_buffer_used[1];
+  return usb_state.rx_buffer_size[1];
 }
 
 
 void *usb_get_buffer() {
-  return (usb_state.dr_buffer[1]);
+  return (usb_state.rx_buffer[1]);
 }
 
 
 bool usb_overflowed() {
-  return usb_state.dr_overflowed;
+  return usb_state.rx_overflow;
 }
 
 void usb_flush_buffer() {
-  usb_state.dr_overflowed = 0;
+  usb_state.rx_overflow = FALSE;
 
-  if (usb_state.dr_buffer_used[0] > 0)
-    memcpy(usb_state.dr_buffer[1], usb_state.dr_buffer[0],
-	   usb_state.dr_buffer_used[0]);
+  if (usb_state.rx_buffer_size[0] > 0)
+    memcpy(usb_state.rx_buffer[1], usb_state.rx_buffer[0],
+	   usb_state.rx_buffer_size[0]);
 
-  usb_state.dr_buffer_used[1] = usb_state.dr_buffer_used[0];
-  usb_state.dr_buffer_used[0] = 0;
+  usb_state.rx_buffer_size[1] = usb_state.rx_buffer_size[0];
+  usb_state.rx_buffer_size[0] = 0;
 }
 
 
-U8 usb_status() {
-  return usb_state.usb_status;
+U8 usb_status() { /* TODO: remove this, internal state leakage. */
+  return usb_state.status;
 }
 
 
 
-void usb_display_debug_info() {
+void usb_display_debug_info() { /* TODO: Remove this. */
   display_clear();
   display_cursor_set_pos(0, 0);
-  display_string("--- USB infos --\n"
-		 "----------------");
-  display_string("\nNmb int: ");
-  display_uint(usb_state.nmb_int);
-  display_string("\nStat.:0x");
-  display_hex(usb_state.usb_status);
-  display_string("\nOverflowed: ");
-  display_uint(usb_state.dr_overflowed);
-  display_string("\nStalled: ");
-  display_uint(usb_state.has_sent_stall);
-  display_string("\nDebug: 0x");
-  display_hex(usb_state.debug);
-  display_string("\nSuspended: 0x");
-  display_hex(usb_state.is_suspended);
 }
