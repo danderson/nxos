@@ -1,0 +1,15 @@
+Procedure pour compiler NxOS
+============================
+
+Utilisez le script scripts/build-arm-toolchain.sh pour construire une 
+chaine de compilation croisee pour ARM7.
+
+Une fois cette chaine compilee, recopiez environment.mak.tmpl en 
+environment.mak, et editez les chemins definis dedans pour pointer vers 
+la chaine de compilation croisee.
+
+Assurez vous d'avoir un interpreteur Python disponible (necessaire pour 
+la generation des polices de caracteres), puis executez 'make'.
+
+NxOS devrait alors compiler, et produire deux binaires, 'nxos_rom.bin' 
+et 'nxos_samba.bin'.
