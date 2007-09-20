@@ -231,8 +231,11 @@ static void avr_unpack_from_avr() {
 
 /* The main AVR driver state machine. This routine gets called
  * periodically every millisecond by the system timer code.
+ *
+ * It is called directly in the main system timer interrupt, and so
+ * must return as fast as possible.
  */
-void avr_1kHz_update() {
+void avr_fast_update() {
   /* The action taken depends on the state of the AVR
    * communication.
    */
