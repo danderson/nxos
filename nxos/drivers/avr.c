@@ -6,6 +6,7 @@
 #include "util.h"
 
 #define AVR_ADDRESS 1
+#define AVR_MAX_FAILED_CHECKSUMS 3
 
 const char avr_init_handshake[] =
   "\xCC" "Let's samba nxt arm in arm, (c)LEGO System A/S";
@@ -24,9 +25,13 @@ static volatile struct {
 
   /* Used to check the state of TWI transmissions. */
   bool tx_done;
+
+  /* Used to detect link failures and restart the AVR link. */
+  U8 failed_consecutive_checksums;
 } avr_state = {
   AVR_UNINITIALIZED, /* We start uninitialized. */
   FALSE,             /* TX not completed. */
+  0,                 /* No failed checksums yet. */
 };
 
 
@@ -171,8 +176,12 @@ static void avr_unpack_from_avr() {
   for (i=0; i<sizeof(raw_from_avr); i++)
     checksum += raw_from_avr[i];
 
-  if (checksum != 0xff)
-    return; /* TODO: Add some kind of reporting here. */
+  if (checksum != 0xff) {
+    avr_state.failed_consecutive_checksums++;
+    return;
+  } else {
+    avr_state.failed_consecutive_checksums = 0;
+  }
 
   /* Unpack and store the 4 sensor analog readings. */
   for (i = 0; i < NXT_N_SENSORS; i++) {
@@ -248,6 +257,7 @@ void avr_1kHz_update() {
     twi_write_async(AVR_ADDRESS, (U8*)avr_init_handshake,
                     sizeof(avr_init_handshake)-1,
                     (bool*)&avr_state.tx_done);
+    avr_state.failed_consecutive_checksums = 0;
     avr_state.mode = AVR_INIT;
     break;
 
@@ -293,10 +303,17 @@ void avr_1kHz_update() {
      */
     if (avr_state.tx_done) {
       avr_unpack_from_avr();
-      avr_state.mode = AVR_SEND;
-      avr_pack_to_avr();
-      twi_write_async(AVR_ADDRESS, raw_to_avr, sizeof(raw_to_avr),
-                      (bool*)&avr_state.tx_done);
+      /* If the number of failed consecutive checksums is over the
+       * restart threshold, consider the link down and reboot the
+       * link. */
+      if (avr_state.failed_consecutive_checksums >= AVR_MAX_FAILED_CHECKSUMS) {
+        avr_state.mode = AVR_LINK_DOWN;
+      } else {
+        avr_state.mode = AVR_SEND;
+        avr_pack_to_avr();
+        twi_write_async(AVR_ADDRESS, raw_to_avr, sizeof(raw_to_avr),
+                        (bool*)&avr_state.tx_done);
+      }
     }
     break;
   }
