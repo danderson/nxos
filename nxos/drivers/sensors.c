@@ -61,7 +61,7 @@ sensor_pins sensors_get_pins(U8 sensor) {
     sensor_pins empty = { 0, 0 };
     return empty;
   }
-  
+
   return sensors_state[sensor].pins;
 }
 
@@ -119,7 +119,7 @@ void sensors_i2c_enable(U8 sensor) {
 
   if (sensors_state[sensor].mode != OFF)
     sensors_disable(sensor);
-  
+
   sensors_state[sensor].mode = DIGITAL;
 
   /* No register black magic needs to be done here, both lines
@@ -144,4 +144,6 @@ void sensors_disable(U8 sensor) {
                        sensors_state[sensor].pins.scl);
     break;
   }
+
+  sensors_state[sensor].mode = OFF;
 }
