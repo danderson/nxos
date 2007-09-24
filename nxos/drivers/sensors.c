@@ -122,9 +122,11 @@ void sensors_i2c_enable(U8 sensor) {
 
   sensors_state[sensor].mode = DIGITAL;
 
-  /* No register black magic needs to be done here, both lines
-   * are already pulled up.
-   */
+  /* In digital mode, the DIGI outputs (SDA and SCL) are left up. */
+  *AT91C_PIOA_OER = (sensors_state[sensor].pins.sda |
+                     sensors_state[sensor].pins.scl);
+  *AT91C_PIOA_SODR = (sensors_state[sensor].pins.sda |
+                      sensors_state[sensor].pins.scl);
 }
 
 void sensors_disable(U8 sensor) {
