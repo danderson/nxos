@@ -12,7 +12,7 @@ typedef enum {
 } avr_button_t;
 
 void avr_init();
-void avr_1kHz_update();
+void avr_fast_update();
 
 void avr_power_down();
 void avr_firmware_update_mode();

@@ -45,7 +45,6 @@ static void systick_low_priority() {
   aic_clear(LOW_PRIORITY_SYSIRQ);
 
   /* Run the driver's periodic update routines. */
-  avr_1kHz_update();
   lcd_1kHz_update();
 }
 
@@ -60,6 +59,15 @@ static void systick_isr() {
 
   /* Do the system timekeeping. */
   systick_time++;
+
+  /* Keeping up with the AVR link is a crucial task in the system, and
+   * must absolutely be kept up with at all costs. Thus, handling it
+   * in the low-level dispatcher is not enough, and we promote it to
+   * being handled directly here.
+   *
+   * As a result, this handler must be *very* fast.
+   */
+  avr_fast_update();
 
   /* Manually trigger the low-priority 1000Hz interrupt handler
    * asynchronously.
