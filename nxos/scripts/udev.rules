@@ -1,0 +1,17 @@
+# udev rules file for NXT devices in SAM-BA mode, in Lego mode and in
+# NxOS mode.  Copy this file to /etc/udev/rules.d and set correct
+# permissions to get non-root access to the NXT.
+
+SUBSYSTEM!="usb*", GOTO="libnxt_rules_end"
+ACTION!="add", GOTO="libnxt_rules_end"
+
+# NXT SAM-BA firmware
+ATTRS{idVendor}=="03eb", ATTRS{idProduct}=="6124", MODE="0660", GROUP="plugdev"
+
+# NXT Lego firmware
+ATTRS{idVendor}=="0694", ATTRS{idProduct}=="0002", MODE="0660", GROUP="plugdev"
+
+# NXT NxOS firmware
+ATTRS{idVendor}=="0694", ATTRS{idProduct}=="FF00", MODE="0660", GROUP="plugdev"
+
+LABEL="libnxt_rules_end"
