@@ -1,4 +1,5 @@
 .*~
+.*\.pyc
 nxos/environment\.mak
 nxos/kernel/font\.h
 nxos/arm-gcc
