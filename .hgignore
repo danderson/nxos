@@ -8,3 +8,4 @@ nxos/arm-gcc
 nxos/build
 nxos/.*\.bin
 pynxt/flash_driver.bin
+pynxt/MANIFEST
