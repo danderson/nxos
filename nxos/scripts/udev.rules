@@ -12,6 +12,6 @@ ATTRS{idVendor}=="03eb", ATTRS{idProduct}=="6124", MODE="0660", GROUP="plugdev"
 ATTRS{idVendor}=="0694", ATTRS{idProduct}=="0002", MODE="0660", GROUP="plugdev"
 
 # NXT NxOS firmware
-ATTRS{idVendor}=="0694", ATTRS{idProduct}=="FF00", MODE="0660", GROUP="plugdev"
+ATTRS{idVendor}=="0694", ATTRS{idProduct}=="ff00", MODE="0660", GROUP="plugdev"
 
 LABEL="libnxt_rules_end"
