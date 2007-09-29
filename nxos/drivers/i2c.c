@@ -152,6 +152,10 @@ i2c_txn_status i2c_start_transaction(U8 sensor, U8 *data, int size,
   i2c_state[sensor].data = data;
   i2c_state[sensor].data_size = size;
 
+  i2c_state[sensor].processed = 0;
+  i2c_state[sensor].current_byte = 0;
+  i2c_state[sensor].current_pos = 0;
+
   return I2C_ERR_OK;
 }
 
@@ -231,6 +235,7 @@ void i2c_isr() {
          */
         p->current_byte = (p->device_addr << 1) | p->txn_mode;
         p->current_pos = 0;
+        p->processed = 0;
 
         p->bus_state = I2C_SCL_LOW;
         p->txn_state = TXN_TRANSMIT_BYTE;
@@ -322,7 +327,17 @@ void i2c_isr() {
               p->txn_state = TXN_WRITE_ACK;
             }
           } else {
-            p->txn_state = TXN_READ_ACK;
+            /* Note: in write mode, processed goes from 1 to data_size
+             * and not to 0 to data_size - 1.
+             */
+
+            if (p->processed == p->data_size) {
+              p->txn_state = TXN_STOP;
+            } else {
+              /* Update the current_byte being processed. */
+              p->current_byte = p->data[p->processed - 1];
+              p->txn_state = TXN_READ_ACK;
+            }
           }
         }
 
