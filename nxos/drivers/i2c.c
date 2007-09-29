@@ -312,25 +312,27 @@ void i2c_isr() {
          */
         if (p->txn_mode == TXN_MODE_READ) {
           U8 value = lines & pins.sda;
-          p->data[p->processed] = p->data[p->processed] | (value << p->current_pos);
+          p->data[p->processed - 1] = p->data[p->processed -1]
+            | (value << p->current_pos);
           p->current_pos++;
         }
 
         if (p->current_pos == 8) {
+          /* Note: processed goes from 1 to data_size and not to 0 to
+           * data_size - 1 (because of the address being sent before
+           * the data.
+           */
+
           p->processed++;
           p->current_pos = 0;
 
           if (p->txn_mode == TXN_MODE_READ) {
-            if (p->processed == (p->data_size - 1)) {
+            if (p->processed == p->data_size) {
               p->txn_state = TXN_STOP;
             } else {
               p->txn_state = TXN_WRITE_ACK;
             }
           } else {
-            /* Note: in write mode, processed goes from 1 to data_size
-             * and not to 0 to data_size - 1.
-             */
-
             if (p->processed == p->data_size) {
               p->txn_state = TXN_STOP;
             } else {
