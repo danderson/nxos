@@ -223,7 +223,8 @@ void tests_sensors() {
 
 
 void tests_sysinfo() {
-  U32 i, t;
+  U32 i;
+  U32 t = 0;
   const U32 display_seconds = 15;
   U8 avr_major, avr_minor;
   hello();
