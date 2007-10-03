@@ -5,16 +5,16 @@ SRCDIR=$ROOT/src
 BUILDDIR=$ROOT/build
 PREFIX=$ROOT/install
 
-GCC_URL=http://www.gnuarm.com/gcc-4.1.1.tar.bz2
-GCC_VERSION=4.1.1
+GCC_URL=ftp://ftp.uvsq.fr/pub/gcc/releases/gcc-4.2.1/gcc-4.2.1.tar.bz2
+GCC_VERSION=4.2.1
 GCC_DIR=gcc-$GCC_VERSION
 
-BINUTILS_URL=http://www.gnuarm.com/binutils-2.17.tar.bz2
-BINUTILS_VERSION=2.17
+BINUTILS_URL=http://ftp.gnu.org/gnu/binutils/binutils-2.18.tar.bz2
+BINUTILS_VERSION=2.18
 BINUTILS_DIR=binutils-$BINUTILS_VERSION
 
-NEWLIB_URL=http://www.gnuarm.com/newlib-1.14.0.tar.gz
-NEWLIB_VERSION=1.14.0
+NEWLIB_URL=ftp://sources.redhat.com/pub/newlib/newlib-1.15.0.tar.gz
+NEWLIB_VERSION=1.15.0
 NEWLIB_DIR=newlib-$NEWLIB_VERSION
 
 echo "I will build an arm-elf cross-compiler:
@@ -80,10 +80,9 @@ mkdir -p $BUILDDIR/$BINUTILS_DIR
 cd $BUILDDIR/$BINUTILS_DIR
 
 $SRCDIR/$BINUTILS_DIR/configure --target=arm-elf --prefix=$PREFIX \
-    --enable-interwork --enable-multilib --with-float=soft
-
-make all install
-)
+    --enable-interwork --enable-multilib --with-float=soft \
+    && make all install
+) || exit 1
 
 # Set the PATH to include the newly built binutils
 OLD_PATH=$PATH
@@ -108,10 +107,9 @@ cd $BUILDDIR/$GCC_DIR
 $SRCDIR/$GCC_DIR/configure --target=arm-elf --prefix=$PREFIX \
     --enable-interwork --enable-multilib --with-float=soft \
     --enable-languages="c" --with-newlib \
-    --with-headers=$SRCDIR/$NEWLIB_DIR/newlib/libc/include
-
-make all-gcc install-gcc
-)
+    --with-headers=$SRCDIR/$NEWLIB_DIR/newlib/libc/include \
+    && make all-gcc install-gcc
+) || exit 1
 
 #
 # Stage 3: Build and install newlib
@@ -121,10 +119,9 @@ mkdir -p $BUILDDIR/$NEWLIB_DIR
 cd $BUILDDIR/$NEWLIB_DIR
 
 $SRCDIR/$NEWLIB_DIR/configure --target=arm-elf --prefix=$PREFIX \
-    --enable-interwork --enable-multilib --with-float=soft
-
-make all install
-)
+    --enable-interwork --enable-multilib --with-float=soft \
+    && make all install
+) || exit 1
 
 #
 # Stage 4: Build and install the rest of GCC.
@@ -133,7 +130,7 @@ make all install
 cd $BUILDDIR/$GCC_DIR
 
 make all install
-)
+) || exit 1
 
 export PATH=$OLD_PATH
 
