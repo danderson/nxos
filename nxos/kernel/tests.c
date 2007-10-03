@@ -395,14 +395,14 @@ void tests_usb() {
     }
     else {
       i = 1;
-      usb_send((U8 *)USB_UNKNOWN, sizeof(USB_UNKNOWN));
+      usb_send((U8 *)USB_UNKNOWN, sizeof(USB_UNKNOWN)-1);
     }
 
     if (i == 0) {
       if (!usb_overloaded())
-	usb_send((U8 *)USB_OK, sizeof(USB_OK));
+	usb_send((U8 *)USB_OK, sizeof(USB_OK)-1);
       else
-	usb_send((U8 *)USB_OVERLOADED, sizeof(USB_OVERLOADED));
+	usb_send((U8 *)USB_OVERLOADED, sizeof(USB_OVERLOADED)-1);
     }
 
     /* Stop interpreting */
