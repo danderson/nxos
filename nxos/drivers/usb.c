@@ -194,7 +194,7 @@ static const U8 *usb_strings[] = {
  * The USB device state. Contains the current USB state (selected
  * configuration, etc.) and transitory state for data transfers.
  */
-static struct {
+static volatile struct {
   /* The current state of the device. */
   enum usb_status {
     USB_UNINITIALIZED = 0,
@@ -757,7 +757,7 @@ U16 usb_has_data() {
 }
 
 
-void *usb_get_buffer() {
+volatile void *usb_get_buffer() {
   return (usb_state.rx_buffer[usb_state.rx_current_user_buffer_idx]);
 }
 

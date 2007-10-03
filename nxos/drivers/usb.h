@@ -62,7 +62,7 @@ U16 usb_has_data();
  * this buffer is always the same, so you can call this
  * function only once.
  */
-void *usb_get_buffer();
+volatile void *usb_get_buffer();
 
 /*
  * erase the user buffer with the content of the driver buffer
