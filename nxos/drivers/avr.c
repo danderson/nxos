@@ -23,14 +23,10 @@ static volatile struct {
     AVR_RECV,              /* Reception of from_avr in progress. */
   } mode;
 
-  /* Used to check the state of TWI transmissions. */
-  bool tx_done;
-
   /* Used to detect link failures and restart the AVR link. */
   U8 failed_consecutive_checksums;
 } avr_state = {
   AVR_UNINITIALIZED, /* We start uninitialized. */
-  FALSE,             /* TX not completed. */
   0,                 /* No failed checksums yet. */
 };
 
@@ -258,8 +254,7 @@ void avr_fast_update() {
      * doesn't see us coming up.
      */
     twi_write_async(AVR_ADDRESS, (U8*)avr_init_handshake,
-                    sizeof(avr_init_handshake)-1,
-                    (bool*)&avr_state.tx_done);
+                    sizeof(avr_init_handshake)-1);
     avr_state.failed_consecutive_checksums = 0;
     avr_state.mode = AVR_INIT;
     break;
@@ -269,7 +264,7 @@ void avr_fast_update() {
      * millisecond wait, which is accomplished by the use of two
      * intermediate state machine states.
      */
-    if (avr_state.tx_done)
+    if (twi_ready())
       avr_state.mode = AVR_WAIT_2MS;
     break;
 
@@ -285,18 +280,17 @@ void avr_fast_update() {
      * the AVR.
      */
     avr_state.mode = AVR_SEND;
-    avr_state.tx_done = TRUE;
     break;
 
   case AVR_SEND:
     /* If the transmission is complete, switch to receive mode and
      * read the status structure from the AVR.
      */
-    if (avr_state.tx_done) {
+    if (twi_ready()) {
       avr_state.mode = AVR_RECV;
       memset(raw_from_avr, 0, sizeof(raw_from_avr));
       twi_read_async(AVR_ADDRESS, raw_from_avr,
-                     sizeof(raw_from_avr), (bool*)&avr_state.tx_done);
+                     sizeof(raw_from_avr));
     }
 
   case AVR_RECV:
@@ -304,7 +298,7 @@ void avr_fast_update() {
      * from_avr struct, pack the data in the to_avr struct into a raw
      * buffer, and shovel that over the i2c bus to the AVR.
      */
-    if (avr_state.tx_done) {
+    if (twi_ready()) {
       avr_unpack_from_avr();
       /* If the number of failed consecutive checksums is over the
        * restart threshold, consider the link down and reboot the
@@ -314,8 +308,7 @@ void avr_fast_update() {
       } else {
         avr_state.mode = AVR_SEND;
         avr_pack_to_avr();
-        twi_write_async(AVR_ADDRESS, raw_to_avr, sizeof(raw_to_avr),
-                        (bool*)&avr_state.tx_done);
+        twi_write_async(AVR_ADDRESS, raw_to_avr, sizeof(raw_to_avr));
       }
     }
     break;

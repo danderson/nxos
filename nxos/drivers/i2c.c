@@ -326,20 +326,16 @@ void i2c_isr() {
           p->processed++;
           p->current_pos = 0;
 
-          if (p->txn_mode == TXN_MODE_READ) {
-            if (p->processed == p->data_size) {
-              p->txn_state = TXN_STOP;
-            } else {
-              p->txn_state = TXN_WRITE_ACK;
-            }
+          if (p->processed == p->data_size) {
+            p->txn_result = TXN_STAT_SUCCESS;
+            p->txn_state = TXN_STOP;
           } else {
-            if (p->processed == p->data_size) {
-              p->txn_state = TXN_STOP;
+            if (p->txn_mode == TXN_MODE_READ) {
+              p->txn_state = TXN_WRITE_ACK;
             } else {
-              /* Update the current_byte being processed. */
-              p->current_byte = p->data[p->processed - 1];
-              p->txn_state = TXN_READ_ACK;
-            }
+            /* Update the current_byte being processed. */
+            p->current_byte = p->data[p->processed - 1];
+            p->txn_state = TXN_READ_ACK;
           }
         }
 

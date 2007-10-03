@@ -1,6 +1,11 @@
 .*~
+.*\.o
+.*\.elf
+.*\.pyc
 nxos/environment\.mak
 nxos/kernel/font\.h
 nxos/arm-gcc
 nxos/build
-nxos/.*\.bin
+nxos/.*\.bin$
+pynxt/flash_driver.bin$
+pynxt/MANIFEST$
