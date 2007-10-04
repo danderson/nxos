@@ -31,6 +31,7 @@ static void core_init() {
   display_init();
   sensors_init();
   usb_init();
+  i2c_init();
 
   /* Delay a little post-init, to let all the drivers settle down. */
   systick_wait_ms(100);
@@ -54,14 +55,11 @@ void main() {
   display_string(".start");
   display_end_line();
 
-  i2c_init();
   radar_init(RADAR_SENSOR_SLOT);
+  systick_wait_ms(2000);
 
   radar_test(RADAR_SENSOR_SLOT);
+  systick_wait_ms(2000);
 
-  display_string(".end");
-  display_end_line();
-
-  while (avr_get_button() == BUTTON_NONE);
   core_shutdown();
 }
