@@ -184,10 +184,16 @@ i2c_txn_status i2c_get_txn_status(U8 sensor)
 void i2c_isr()
 {
   volatile struct i2c_port *p;
+  U32 dummy;
   U32 lines = *AT91C_PIOA_PDSR;
   U32 codr = 0;
   U32 sodr = 0;
   short i;
+
+  /* Read the TC0 status register to ack the TC0 timer and allow the
+   * interrupt to be called again.
+   */
+  dummy = *AT91C_TC0_SR;
 
   for (i=0; i<NXT_N_SENSORS; i++) {
     volatile sensor_pins pins = sensors_get_pins(i);
