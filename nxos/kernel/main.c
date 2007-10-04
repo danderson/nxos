@@ -18,7 +18,7 @@
 
 #include "tests.h"
 
-#define RADAR_SENSOR_SLOT 1
+#define RADAR_SENSOR_SLOT 0
 
 static void core_init() {
   aic_init();
@@ -62,6 +62,6 @@ void main() {
   display_string(".end");
   display_end_line();
 
-  systick_wait_ms(10000);
+  while (avr_get_button() == BUTTON_NONE);
   core_shutdown();
 }
