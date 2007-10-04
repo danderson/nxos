@@ -23,12 +23,17 @@ static volatile struct i2c_port {
     I2C_OFF = 0, /* Port not initialized in I2C mode. */
     I2C_RECLOCK0,
     I2C_RECLOCK1,
+    I2C_ACK_RECLOCK0,
+    I2C_ACK_RECLOCK1,
+    I2C_ACK_RECLOCK2,
+    I2C_ACK_RECLOCK3,
     I2C_IDLE,    /* No transaction in progress. */
     I2C_SEND_START_BIT0,
     I2C_SEND_START_BIT1,
     I2C_SCL_LOW,
     I2C_SAMPLE0,
     I2C_SAMPLE1,
+    I2C_SAMPLE2,
     I2C_SEND_STOP_BIT0,
     I2C_SEND_STOP_BIT1,
   } bus_state;
@@ -61,16 +66,18 @@ static volatile struct i2c_port {
    * in this byte.
    */
   U8 current_byte;
-  int current_pos;
+  S8 current_pos;
 
   i2c_txn_status txn_result;
-
 } i2c_state[NXT_N_SENSORS] = {
   { I2C_OFF, 0, TXN_NONE, TXN_MODE_WRITE, NULL, 0, 0, 0, 0, TXN_STAT_UNKNOWN },
   { I2C_OFF, 0, TXN_NONE, TXN_MODE_WRITE, NULL, 0, 0, 0, 0, TXN_STAT_UNKNOWN },
   { I2C_OFF, 0, TXN_NONE, TXN_MODE_WRITE, NULL, 0, 0, 0, 0, TXN_STAT_UNKNOWN },
   { I2C_OFF, 0, TXN_NONE, TXN_MODE_WRITE, NULL, 0, 0, 0, 0, TXN_STAT_UNKNOWN },
 };
+
+U32 offset = 0;
+U8 dump[1024] = { 0x42 };
 
 /** Initializes the I2C SoftMAC driver, configures the TC (Timer Counter)
  * and set the interrupt handler.
@@ -200,6 +207,11 @@ void i2c_isr()
     volatile sensor_pins pins = sensors_get_pins(i);
     p = &i2c_state[i];
 
+    if (i == 0 && offset < 1020 && p->bus_state > I2C_IDLE) {
+      dump[offset++] = (lines & pins.sda) ? 1 : 0;
+      dump[offset++] = (lines & pins.scl) ? 1 : 0;
+    }
+
     switch (p->bus_state)
       {
       case I2C_OFF:
@@ -217,13 +229,38 @@ void i2c_isr()
          * retry transaction.
          */
         sodr |= pins.scl;
+        p->bus_state = I2C_SEND_START_BIT0;
+        break;
 
-        if (p->txn_state == TXN_READ_ACK ||
-            p->txn_state == TXN_WRITE_ACK) {
-          p->bus_state = I2C_SCL_LOW;
+      case I2C_ACK_RECLOCK0:
+        /* Make sure SCL is low. */
+        codr |= pins.scl;
+        p->bus_state = I2C_ACK_RECLOCK1;
+        break;
+
+      case I2C_ACK_RECLOCK1:
+        /* Issue a clock pulse by releasing SCL. */
+        sodr |= pins.scl;
+        p->bus_state = I2C_ACK_RECLOCK2;
+        break;
+
+      case I2C_ACK_RECLOCK2:
+        /* Pull SCL low again to complete the clock pulse. */
+        codr |= pins.scl;
+
+        p->bus_state = I2C_ACK_RECLOCK3;
+        break;
+
+      case I2C_ACK_RECLOCK3:
+        /* Finally, release SDA and return to transmit state. */
+        sodr |= pins.sda;
+
+        p->bus_state = I2C_SCL_LOW;
+
+        if (p->processed <= p->data_size) {
           p->txn_state = TXN_TRANSMIT_BYTE;
         } else {
-          p->bus_state = I2C_SEND_START_BIT0;
+          p->txn_state = TXN_STOP;
         }
 
         break;
@@ -263,11 +300,15 @@ void i2c_isr()
          * mode with the device address + mode.
          */
         p->current_byte = (p->device_addr << 1) | p->txn_mode;
-        p->current_pos = 0;
+        p->current_pos = 7;
         p->processed = 0;
 
         p->bus_state = I2C_SCL_LOW;
         p->txn_state = TXN_TRANSMIT_BYTE;
+
+        display_string("addr+mode: ");
+        display_uint(p->current_byte);
+        display_end_line();
         break;
 
       case I2C_SCL_LOW:
@@ -278,15 +319,21 @@ void i2c_isr()
           /* In write mode, it's time to set SDA to the bit
            * value we want. In read mode, let the remote device set
            * SDA.
+           *
+           * If p->processed is 0, it means we are sending the remote
+           * device address, which should be done in both write and
+           * read transaction modes.
            */
-          if (p->txn_mode == TXN_MODE_WRITE) {
+          if (p->txn_mode == TXN_MODE_WRITE || p->processed == 0) {
             if ((p->current_byte & (1 << p->current_pos))) {
               sodr |= pins.sda;
+              display_uint(1);
             } else {
               codr |= pins.sda;
+              display_uint(0);
             }
 
-            p->current_pos++;
+            p->current_pos--;
           }
 
           p->bus_state = I2C_SAMPLE0;
@@ -297,8 +344,10 @@ void i2c_isr()
             /* SDA is high: the slave has released SDA. Pull it low
              * and reclock.
              */
+            display_string("write ack\n");
+
             codr |= pins.sda;
-            p->bus_state = I2C_RECLOCK0;
+            p->bus_state = I2C_ACK_RECLOCK0;
           }
 
           /* Stay in the same state until the slave release SDA. */
@@ -310,14 +359,23 @@ void i2c_isr()
              * transaction status to TXN_STAT_FAILED and sending stop
              * bit.
              */
+            display_string("noack@");
+            display_uint(p->processed);
+            display_end_line();
+
             p->txn_result = TXN_STAT_FAILED;
             p->bus_state = I2C_SEND_STOP_BIT0;
             p->txn_state = TXN_STOP;
           } else {
             /* Otherwise, reclock to make the slave release SDA. */
-            p->bus_state = I2C_RECLOCK0;
+            display_string("got ack.\n");
+            p->bus_state = I2C_ACK_RECLOCK0;
           }
 
+          break;
+
+        case TXN_STOP:
+          p->bus_state = I2C_SEND_STOP_BIT0;
           break;
 
         default:
@@ -337,37 +395,50 @@ void i2c_isr()
          * the bit set in I2C_SCL_LOW. In read mode, retrieve SDA
          * value and store it.
          */
-        if (p->txn_mode == TXN_MODE_READ) {
+        if (p->txn_mode == TXN_MODE_READ && p->processed > 0) {
           U8 value = lines & pins.sda;
           p->data[p->processed - 1] |= (value << p->current_pos);
-          p->current_pos++;
+          p->current_pos--;
         }
 
-        if (p->current_pos == 8) {
+        p->bus_state = I2C_SAMPLE2;
+        break;
+
+      case I2C_SAMPLE2:
+        /* Finally, pull SCL low. */
+        codr |= pins.scl;
+
+        if (p->current_pos < 0) {
           /* Note: processed goes from 1 to data_size and not to 0 to
            * data_size - 1 (because of the address being sent before
            * the data.
            */
+          display_end_line();
+
+          if (p->txn_mode == TXN_MODE_READ
+              && p->processed > 0) {
+            p->txn_state = TXN_WRITE_ACK;
+          } else if (p->processed < p->data_size) {
+            /* In write mode, update the current_byte being
+               processed so it can be send next. */
+            if (p->txn_mode == TXN_MODE_WRITE) {
+              p->current_byte = p->data[p->processed];
+              /*
+                display_string("sending: ");
+                display_uint(p->current_byte);
+                display_end_line();
+              */
+            }
+
+            p->txn_state = TXN_READ_ACK;
+          } else {
+            p->txn_result = TXN_STAT_SUCCESS;
+            p->txn_state = TXN_READ_ACK;
+          }
 
           p->processed++;
-          p->current_pos = 0;
-
-          if (p->processed == p->data_size) {
-            p->txn_result = TXN_STAT_SUCCESS;
-            p->txn_state = TXN_STOP;
-          } else {
-            if (p->txn_mode == TXN_MODE_READ) {
-              p->txn_state = TXN_WRITE_ACK;
-            } else {
-            /* Update the current_byte being processed. */
-            p->current_byte = p->data[p->processed - 1];
-            p->txn_state = TXN_READ_ACK;
-            }
-          }
+          p->current_pos = 7;
         }
-
-        /* Finally, pull SCL low. */
-        codr |= pins.scl;
 
         p->bus_state = I2C_SCL_LOW;
         break;
@@ -375,17 +446,18 @@ void i2c_isr()
       case I2C_SEND_STOP_BIT0:
         /* First, rise SCL. */
         sodr |= pins.scl;
+
         p->bus_state = I2C_SEND_STOP_BIT1;
         break;
 
       case I2C_SEND_STOP_BIT1:
         /* Finally, rise SDA. */
         sodr |= pins.sda;
+
         p->bus_state = I2C_IDLE;
         p->txn_state = TXN_NONE;
 
-        display_string("txn stop");
-        display_end_line();
+        display_string("txn stop\n");
 
         break;
       }
