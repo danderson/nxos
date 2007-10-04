@@ -280,8 +280,7 @@ void i2c_isr()
            * SDA.
            */
           if (p->txn_mode == TXN_MODE_WRITE) {
-            if ((p->current_byte & (1 << p->current_pos))
-                >> p->current_pos) {
+            if ((p->current_byte & (1 << p->current_pos))) {
               sodr |= pins.sda;
             } else {
               codr |= pins.sda;
@@ -340,8 +339,7 @@ void i2c_isr()
          */
         if (p->txn_mode == TXN_MODE_READ) {
           U8 value = lines & pins.sda;
-          p->data[p->processed - 1] = p->data[p->processed -1]
-            | (value << p->current_pos);
+          p->data[p->processed - 1] |= (value << p->current_pos);
           p->current_pos++;
         }
 
