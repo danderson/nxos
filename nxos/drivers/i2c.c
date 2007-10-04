@@ -158,6 +158,7 @@ i2c_txn_err i2c_start_transaction(U8 sensor, U8 *data, int size,
    * bus data structure.
    */
   i2c_state[sensor].txn_state = TXN_WAITING;
+  i2c_state[sensor].txn_result = TXN_STAT_IN_PROGRESS;
   i2c_state[sensor].txn_mode = mode;
   i2c_state[sensor].data = data;
   i2c_state[sensor].data_size = size;
@@ -167,6 +168,16 @@ i2c_txn_err i2c_start_transaction(U8 sensor, U8 *data, int size,
   i2c_state[sensor].current_pos = 0;
 
   return I2C_ERR_OK;
+}
+
+/** Retrieve the transaction status for the given sensor.
+ */
+i2c_txn_status i2c_get_txn_status(U8 sensor)
+{
+  if (sensor >= NXT_N_SENSORS)
+    return TXN_STAT_UNKNOWN;
+
+  return i2c_state[sensor].txn_result;
 }
 
 /** Interrupt handler. */
@@ -231,9 +242,6 @@ void i2c_isr()
           /* Pull SDA low. */
           codr |= pins.sda;
           p->bus_state = I2C_SEND_START_BIT1;
-
-          display_string("send start bit 0");
-          display_end_line();
         } else {
           /* Something is holding SDA low. Reclock until we get our data
            * line back.
@@ -256,10 +264,6 @@ void i2c_isr()
 
         p->bus_state = I2C_SCL_LOW;
         p->txn_state = TXN_TRANSMIT_BYTE;
-
-        display_string("send start bit 1");
-        display_end_line();
-
         break;
 
       case I2C_SCL_LOW:
