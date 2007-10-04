@@ -258,7 +258,7 @@ void i2c_isr()
         /* Pull SCL low. */
         codr |= pins.scl;
 
-        /* After the start bit has been send, switch to byte sending
+        /* After the start bit has been sent, switch to byte sending
          * mode with the device address + mode.
          */
         p->current_byte = (p->device_addr << 1) | p->txn_mode;
