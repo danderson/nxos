@@ -74,43 +74,12 @@ void radar_display_lines(U8 sensor)
   display_string("]\n");
 }
 
-void radar_test(U8 sensor)
+void radar_txn(U8 sensor, U8 *data, U8 size, i2c_txn_mode mode)
 {
-  i2c_txn_status status;
   i2c_txn_err err;
-  U8 cmd = RADAR_CMD_READ_SENSOR_TYPE;
-  U8 buf[8] = { 0x0 };
+  i2c_txn_status status;
 
-  /* Send the command READ_SENSOR_TYPE */
-  display_clear();
-  display_cursor_set_pos(0, 0);
-  display_string(">> send command\n");
-  err = i2c_start_transaction(sensor, &cmd, 1, TXN_MODE_WRITE);
-  if (err != I2C_ERR_OK) {
-    display_string("EE txn (");
-    display_uint(err);
-    display_string(") !\n");
-  } else {
-    while (i2c_get_txn_status(sensor) == TXN_STAT_IN_PROGRESS);
-    systick_wait_ms(50);
-    status = i2c_get_txn_status(sensor);
-    if (status == TXN_STAT_SUCCESS)
-      display_string("OK ");
-    else {
-      display_string("EE (");
-      display_uint(status);
-      display_string(") ");
-    }
-  }
-
-  radar_display_lines(sensor);
-  while (avr_get_button() != BUTTON_OK);
-
-  display_clear();
-  display_cursor_set_pos(0, 0);
-
-  display_string("<< read result\n");
-  err = i2c_start_transaction(sensor, buf, 6, TXN_MODE_READ);
+  err = i2c_start_transaction(sensor, data, size, mode);
   if (err != I2C_ERR_OK) {
     display_string("EE txn (");
     display_uint(err);
@@ -120,7 +89,13 @@ void radar_test(U8 sensor)
     systick_wait_ms(50);
     status = i2c_get_txn_status(sensor);
     if (status == TXN_STAT_SUCCESS) {
-      display_string("OK ");
+      if (mode == TXN_MODE_READ) {
+        display_string("OK:");
+        display_string((char *)data);
+        display_string(". ");
+      } else {
+        display_string("OK. ");
+      }
     }
 
     else {
@@ -131,10 +106,54 @@ void radar_test(U8 sensor)
   }
 
   radar_display_lines(sensor);
-
-  display_string("  -+- \"");
-  display_string((char *)buf);
-  display_string("\" -+-\n");
-
-  while(avr_get_button() != BUTTON_CANCEL);
 }
+
+void radar_test(U8 sensor)
+{
+  U8 buf[8] = { 0x0 }, cmd = RADAR_CMD_READ_SENSOR_TYPE;
+
+  /* Send the command READ_SENSOR_TYPE */
+  display_clear();
+  display_cursor_set_pos(0, 0);
+  display_string(">> send command\n");
+
+  radar_txn(sensor, &cmd, 1, TXN_MODE_WRITE);
+  systick_wait_ms(2000);
+  while (avr_get_button() != BUTTON_OK);
+
+  /* Send the command READ_SENSOR_TYPE */
+  display_clear();
+  display_cursor_set_pos(0, 0);
+  display_string(">> send command\n");
+
+  radar_txn(sensor, &cmd, 1, TXN_MODE_WRITE);
+  systick_wait_ms(2000);
+  while (avr_get_button() != BUTTON_OK);
+
+  /* Try to read result */
+  display_clear();
+  display_cursor_set_pos(0, 0);
+  display_string("<< read result\n");
+
+  radar_txn(sensor, buf, 6, TXN_MODE_READ);
+
+  systick_wait_ms(2000);
+  while (avr_get_button() != BUTTON_OK);
+
+  display_clear();
+  display_cursor_set_pos(0, 0);
+
+  int i, j;
+  for (i=0 ; i<8 ; i++) {
+    for (j=0 ; j<12 ; j++) {
+      display_uint(dump[i*12 + j]);
+      if (j % 2 == 1)
+        display_string(" ");
+    }
+    display_end_line();
+  }
+
+  systick_wait_ms(2000);
+  while (avr_get_button() != BUTTON_OK);
+}
+

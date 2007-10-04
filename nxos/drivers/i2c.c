@@ -23,10 +23,12 @@ static volatile struct i2c_port {
     I2C_OFF = 0, /* Port not initialized in I2C mode. */
     I2C_RECLOCK0,
     I2C_RECLOCK1,
-    I2C_ACK_RECLOCK0,
-    I2C_ACK_RECLOCK1,
-    I2C_ACK_RECLOCK2,
-    I2C_ACK_RECLOCK3,
+    I2C_READ_ACK0,
+    I2C_READ_ACK1,
+    I2C_READ_ACK2,
+    I2C_WRITE_ACK0,
+    I2C_WRITE_ACK1,
+    I2C_WRITE_ACK2,
     I2C_IDLE,    /* No transaction in progress. */
     I2C_SEND_START_BIT0,
     I2C_SEND_START_BIT1,
@@ -207,7 +209,9 @@ void i2c_isr()
     volatile sensor_pins pins = sensors_get_pins(i);
     p = &i2c_state[i];
 
-    if (i == 0 && offset < 1020 && p->bus_state > I2C_IDLE) {
+    if (i == 0 && offset < 1020
+        && p->bus_state > I2C_IDLE
+        && p->txn_mode == TXN_MODE_WRITE) {
       dump[offset++] = (lines & pins.sda) ? 1 : 0;
       dump[offset++] = (lines & pins.scl) ? 1 : 0;
     }
@@ -232,28 +236,21 @@ void i2c_isr()
         p->bus_state = I2C_SEND_START_BIT0;
         break;
 
-      case I2C_ACK_RECLOCK0:
+      case I2C_READ_ACK0:
         /* Make sure SCL is low. */
         codr |= pins.scl;
-        p->bus_state = I2C_ACK_RECLOCK1;
+        p->bus_state = I2C_READ_ACK1;
         break;
 
-      case I2C_ACK_RECLOCK1:
+      case I2C_READ_ACK1:
         /* Issue a clock pulse by releasing SCL. */
         sodr |= pins.scl;
-        p->bus_state = I2C_ACK_RECLOCK2;
+        p->bus_state = I2C_READ_ACK2;
         break;
 
-      case I2C_ACK_RECLOCK2:
+      case I2C_READ_ACK2:
         /* Pull SCL low again to complete the clock pulse. */
         codr |= pins.scl;
-
-        p->bus_state = I2C_ACK_RECLOCK3;
-        break;
-
-      case I2C_ACK_RECLOCK3:
-        /* Finally, release SDA and return to transmit state. */
-        sodr |= pins.sda;
 
         p->bus_state = I2C_SCL_LOW;
 
@@ -263,6 +260,33 @@ void i2c_isr()
           p->txn_state = TXN_STOP;
         }
 
+        display_string("ack.\n");
+        break;
+
+      case I2C_WRITE_ACK0:
+        /* Release SCL to do a clock pulse. */
+        sodr |= pins.scl;
+        p->bus_state = I2C_WRITE_ACK1;
+        break;
+
+      case I2C_WRITE_ACK1:
+        /* Pull SCL low again to complete the clock pulse. */
+        codr |= pins.scl;
+        p->bus_state = I2C_WRITE_ACK2;
+        break;
+
+      case I2C_WRITE_ACK2:
+        /* Release SDA for the slave to regain control of it. */
+        sodr |= pins.sda;
+        p->bus_state = I2C_SCL_LOW;
+
+        if (p->processed <= p->data_size) {
+          p->txn_state = TXN_TRANSMIT_BYTE;
+        } else {
+          p->txn_state = TXN_STOP;
+        }
+
+        display_string("ack.\n");
         break;
 
       case I2C_IDLE:
@@ -344,16 +368,17 @@ void i2c_isr()
             /* SDA is high: the slave has released SDA. Pull it low
              * and reclock.
              */
-            display_string("write ack\n");
+            display_string("w-ack? ");
 
             codr |= pins.sda;
-            p->bus_state = I2C_ACK_RECLOCK0;
+            p->bus_state = I2C_WRITE_ACK0;
           }
 
           /* Stay in the same state until the slave release SDA. */
           break;
 
         case TXN_READ_ACK:
+          display_string("r-ack? ");
           if (lines & pins.sda) {
             /* SDA is still high, this is a ACK fault. Setting
              * transaction status to TXN_STAT_FAILED and sending stop
@@ -368,8 +393,7 @@ void i2c_isr()
             p->txn_state = TXN_STOP;
           } else {
             /* Otherwise, reclock to make the slave release SDA. */
-            display_string("got ack.\n");
-            p->bus_state = I2C_ACK_RECLOCK0;
+            p->bus_state = I2C_READ_ACK0;
           }
 
           break;
@@ -396,7 +420,7 @@ void i2c_isr()
          * value and store it.
          */
         if (p->txn_mode == TXN_MODE_READ && p->processed > 0) {
-          U8 value = lines & pins.sda;
+          U8 value = (lines & pins.sda) ? 1 : 0;
           p->data[p->processed - 1] |= (value << p->current_pos);
           p->current_pos--;
         }
