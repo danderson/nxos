@@ -139,8 +139,19 @@ void radar_test(U8 sensor)
   display_uint(i2c_get_txn_status(sensor));
   display_end_line();
 
-  if (i2c_start_transaction(sensor, buf, 8, TXN_MODE_READ) != I2C_ERR_OK) {
-    display_string("err read");
+  i2c_txn_err err = i2c_start_transaction(sensor, buf, 8, TXN_MODE_READ);
+  if (err != I2C_ERR_OK) {
+    U32 lines = *AT91C_PIOA_PDSR;
+
+    display_string("err read: ");
+    display_uint(err);
+    display_end_line();
+
+    sensor_pins pins = sensors_get_pins(sensor);
+    display_string("SDA/SCL: ");
+    display_uint(lines & pins.sda);
+    display_string("/");
+    display_uint(lines & pins.scl);
     display_end_line();
   }
 

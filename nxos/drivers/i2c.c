@@ -190,8 +190,8 @@ void i2c_isr()
   U32 sodr = 0;
   short i;
 
-  /* Read the TC0 status register to ack the TC0 timer and allow the
-   * interrupt to be called again.
+  /* Read the TC0 status register to ack the TC0 timer and allow this
+   * interrupt handler to be called again.
    */
   dummy = *AT91C_TC0_SR;
 
@@ -236,9 +236,6 @@ void i2c_isr()
 
           p->txn_state = TXN_START;
           p->bus_state = I2C_SEND_START_BIT0;
-
-          display_string("start txn");
-          display_end_line();
         }
 
         break;
@@ -387,6 +384,10 @@ void i2c_isr()
         sodr |= pins.sda;
         p->bus_state = I2C_IDLE;
         p->txn_state = TXN_NONE;
+
+        display_string("txn stop");
+        display_end_line();
+
         break;
       }
 
