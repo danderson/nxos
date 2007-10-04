@@ -56,10 +56,11 @@ static volatile struct i2c_port {
   int data_size;      /* Data size, in bytes. */
   int processed;      /* Sent/received bytes. */
 
-  U8 current_byte;    /* The currently transmitted byte, and the
-                       * position of the bit currently transmitted
-                       * in this byte.
-                       */
+  /* The currently transmitted byte, and the
+   * position of the bit currently transmitted
+   * in this byte.
+   */
+  U8 current_byte;
   int current_pos;
 
   i2c_txn_status txn_result;
