@@ -13,6 +13,8 @@
 #include "sensors.h"
 #include "i2c.h"
 
+#include "display.h"
+
 /* The base clock frequency of the sensor I2C bus in Hz. */
 #define SENSOR_I2C_SPEED 9600
 
@@ -122,6 +124,14 @@ void i2c_register(U8 sensor, U8 address) {
   i2c_state[sensor].bus_state = I2C_IDLE;
   i2c_state[sensor].txn_state = TXN_NONE;
   i2c_state[sensor].device_addr = address;
+
+  display_string("sensor  : ");
+  display_uint(sensor);
+  display_end_line();
+
+  display_string("i2c addr: ");
+  display_uint(i2c_state[sensor].device_addr);
+  display_end_line();
 }
 
 /** Start an I2C transaction.
@@ -132,8 +142,8 @@ void i2c_register(U8 sensor, U8 address) {
  *
  * Returns non-zero if an error occured.
  */
-i2c_txn_status i2c_start_transaction(U8 sensor, U8 *data, int size,
-                                     i2c_txn_mode mode)
+i2c_txn_err i2c_start_transaction(U8 sensor, U8 *data, int size,
+                                  i2c_txn_mode mode)
 {
   if (sensor >= NXT_N_SENSORS)
     return I2C_ERR_UNKNOWN_SENSOR;
@@ -160,7 +170,8 @@ i2c_txn_status i2c_start_transaction(U8 sensor, U8 *data, int size,
 }
 
 /** Interrupt handler. */
-void i2c_isr() {
+void i2c_isr()
+{
   volatile struct i2c_port *p;
   U32 lines = *AT91C_PIOA_PDSR;
   U32 codr = 0;
@@ -208,6 +219,9 @@ void i2c_isr() {
 
           p->txn_state = TXN_START;
           p->bus_state = I2C_SEND_START_BIT0;
+
+          display_string("start txn");
+          display_end_line();
         }
 
         break;
@@ -217,6 +231,9 @@ void i2c_isr() {
           /* Pull SDA low. */
           codr |= pins.sda;
           p->bus_state = I2C_SEND_START_BIT1;
+
+          display_string("send start bit 0");
+          display_end_line();
         } else {
           /* Something is holding SDA low. Reclock until we get our data
            * line back.
@@ -239,6 +256,9 @@ void i2c_isr() {
 
         p->bus_state = I2C_SCL_LOW;
         p->txn_state = TXN_TRANSMIT_BYTE;
+
+        display_string("send start bit 1");
+        display_end_line();
 
         break;
 
@@ -336,6 +356,7 @@ void i2c_isr() {
             /* Update the current_byte being processed. */
             p->current_byte = p->data[p->processed - 1];
             p->txn_state = TXN_READ_ACK;
+            }
           }
         }
 

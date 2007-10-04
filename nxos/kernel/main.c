@@ -13,8 +13,12 @@
 #include "usb.h"
 #include "sensors.h"
 #include "motors.h"
+#include "i2c.h"
+#include "radar.h"
 
 #include "tests.h"
+
+#define RADAR_SENSOR_SLOT 1
 
 static void core_init() {
   aic_init();
@@ -42,8 +46,22 @@ void main() {
   core_init();
 
   //tests_usb_hardcore();
-  tests_usb();
+  //tests_usb();
   //tests_all();
+
+  display_clear();
+  display_cursor_set_pos(0, 0);
+  display_string(".start");
+  display_end_line();
+
+  i2c_init();
+  radar_init(RADAR_SENSOR_SLOT);
+
+  radar_test(RADAR_SENSOR_SLOT);
+
+  display_string(".end");
+  display_end_line();
+  while(1);
 
   core_shutdown();
 }
