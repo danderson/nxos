@@ -61,7 +61,7 @@ void main() {
 
   display_string(".end");
   display_end_line();
-  while(1);
 
+  systick_wait_ms(10000);
   core_shutdown();
 }
