@@ -114,6 +114,8 @@ void sensors_analog_enable(U8 sensor) {
 
 /** Enables the given sensor in digital, I2C mode. */
 void sensors_i2c_enable(U8 sensor) {
+  U32 pinmask;
+
   if (sensor >= NXT_N_SENSORS)
     return;
 
@@ -122,11 +124,15 @@ void sensors_i2c_enable(U8 sensor) {
 
   sensors_state[sensor].mode = DIGITAL;
 
-  /* In digital mode, the DIGI outputs (SDA and SCL) are left up. */
-  *AT91C_PIOA_OER = (sensors_state[sensor].pins.sda |
-                     sensors_state[sensor].pins.scl);
-  *AT91C_PIOA_SODR = (sensors_state[sensor].pins.sda |
-                      sensors_state[sensor].pins.scl);
+  /* In digital mode, the DIGI outputs (SDA and SCL) are left up, and
+   * enabled in multi-drive mode.
+   */
+  pinmask = sensors_state[sensor].pins.sda |
+    sensors_state[sensor].pins.scl;
+
+  *AT91C_PIOA_OER = pinmask;
+  *AT91C_PIOA_SODR = pinmask;
+  *AT91C_PIOA_MDER = pinmask;
 }
 
 void sensors_disable(U8 sensor) {
