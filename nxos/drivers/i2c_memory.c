@@ -23,7 +23,7 @@ void i2c_memory_init(U8 sensor, U8 address)
  * expected returned data size in bytes. The buffer 'buf' should be
  * pre-allocated by the caller.
  */
-bool i2c_memory_read(U8 sensor, U8 internal_address, U8 *buf, U8 size)
+void i2c_memory_read(U8 sensor, U8 internal_address, U8 *buf, U8 size)
 {
 
 }
