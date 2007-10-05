@@ -127,7 +127,7 @@ void radar_test(U8 sensor)
   display_string("+");
   while (avr_get_button() != BUTTON_OK);
 
-  /* Try to read result */
+  /* Try to read result 
   display_clear();
   display_cursor_set_pos(0, 0);
   display_string("<< read result\n");
@@ -139,20 +139,20 @@ void radar_test(U8 sensor)
   display_cursor_set_pos(0, 0);
   display_string("+");
   while (avr_get_button() != BUTTON_OK);
+  */
 
   display_clear();
   display_cursor_set_pos(0, 0);
 
-  int i, j, k = 12;
-  for (i=0 ; i<8 ; i++) {
-    for (j=0 ; j<k ; j++) {
-      display_uint(dump[i*k + j]);
-      if (j % 2 == 1)
-        display_string(" ");
-    }
-    display_end_line();
-  }
+  display_string("sending dump...\n");
 
-  systick_wait_ms(1500);
-  while (avr_get_button() != BUTTON_OK);
+  usb_send((U8 *) (&offset), 4);
+  while (usb_can_send());
+  usb_send(dump, offset);
+  while (usb_can_send());
+
+  display_string("dump sent (");
+  display_uint(offset);
+  display_string(")\n");
+  systick_wait_ms(2000);
 }
