@@ -1,5 +1,17 @@
 /* Additional abstraction level for I2C sensors acting as I2C remote
  * memory units.
+ *
+ * Reading a value in memory consists in two I2C transactions:
+ *   1. a) Send device address in write mode
+ *      b) Send internal address
+ *   2. a) Send device address in read mode
+ *      b) Read N bytes of data
+ *
+ * Writing a value to the memory is a bit simpler and consists in only
+ * one transaction:
+ *   1. a) Send device address in write mode
+ *      b) Send internal address
+ *      c) Send value
  */
 
 #include "at91sam7s256.h"
