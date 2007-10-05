@@ -26,6 +26,7 @@ static volatile struct i2c_port {
     I2C_READ_ACK0,
     I2C_READ_ACK1,
     I2C_READ_ACK2,
+    I2C_READ_ACK3,
     I2C_WRITE_ACK0,
     I2C_WRITE_ACK1,
     I2C_WRITE_ACK2,
@@ -249,18 +250,41 @@ void i2c_isr()
         break;
 
       case I2C_READ_ACK2:
-        /* Pull SCL low again to complete the clock pulse. */
-        codr |= pins.scl;
+        /* Wait for SCL to go up. */
+        if (lines & pins.scl) {
+          /* Pull SCL low again to complete the clock pulse and
+           * advance.
+           */
+          codr |= pins.scl;
+          p->bus_state = I2C_READ_ACK3;
+        }
 
-        p->bus_state = I2C_SCL_LOW;
+        break;
 
-        if (p->processed <= p->data_size) {
-          p->txn_state = TXN_TRANSMIT_BYTE;
+      case I2C_READ_ACK3:
+        if (lines & pins.sda) {
+          if (p->processed <= p->data_size) {
+            p->txn_state = TXN_TRANSMIT_BYTE;
+          } else {
+            p->txn_result = TXN_STAT_SUCCESS;
+            p->txn_state = TXN_STOP;
+          }
+
+          p->bus_state = I2C_SCL_LOW;
+          display_string("ack.\n");
         } else {
+          /* SDA is not high, this is a ACK fault. Setting transaction
+           * status to TXN_STAT_FAILED and sending stop bit.
+           */
+          display_string("noack@");
+          display_uint(p->processed);
+          display_end_line();
+
+          p->txn_result = TXN_STAT_FAILED;
+          p->bus_state = I2C_SEND_STOP_BIT0;
           p->txn_state = TXN_STOP;
         }
 
-        display_string("ack.\n");
         break;
 
       case I2C_WRITE_ACK0:
@@ -283,6 +307,7 @@ void i2c_isr()
         if (p->processed <= p->data_size) {
           p->txn_state = TXN_TRANSMIT_BYTE;
         } else {
+          p->txn_result = TXN_STAT_SUCCESS;
           p->txn_state = TXN_STOP;
         }
 
@@ -379,23 +404,8 @@ void i2c_isr()
 
         case TXN_READ_ACK:
           display_string("r-ack? ");
-          if (lines & pins.sda) {
-            /* SDA is still high, this is a ACK fault. Setting
-             * transaction status to TXN_STAT_FAILED and sending stop
-             * bit.
-             */
-            display_string("noack@");
-            display_uint(p->processed);
-            display_end_line();
-
-            p->txn_result = TXN_STAT_FAILED;
-            p->bus_state = I2C_SEND_STOP_BIT0;
-            p->txn_state = TXN_STOP;
-          } else {
-            /* Otherwise, reclock to make the slave release SDA. */
-            p->bus_state = I2C_READ_ACK0;
-          }
-
+          sodr |= pins.sda;
+          p->bus_state = I2C_READ_ACK0;
           break;
 
         case TXN_STOP:
@@ -423,6 +433,7 @@ void i2c_isr()
           U8 value = (lines & pins.sda) ? 1 : 0;
           p->data[p->processed - 1] |= (value << p->current_pos);
           p->current_pos--;
+          display_uint(value);
         }
 
         p->bus_state = I2C_SAMPLE2;
@@ -456,7 +467,6 @@ void i2c_isr()
 
             p->txn_state = TXN_READ_ACK;
           } else {
-            p->txn_result = TXN_STAT_SUCCESS;
             p->txn_state = TXN_READ_ACK;
           }
 

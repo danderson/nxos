@@ -59,7 +59,6 @@ void main() {
   systick_wait_ms(2000);
 
   radar_test(RADAR_SENSOR_SLOT);
-  systick_wait_ms(2000);
 
   core_shutdown();
 }
