@@ -244,9 +244,23 @@ void i2c_isr()
         break;
 
       case I2C_READ_ACK1:
-        /* Issue a clock pulse by releasing SCL. */
-        sodr |= pins.scl;
-        p->bus_state = I2C_READ_ACK2;
+        if (lines & pins.sda) {
+          /* SDA is still high, this is a ACK fault. Setting
+           * transaction status to TXN_STAT_FAILED and sending stop
+           * bit.
+           */
+          display_string("noack!\n");
+          display_string("SDA still high\n");
+
+          p->txn_result = TXN_STAT_FAILED;
+          p->bus_state = I2C_SEND_STOP_BIT0;
+          p->txn_state = TXN_STOP;
+        } else {
+          /* Issue a clock pulse by releasing SCL. */
+          sodr |= pins.scl;
+          p->bus_state = I2C_READ_ACK2;
+        }
+
         break;
 
       case I2C_READ_ACK2:
@@ -276,9 +290,8 @@ void i2c_isr()
           /* SDA is not high, this is a ACK fault. Setting transaction
            * status to TXN_STAT_FAILED and sending stop bit.
            */
-          display_string("noack@");
-          display_uint(p->processed);
-          display_end_line();
+          display_string("noack after pulse\n");
+          display_string("SDA still high!\n");
 
           p->txn_result = TXN_STAT_FAILED;
           p->bus_state = I2C_SEND_STOP_BIT0;
@@ -403,9 +416,13 @@ void i2c_isr()
           break;
 
         case TXN_READ_ACK:
-          display_string("r-ack? ");
+          /* Make sure we're not holding SDA low. The slave should
+           * pull down SDA low until we issue a clock pulse.
+           */
           sodr |= pins.sda;
           p->bus_state = I2C_READ_ACK0;
+
+          display_string("r-ack? ");
           break;
 
         case TXN_STOP:
@@ -450,25 +467,36 @@ void i2c_isr()
            */
           display_end_line();
 
-          if (p->txn_mode == TXN_MODE_READ
-              && p->processed > 0) {
-            p->txn_state = TXN_WRITE_ACK;
-          } else if (p->processed < p->data_size) {
-            /* In write mode, update the current_byte being
-               processed so it can be send next. */
-            if (p->txn_mode == TXN_MODE_WRITE) {
-              p->current_byte = p->data[p->processed];
-              /*
-                display_string("sending: ");
-                display_uint(p->current_byte);
-                display_end_line();
-              */
-            }
+          switch (p->txn_mode)
+            {
+            case TXN_MODE_WRITE:
+              /* In write mode, update the current_byte being
+               * processed so it can be send next until we reach
+               * data_size.
+               */
+              if (p->processed < p->data_size) {
+                p->current_byte = p->data[p->processed];
+              }
 
-            p->txn_state = TXN_READ_ACK;
-          } else {
-            p->txn_state = TXN_READ_ACK;
-          }
+              /* In a write transaction, we expect a ACK after each
+               * byte.
+               */
+              p->txn_state = TXN_READ_ACK;
+              break;
+
+            case TXN_MODE_READ:
+              /* In read mode, we expect a ACK after the first byte
+               * (the address, written by the master). Otherwise, we
+               * need to give ACK to the slave so it can continue
+               * transmission.
+               */
+              if (p->processed == 0) {
+                p->txn_state = TXN_READ_ACK;
+              } else {
+                p->txn_state = TXN_WRITE_ACK;
+              }
+              break;
+            }
 
           p->processed++;
           p->current_pos = 7;
