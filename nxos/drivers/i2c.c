@@ -21,16 +21,15 @@
 static volatile struct i2c_port {
   enum {
     I2C_OFF = 0, /* Port not initialized in I2C mode. */
+    I2C_IDLE,    /* No transaction in progress. */
     I2C_RECLOCK0,
     I2C_RECLOCK1,
     I2C_READ_ACK0,
     I2C_READ_ACK1,
     I2C_READ_ACK2,
-    I2C_READ_ACK3,
     I2C_WRITE_ACK0,
     I2C_WRITE_ACK1,
     I2C_WRITE_ACK2,
-    I2C_IDLE,    /* No transaction in progress. */
     I2C_SEND_START_BIT0,
     I2C_SEND_START_BIT1,
     I2C_SCL_LOW,
@@ -238,45 +237,31 @@ void i2c_isr()
         break;
 
       case I2C_READ_ACK0:
-        /* Make sure SCL is low. */
-        codr |= pins.scl;
+        /* Issue a clock pulse by releasing SCL. */
+        sodr |= pins.scl;
         p->bus_state = I2C_READ_ACK1;
         break;
 
       case I2C_READ_ACK1:
+        /* Wait for SCL to go up and let it stabilize. */
+        if (lines & pins.scl) {
+          p->bus_state = I2C_READ_ACK2;
+        }
+        break;
+
+      case I2C_READ_ACK2:
         if (lines & pins.sda) {
           /* SDA is still high, this is a ACK fault. Setting
            * transaction status to TXN_STAT_FAILED and sending stop
            * bit.
            */
-          display_string("noack!\n");
-          display_string("SDA still high\n");
+          display_string("no ack :(\n");
+          display_string("SDA still high!\n");
 
           p->txn_result = TXN_STAT_FAILED;
           p->bus_state = I2C_SEND_STOP_BIT0;
           p->txn_state = TXN_STOP;
         } else {
-          /* Issue a clock pulse by releasing SCL. */
-          sodr |= pins.scl;
-          p->bus_state = I2C_READ_ACK2;
-        }
-
-        break;
-
-      case I2C_READ_ACK2:
-        /* Wait for SCL to go up. */
-        if (lines & pins.scl) {
-          /* Pull SCL low again to complete the clock pulse and
-           * advance.
-           */
-          codr |= pins.scl;
-          p->bus_state = I2C_READ_ACK3;
-        }
-
-        break;
-
-      case I2C_READ_ACK3:
-        if (lines & pins.sda) {
           if (p->processed <= p->data_size) {
             p->txn_state = TXN_TRANSMIT_BYTE;
           } else {
@@ -284,18 +269,13 @@ void i2c_isr()
             p->txn_state = TXN_STOP;
           }
 
-          p->bus_state = I2C_SCL_LOW;
-          display_string("ack.\n");
-        } else {
-          /* SDA is not high, this is a ACK fault. Setting transaction
-           * status to TXN_STAT_FAILED and sending stop bit.
+          /* Pull SCL low to complete the clock pulse. SDA should be
+           * release by the slave after that.
            */
-          display_string("noack after pulse\n");
-          display_string("SDA still high!\n");
+          codr |= pins.scl;
+          p->bus_state = I2C_SCL_LOW;
 
-          p->txn_result = TXN_STAT_FAILED;
-          p->bus_state = I2C_SEND_STOP_BIT0;
-          p->txn_state = TXN_STOP;
+          display_string("ack.\n");
         }
 
         break;
@@ -416,10 +396,11 @@ void i2c_isr()
           break;
 
         case TXN_READ_ACK:
-          /* Make sure we're not holding SDA low. The slave should
-           * pull down SDA low until we issue a clock pulse.
+          /* Release SDA and pull SCL low to prepare for the clock
+           * pulse.
            */
           sodr |= pins.sda;
+          codr |= pins.scl;
           p->bus_state = I2C_READ_ACK0;
 
           display_string("r-ack? ");
