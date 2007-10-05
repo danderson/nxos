@@ -26,41 +26,46 @@
  */
 #define RADAR_I2C_ADDRESS 0x1
 
+/** Radar's internal memory addresses.
+ *
+ * This enum contains the radar's internal memory addresses of the
+ * radar parameters and readings.
+ */
 typedef enum {
-  RADAR_CMD_READ_VERSION = 0x00,
+  RADAR_VERSION = 0x00,
 
-  RADAR_CMD_READ_PRODUCT_ID = 0x08,
+  RADAR_PRODUCT_ID = 0x08,
 
-  RADAR_CMD_READ_SENSOR_TYPE = 0x10,
-  RADAR_CMD_READ_FACTORY_ZERO,
-  RADAR_CMD_READ_FACTORY_SCALE_FACTOR,
-  RADAR_CMD_READ_FACTORY_SCALE_DIVISOR,
-  RADAR_CMD_READ_MEASUREMENT_UNITS,
+  RADAR_SENSOR_TYPE = 0x10,
+  RADAR_FACTORY_ZERO,
+  RADAR_FACTORY_SCALE_FACTOR,
+  RADAR_FACTORY_SCALE_DIVISOR,
+  RADAR_MEASUREMENT_UNITS,
 
-  RADAR_CMD_READ_INTERVAL = 0x40,
-  RADAR_CMD_READ_OP_MODE,
-  RADAR_CMD_READ_R0,
-  RADAR_CMD_READ_R1,
-  RADAR_CMD_READ_R2,
-  RADAR_CMD_READ_R3,
-  RADAR_CMD_READ_R4,
-  RADAR_CMD_READ_R5,
-  RADAR_CMD_READ_R6,
-  RADAR_CMD_READ_R7,
-  RADAR_CMD_READ_CURRENT_ZERO,
-  RADAR_CMD_READ_CURRENT_SCALE_FACTOR,
-  RADAR_CMD_READ_CURRENT_SCALE_DIVISOR,
+  RADAR_INTERVAL = 0x40,
+  RADAR_OP_MODE,
+  RADAR_R0,
+  RADAR_R1,
+  RADAR_R2,
+  RADAR_R3,
+  RADAR_R4,
+  RADAR_R5,
+  RADAR_R6,
+  RADAR_R7,
+  RADAR_CURRENT_ZERO,
+  RADAR_CURRENT_SCALE_FACTOR,
+  RADAR_CURRENT_SCALE_DIVISOR,
 } radar_commands;
 
 extern U32 offset;
-extern U8 dump[2048];
+extern U8 dump[1024];
 
+/** Initializes the radar sensor. */
 void radar_init(U8 sensor)
 {
   sensors_i2c_enable(sensor);
   i2c_register(sensor, RADAR_I2C_ADDRESS);
 }
-
 
 void radar_display_lines(U8 sensor)
 {
@@ -115,14 +120,14 @@ void radar_test(U8 sensor)
   display_cursor_set_pos(0, 0);
   display_string(">> send command\n");
 
-  U8 cmd = RADAR_CMD_READ_PRODUCT_ID;
+  U8 cmd = 0x55; /* 0b01010101 */
   radar_txn(sensor, &cmd, 1, TXN_MODE_WRITE);
   systick_wait_ms(1500);
   display_cursor_set_pos(0, 0);
   display_string("+");
   while (avr_get_button() != BUTTON_OK);
 
-  /* Try to read result
+  /* Try to read result */
   display_clear();
   display_cursor_set_pos(0, 0);
   display_string("<< read result\n");
@@ -134,16 +139,15 @@ void radar_test(U8 sensor)
   display_cursor_set_pos(0, 0);
   display_string("+");
   while (avr_get_button() != BUTTON_OK);
-  */
 
   display_clear();
   display_cursor_set_pos(0, 0);
 
-  int i, j;
+  int i, j, k = 12;
   for (i=0 ; i<8 ; i++) {
-    for (j=0 ; j<16 ; j++) {
-      display_uint(dump[6 + i*16 + j]);
-      if (j % 8 == 7)
+    for (j=0 ; j<k ; j++) {
+      display_uint(dump[i*k + j]);
+      if (j % 2 == 1)
         display_string(" ");
     }
     display_end_line();
@@ -152,4 +156,3 @@ void radar_test(U8 sensor)
   systick_wait_ms(1500);
   while (avr_get_button() != BUTTON_OK);
 }
-
