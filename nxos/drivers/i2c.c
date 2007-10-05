@@ -80,6 +80,7 @@ static volatile struct i2c_port {
 
 U32 offset = 0;
 U8 dump[1024] = { 0x42 };
+bool record = FALSE;
 
 /** Initializes the I2C SoftMAC driver, configures the TC (Timer Counter)
  * and set the interrupt handler.
@@ -130,6 +131,11 @@ void i2c_init() {
 void i2c_register(U8 sensor, U8 address) {
   if (sensor >= NXT_N_SENSORS || address <= 0)
     return;
+
+  /* First, make sure the sensor port is configured for multi-driver
+   * I2C devices.
+   */
+  sensors_i2c_enable(sensor);
 
   i2c_state[sensor].bus_state = I2C_IDLE;
   i2c_state[sensor].txn_state = TXN_NONE;
@@ -210,8 +216,8 @@ void i2c_isr()
     p = &i2c_state[i];
 
     if (i == 0 && offset < 1020
-        && p->bus_state > I2C_IDLE
-        && p->txn_mode == TXN_MODE_WRITE) {
+        && p->bus_state >= I2C_IDLE
+        && record == TRUE) {
       dump[offset++] = (lines & pins.sda) ? 1 : 0;
       dump[offset++] = (lines & pins.scl) ? 1 : 0;
     }
@@ -407,6 +413,10 @@ void i2c_isr()
           break;
 
         case TXN_STOP:
+          /* Pull SDA low, be be able to release it up after SCL went
+           * up.
+           */
+          codr |= pins.sda;
           p->bus_state = I2C_SEND_STOP_BIT0;
           break;
 
@@ -494,7 +504,7 @@ void i2c_isr()
         break;
 
       case I2C_SEND_STOP_BIT1:
-        /* Finally, rise SDA. */
+        /* Finally, release SDA. */
         sodr |= pins.sda;
 
         p->bus_state = I2C_IDLE;

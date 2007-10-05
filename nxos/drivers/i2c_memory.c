@@ -26,7 +26,6 @@
  */
 void i2c_memory_init(U8 sensor, U8 address)
 {
-  sensors_i2c_enable(sensor);
   i2c_register(sensor, address);
 }
 

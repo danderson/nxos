@@ -19,6 +19,7 @@
 #include "sensors.h"
 #include "display.h"
 #include "i2c.h"
+#include "i2c_memory.h"
 #include "usb.h"
 
 /* As defined in the NXT Hardware Developer Kit, the Ultrasonic sensor
@@ -59,12 +60,12 @@ typedef enum {
 
 extern U32 offset;
 extern U8 dump[1024];
+extern bool record;
 
 /** Initializes the radar sensor. */
 void radar_init(U8 sensor)
 {
-  sensors_i2c_enable(sensor);
-  i2c_register(sensor, RADAR_I2C_ADDRESS);
+  i2c_memory_init(sensor, RADAR_I2C_ADDRESS);
 }
 
 void radar_display_lines(U8 sensor)
@@ -91,7 +92,7 @@ void radar_txn(U8 sensor, U8 *data, U8 size, i2c_txn_mode mode)
     display_string(") !\n");
   } else {
     while (i2c_get_txn_status(sensor) == TXN_STAT_IN_PROGRESS);
-    systick_wait_ms(50);
+    //    systick_wait_ms(50);
     status = i2c_get_txn_status(sensor);
     if (status == TXN_STAT_SUCCESS) {
       if (mode == TXN_MODE_READ) {
@@ -115,31 +116,39 @@ void radar_txn(U8 sensor, U8 *data, U8 size, i2c_txn_mode mode)
 
 void radar_test(U8 sensor)
 {
-  /* Send the command READ_SENSOR_TYPE */
+  /* Send the command */
   display_clear();
   display_cursor_set_pos(0, 0);
   display_string(">> send command\n");
 
-  U8 cmd = 0x55; /* 0b01010101 */
+  U8 cmd = RADAR_R0;
+
+  record = TRUE;
   radar_txn(sensor, &cmd, 1, TXN_MODE_WRITE);
-  systick_wait_ms(1500);
-  display_cursor_set_pos(0, 0);
-  display_string("+");
-  while (avr_get_button() != BUTTON_OK);
+  record = FALSE;
 
-  /* Try to read result 
-  display_clear();
-  display_cursor_set_pos(0, 0);
-  display_string("<< read result\n");
-
-  U8 buf[2] = { 0x42 };
-  radar_txn(sensor, buf, 1, TXN_MODE_READ);
-
+  /*
   systick_wait_ms(1500);
   display_cursor_set_pos(0, 0);
   display_string("+");
   while (avr_get_button() != BUTTON_OK);
   */
+
+  /* Try to read result */
+  display_clear();
+  display_cursor_set_pos(0, 0);
+  display_string("<< read result\n");
+
+  U8 buf = 0xFF;
+
+  record = TRUE;
+  radar_txn(sensor, &buf, 1, TXN_MODE_READ);
+  record = FALSE;
+
+  systick_wait_ms(1500);
+  display_cursor_set_pos(0, 0);
+  display_string("+");
+  while (avr_get_button() != BUTTON_OK);
 
   display_clear();
   display_cursor_set_pos(0, 0);
