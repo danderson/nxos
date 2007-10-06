@@ -53,19 +53,14 @@ void main() {
   radar_init(RADAR_SENSOR_SLOT);
   systick_wait_ms(100);
 
-  radar_test(RADAR_SENSOR_SLOT);
-  systick_wait_ms(5000);
-
-  /*
   U8 i;
-  for (i=0 ; i<10 ; i++) {
+  for (i=0 ; i<3 ; i++) {
     radar_test(RADAR_SENSOR_SLOT);
     display_string("Test ");
-    display_uint(i);
+    display_uint(i+1);
     display_string("/10");
     systick_wait_ms(1000);
   }
-  */
 
   core_shutdown();
 }

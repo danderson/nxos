@@ -549,7 +549,7 @@ void i2c_isr()
         sodr |= pins.sda;
 
         p->bus_state = I2C_PAUSE;
-        p->p_ticks = I2C_PAUSE_LEN;
+        p->p_ticks = I2C_PAUSE_LEN * 10;
         p->p_next = I2C_IDLE;
         p->txn_state = TXN_NONE;
         break;

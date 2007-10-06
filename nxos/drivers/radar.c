@@ -127,6 +127,8 @@ void radar_test(U8 sensor)
   U8 sensor_type[8] = { 0x00 };
   U8 version[8] = { 0x00 };
 
+  display_string("Reading info...\n");
+
   /* Read product ID */
   cmd = RADAR_PRODUCT_ID;
   radar_txn(sensor, &cmd, 1, TXN_MODE_WRITE, FALSE);
@@ -137,12 +139,11 @@ void radar_test(U8 sensor)
   radar_txn(sensor, &cmd, 1, TXN_MODE_WRITE, FALSE);
   radar_txn(sensor, sensor_type, 8, TXN_MODE_READ, TRUE);
 
-  /* Read sensor type
+  /* Read sensor type */
   cmd = RADAR_VERSION;
   radar_txn(sensor, &cmd, 1, TXN_MODE_WRITE, FALSE);
   radar_txn(sensor, version, 8, TXN_MODE_READ, TRUE);
-  */
-  display_string(">> ");
+
   display_string((char *)product_id);
   display_string(" ");
   display_string((char *)sensor_type);
