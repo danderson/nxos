@@ -122,35 +122,38 @@ void radar_send_dump() {
 
 void radar_test(U8 sensor)
 {
-  /* Send the command */
   display_clear();
   display_cursor_set_pos(0, 0);
   display_string("I2C Radar Test\n");
-  
+
+  /* Read product ID */
   U8 cmd = RADAR_PRODUCT_ID;
   U8 pid[8] = { 0x00 };
   
   radar_txn(sensor, &cmd, 1, TXN_MODE_WRITE, FALSE);
-  radar_txn(sensor, pid, 5, TXN_MODE_READ, TRUE);
+  radar_txn(sensor, pid, 8, TXN_MODE_READ, TRUE);
 
   display_string("Product: ");
   display_string((char *)pid);
   display_end_line();
-  
-  radar_display_lines(sensor);
 
-  /*
+  /* Read sensor type */
   cmd = RADAR_SENSOR_TYPE;
   U8 stype[8] = { 0x00 };
+  record = TRUE;
   radar_txn(sensor, &cmd, 1, TXN_MODE_WRITE, FALSE);
-    systick_wait_ms(20);
-  radar_txn(sensor, stype, 6, TXN_MODE_READ, TRUE);
+  radar_txn(sensor, stype, 8, TXN_MODE_READ, TRUE);
+  record = FALSE;
   
   display_string("Type   : ");
   display_string((char *)stype);
   display_end_line();
-  */
   
   systick_wait_ms(2000);
   while (avr_get_button() != BUTTON_OK);
+  return;
+  display_clear();
+  display_cursor_set_pos(0, 0);
+  radar_send_dump();
+  systick_wait_ms(2000);
 }
