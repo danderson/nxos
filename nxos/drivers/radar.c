@@ -80,38 +80,44 @@ void radar_display_lines(U8 sensor)
   display_string("]\n");
 }
 
-void radar_txn(U8 sensor, U8 *data, U8 size, i2c_txn_mode mode)
+void radar_txn(U8 sensor, U8 *data, U8 size, i2c_txn_mode mode, bool restart)
 {
   i2c_txn_err err;
   i2c_txn_status status;
 
-  err = i2c_start_transaction(sensor, data, size, mode);
+  display_string(mode == TXN_MODE_READ ? "< " : "> ");
+
+  err = i2c_start_transaction(sensor, data, size, mode, restart);
   if (err != I2C_ERR_OK) {
-    display_string("EE txn (");
+    display_string("TXN error (");
     display_uint(err);
     display_string(") !\n");
   } else {
-    while (i2c_get_txn_status(sensor) == TXN_STAT_IN_PROGRESS);
-    //    systick_wait_ms(50);
+    while (i2c_busy(sensor));
+
     status = i2c_get_txn_status(sensor);
     if (status == TXN_STAT_SUCCESS) {
-      if (mode == TXN_MODE_READ) {
-        display_string("OK:");
-        display_uint(data[0]);
-        display_string(". ");
-      } else {
-        display_string("OK. ");
-      }
+      display_string("OK.\n");
     }
 
     else {
-      display_string("EE (");
+      display_string("DATA error (");
       display_uint(status);
-      display_string(") ");
+      display_string(")\n");
     }
   }
+}
 
-  radar_display_lines(sensor);
+void radar_send_dump() {
+  display_string("dumping... ");
+
+  usb_send((U8 *) (&offset), 4);
+  while (usb_can_send());
+  
+  usb_send(dump, offset);
+  while (usb_can_send());
+  
+  display_string("done.\n");
 }
 
 void radar_test(U8 sensor)
@@ -119,49 +125,32 @@ void radar_test(U8 sensor)
   /* Send the command */
   display_clear();
   display_cursor_set_pos(0, 0);
-  display_string(">> send command\n");
+  display_string("I2C Radar Test\n");
+  
+  U8 cmd = RADAR_PRODUCT_ID;
+  U8 pid[8] = { 0x00 };
+  
+  radar_txn(sensor, &cmd, 1, TXN_MODE_WRITE, FALSE);
+  radar_txn(sensor, pid, 5, TXN_MODE_READ, TRUE);
 
-  U8 cmd = RADAR_R0;
-
-  record = TRUE;
-  radar_txn(sensor, &cmd, 1, TXN_MODE_WRITE);
-  record = FALSE;
+  display_string("Product: ");
+  display_string((char *)pid);
+  display_end_line();
+  
+  radar_display_lines(sensor);
 
   /*
-  systick_wait_ms(1500);
-  display_cursor_set_pos(0, 0);
-  display_string("+");
-  while (avr_get_button() != BUTTON_OK);
+  cmd = RADAR_SENSOR_TYPE;
+  U8 stype[8] = { 0x00 };
+  radar_txn(sensor, &cmd, 1, TXN_MODE_WRITE, FALSE);
+    systick_wait_ms(20);
+  radar_txn(sensor, stype, 6, TXN_MODE_READ, TRUE);
+  
+  display_string("Type   : ");
+  display_string((char *)stype);
+  display_end_line();
   */
-
-  /* Try to read result */
-  display_clear();
-  display_cursor_set_pos(0, 0);
-  display_string("<< read result\n");
-
-  U8 buf = 0xFF;
-
-  record = TRUE;
-  radar_txn(sensor, &buf, 1, TXN_MODE_READ);
-  record = FALSE;
-
-  systick_wait_ms(1500);
-  display_cursor_set_pos(0, 0);
-  display_string("+");
-  while (avr_get_button() != BUTTON_OK);
-
-  display_clear();
-  display_cursor_set_pos(0, 0);
-
-  display_string("sending dump...\n");
-
-  usb_send((U8 *) (&offset), 4);
-  while (usb_can_send());
-  usb_send(dump, offset);
-  while (usb_can_send());
-
-  display_string("dump sent (");
-  display_uint(offset);
-  display_string(")\n");
+  
   systick_wait_ms(2000);
+  while (avr_get_button() != BUTTON_OK);
 }
