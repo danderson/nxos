@@ -79,6 +79,9 @@ static volatile struct i2c_port {
 
   i2c_txn_status txn_result;
   
+  /* Pause mechanism: number of interrupts to let pass,
+   * and bus state to reach after the pause.
+   */
   U8 p_ticks;
   U8 p_next;
 } i2c_state[NXT_N_SENSORS] = {
@@ -172,7 +175,7 @@ void i2c_register(U8 sensor, U8 address) {
  *
  * For a write transaction, data should point to the bytes to send to
  * the sensor. For a read transaction, data should be pre-allocated
- * with enough space to receive the data from the sensor.
+ * with enough space to receive the data from the sensor and be zero-ed.
  *
  * Returns non-zero if an error occured.
  */
