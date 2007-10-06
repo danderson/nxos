@@ -148,12 +148,4 @@ void radar_test(U8 sensor)
   display_string("Type   : ");
   display_string((char *)stype);
   display_end_line();
-
-  systick_wait_ms(2000);
-  while (avr_get_button() != BUTTON_OK);
-  return;
-  display_clear();
-  display_cursor_set_pos(0, 0);
-  radar_send_dump();
-  systick_wait_ms(2000);
 }
