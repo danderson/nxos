@@ -50,14 +50,8 @@ void main() {
   //tests_usb();
   //tests_all();
 
-  display_clear();
-  display_cursor_set_pos(0, 0);
-  display_string(".start");
-  display_end_line();
-
   radar_init(RADAR_SENSOR_SLOT);
-  systick_wait_ms(2000);
-
+  systick_wait_ms(100);
   radar_test(RADAR_SENSOR_SLOT);
 
   core_shutdown();
