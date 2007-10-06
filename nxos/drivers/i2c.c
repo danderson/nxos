@@ -16,12 +16,18 @@
 #include "display.h"
 
 /* The base clock frequency of the sensor I2C bus in Hz. */
-#define SENSOR_I2C_SPEED 9600
+#define I2C_BUS_SPEED 9600
+
+/* Length of the I2C pauses (in 4th of BUS_SPEED) */
+#define I2C_PAUSE_LEN 3
+
+#define I2C_LOG FALSE
 
 static volatile struct i2c_port {
   enum {
     I2C_OFF = 0, /* Port not initialized in I2C mode. */
     I2C_IDLE,    /* No transaction in progress. */
+    I2C_PAUSE,
     I2C_RECLOCK0,
     I2C_RECLOCK1,
     I2C_READ_ACK0,
@@ -56,6 +62,7 @@ static volatile struct i2c_port {
   /** Transaction related members. */
 
   i2c_txn_mode txn_mode;  /* Transaction mode. See i2c.h#i2c_txn_mode. */
+  bool restart;
 
   U8 *data;           /* A buffer to hold the data to transmit or
                        * receive.
@@ -71,11 +78,18 @@ static volatile struct i2c_port {
   S8 current_pos;
 
   i2c_txn_status txn_result;
+  
+  U8 p_ticks;
+  U8 p_next;
 } i2c_state[NXT_N_SENSORS] = {
-  { I2C_OFF, 0, TXN_NONE, TXN_MODE_WRITE, NULL, 0, 0, 0, 0, TXN_STAT_UNKNOWN },
-  { I2C_OFF, 0, TXN_NONE, TXN_MODE_WRITE, NULL, 0, 0, 0, 0, TXN_STAT_UNKNOWN },
-  { I2C_OFF, 0, TXN_NONE, TXN_MODE_WRITE, NULL, 0, 0, 0, 0, TXN_STAT_UNKNOWN },
-  { I2C_OFF, 0, TXN_NONE, TXN_MODE_WRITE, NULL, 0, 0, 0, 0, TXN_STAT_UNKNOWN },
+  { I2C_OFF, 0, TXN_NONE, TXN_MODE_WRITE, FALSE, NULL, 0, 0, 0, 0,
+    TXN_STAT_UNKNOWN, 0, I2C_IDLE },
+  { I2C_OFF, 0, TXN_NONE, TXN_MODE_WRITE, FALSE, NULL, 0, 0, 0, 0,
+    TXN_STAT_UNKNOWN, 0, I2C_IDLE },
+  { I2C_OFF, 0, TXN_NONE, TXN_MODE_WRITE, FALSE, NULL, 0, 0, 0, 0,
+    TXN_STAT_UNKNOWN, 0, I2C_IDLE },
+  { I2C_OFF, 0, TXN_NONE, TXN_MODE_WRITE, FALSE, NULL, 0, 0, 0, 0,
+    TXN_STAT_UNKNOWN, 0, I2C_IDLE },
 };
 
 U32 offset = 0;
@@ -110,7 +124,7 @@ void i2c_init() {
    * counting at 24MHz from 0 to the value in the RC register.
    */
   *AT91C_TC0_CMR = AT91C_TC_CPCTRG;
-  *AT91C_TC0_RC = (NXT_CLOCK_FREQ/2)/(4*SENSOR_I2C_SPEED);
+  *AT91C_TC0_RC = (NXT_CLOCK_FREQ/2)/(4*I2C_BUS_SPEED);
 
   /* Enable the timer. */
   *AT91C_TC0_CCR = AT91C_TC_CLKEN;
@@ -127,6 +141,18 @@ void i2c_init() {
   interrupts_enable();
 }
 
+void i2c_log(const char *s)
+{
+  if (I2C_LOG)
+    display_string(s);
+}
+
+void i2c_log_uint(U32 val)
+{
+  if (I2C_LOG)
+    display_uint(val);
+}
+
 /** Register a remote device (by its address) on the given sensor. */
 void i2c_register(U8 sensor, U8 address) {
   if (sensor >= NXT_N_SENSORS || address <= 0)
@@ -140,14 +166,6 @@ void i2c_register(U8 sensor, U8 address) {
   i2c_state[sensor].bus_state = I2C_IDLE;
   i2c_state[sensor].txn_state = TXN_NONE;
   i2c_state[sensor].device_addr = address;
-
-  display_string("sensor  : ");
-  display_uint(sensor);
-  display_end_line();
-
-  display_string("i2c addr: ");
-  display_uint(i2c_state[sensor].device_addr);
-  display_end_line();
 }
 
 /** Start an I2C transaction.
@@ -159,12 +177,12 @@ void i2c_register(U8 sensor, U8 address) {
  * Returns non-zero if an error occured.
  */
 i2c_txn_err i2c_start_transaction(U8 sensor, U8 *data, int size,
-                                  i2c_txn_mode mode)
+                                  i2c_txn_mode mode, bool restart)
 {
   if (sensor >= NXT_N_SENSORS)
     return I2C_ERR_UNKNOWN_SENSOR;
 
-  if (i2c_state[sensor].bus_state != I2C_IDLE)
+  if (i2c_busy(sensor))
     return I2C_ERR_NOT_READY;
 
   if (!data || !size)
@@ -176,6 +194,7 @@ i2c_txn_err i2c_start_transaction(U8 sensor, U8 *data, int size,
   i2c_state[sensor].txn_state = TXN_WAITING;
   i2c_state[sensor].txn_result = TXN_STAT_IN_PROGRESS;
   i2c_state[sensor].txn_mode = mode;
+  i2c_state[sensor].restart = restart;
   i2c_state[sensor].data = data;
   i2c_state[sensor].data_size = size;
 
@@ -194,6 +213,15 @@ i2c_txn_status i2c_get_txn_status(U8 sensor)
     return TXN_STAT_UNKNOWN;
 
   return i2c_state[sensor].txn_result;
+}
+
+bool i2c_busy(U8 sensor)
+{
+  if (sensor >= NXT_N_SENSORS)
+    return FALSE;
+    
+  return i2c_state[sensor].bus_state > I2C_IDLE
+    || i2c_state[sensor].txn_result == TXN_STAT_IN_PROGRESS;
 }
 
 /** Interrupt handler. */
@@ -261,8 +289,7 @@ void i2c_isr()
            * transaction status to TXN_STAT_FAILED and sending stop
            * bit.
            */
-          display_string("no ack :(\n");
-          display_string("SDA still high!\n");
+          i2c_log(" no-ack!\n");
 
           p->txn_result = TXN_STAT_FAILED;
           p->bus_state = I2C_SEND_STOP_BIT0;
@@ -276,12 +303,12 @@ void i2c_isr()
           }
 
           /* Pull SCL low to complete the clock pulse. SDA should be
-           * release by the slave after that.
+           * released by the slave after that.
            */
           codr |= pins.scl;
           p->bus_state = I2C_SCL_LOW;
 
-          display_string("ack.\n");
+          i2c_log(" r-ack.\n");
         }
 
         break;
@@ -302,15 +329,9 @@ void i2c_isr()
         /* Release SDA for the slave to regain control of it. */
         sodr |= pins.sda;
         p->bus_state = I2C_SCL_LOW;
+        p->txn_state = TXN_TRANSMIT_BYTE;
 
-        if (p->processed <= p->data_size) {
-          p->txn_state = TXN_TRANSMIT_BYTE;
-        } else {
-          p->txn_result = TXN_STAT_SUCCESS;
-          p->txn_state = TXN_STOP;
-        }
-
-        display_string("ack.\n");
+        i2c_log(" w-ack.\n");
         break;
 
       case I2C_IDLE:
@@ -321,16 +342,31 @@ void i2c_isr()
           sodr |= pins.sda | pins.scl;
 
           p->txn_state = TXN_START;
-          p->bus_state = I2C_SEND_START_BIT0;
+          
+          if (p->restart) {
+            p->bus_state = I2C_RECLOCK0;
+          } else {
+            p->bus_state = I2C_SEND_START_BIT0;
+          }
         }
 
+        break;
+
+      case I2C_PAUSE:
+        p->p_ticks--;
+        if (p->p_ticks == 0) {
+          p->bus_state = p->p_next;
+        }
         break;
 
       case I2C_SEND_START_BIT0:
         if (lines & pins.sda) {
           /* Pull SDA low. */
           codr |= pins.sda;
-          p->bus_state = I2C_SEND_START_BIT1;
+          
+          p->bus_state = I2C_PAUSE;
+          p->p_ticks = I2C_PAUSE_LEN;
+          p->p_next = I2C_SEND_START_BIT1;
         } else {
           /* Something is holding SDA low. Reclock until we get our data
            * line back.
@@ -351,12 +387,10 @@ void i2c_isr()
         p->current_pos = 7;
         p->processed = 0;
 
-        p->bus_state = I2C_SCL_LOW;
+        p->bus_state = I2C_PAUSE;
+        p->p_ticks = I2C_PAUSE_LEN;
+        p->p_next = I2C_SCL_LOW;
         p->txn_state = TXN_TRANSMIT_BYTE;
-
-        display_string("addr+mode: ");
-        display_uint(p->current_byte);
-        display_end_line();
         break;
 
       case I2C_SCL_LOW:
@@ -375,10 +409,10 @@ void i2c_isr()
           if (p->txn_mode == TXN_MODE_WRITE || p->processed == 0) {
             if ((p->current_byte & (1 << p->current_pos))) {
               sodr |= pins.sda;
-              display_uint(1);
+              i2c_log_uint(1);
             } else {
               codr |= pins.sda;
-              display_uint(0);
+              i2c_log_uint(0);
             }
 
             p->current_pos--;
@@ -392,8 +426,6 @@ void i2c_isr()
             /* SDA is high: the slave has released SDA. Pull it low
              * and reclock.
              */
-            display_string("w-ack? ");
-
             codr |= pins.sda;
             p->bus_state = I2C_WRITE_ACK0;
           }
@@ -408,8 +440,6 @@ void i2c_isr()
           sodr |= pins.sda;
           codr |= pins.scl;
           p->bus_state = I2C_READ_ACK0;
-
-          display_string("r-ack? ");
           break;
 
         case TXN_STOP:
@@ -417,7 +447,10 @@ void i2c_isr()
            * up.
            */
           codr |= pins.sda;
-          p->bus_state = I2C_SEND_STOP_BIT0;
+          
+          p->bus_state = I2C_PAUSE;
+          p->p_ticks = I2C_PAUSE_LEN;
+          p->p_next = I2C_SEND_STOP_BIT0;
           break;
 
         default:
@@ -441,7 +474,7 @@ void i2c_isr()
           U8 value = (lines & pins.sda) ? 1 : 0;
           p->data[p->processed - 1] |= (value << p->current_pos);
           p->current_pos--;
-          display_uint(value);
+          i2c_log_uint(value);
         }
 
         p->bus_state = I2C_SAMPLE2;
@@ -456,7 +489,6 @@ void i2c_isr()
            * data_size - 1 (because of the address being sent before
            * the data.
            */
-          display_end_line();
 
           switch (p->txn_mode)
             {
@@ -483,9 +515,13 @@ void i2c_isr()
                */
               if (p->processed == 0) {
                 p->txn_state = TXN_READ_ACK;
-              } else {
+              } else if (p->processed < p->data_size) {
                 p->txn_state = TXN_WRITE_ACK;
+              } else {
+                p->txn_result = TXN_STAT_SUCCESS;
+                p->txn_state = TXN_STOP;
               }
+              
               break;
             }
 
@@ -500,18 +536,19 @@ void i2c_isr()
         /* First, rise SCL. */
         sodr |= pins.scl;
 
-        p->bus_state = I2C_SEND_STOP_BIT1;
+        p->bus_state = I2C_PAUSE;
+        p->p_ticks = I2C_PAUSE_LEN;
+        p->p_next = I2C_SEND_STOP_BIT1;
         break;
 
       case I2C_SEND_STOP_BIT1:
         /* Finally, release SDA. */
         sodr |= pins.sda;
 
-        p->bus_state = I2C_IDLE;
+        p->bus_state = I2C_PAUSE;
+        p->p_ticks = I2C_PAUSE_LEN;
+        p->p_next = I2C_IDLE;
         p->txn_state = TXN_NONE;
-
-        display_string("txn stop\n");
-
         break;
       }
 
