@@ -113,10 +113,10 @@ void radar_send_dump() {
 
   usb_send((U8 *) (&offset), 4);
   while (usb_can_send());
-  
+
   usb_send(dump, offset);
   while (usb_can_send());
-  
+
   display_string("done.\n");
 }
 
@@ -129,7 +129,7 @@ void radar_test(U8 sensor)
   /* Read product ID */
   U8 cmd = RADAR_PRODUCT_ID;
   U8 pid[8] = { 0x00 };
-  
+
   radar_txn(sensor, &cmd, 1, TXN_MODE_WRITE, FALSE);
   radar_txn(sensor, pid, 8, TXN_MODE_READ, TRUE);
 
@@ -144,11 +144,11 @@ void radar_test(U8 sensor)
   radar_txn(sensor, &cmd, 1, TXN_MODE_WRITE, FALSE);
   radar_txn(sensor, stype, 8, TXN_MODE_READ, TRUE);
   record = FALSE;
-  
+
   display_string("Type   : ");
   display_string((char *)stype);
   display_end_line();
-  
+
   systick_wait_ms(2000);
   while (avr_get_button() != BUTTON_OK);
   return;

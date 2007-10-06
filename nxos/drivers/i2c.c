@@ -78,7 +78,7 @@ static volatile struct i2c_port {
   S8 current_pos;
 
   i2c_txn_status txn_result;
-  
+
   /* Pause mechanism: number of interrupts to let pass,
    * and bus state to reach after the pause.
    */
@@ -222,7 +222,7 @@ bool i2c_busy(U8 sensor)
 {
   if (sensor >= NXT_N_SENSORS)
     return FALSE;
-    
+
   return i2c_state[sensor].bus_state > I2C_IDLE
     || i2c_state[sensor].txn_result == TXN_STAT_IN_PROGRESS;
 }
@@ -345,7 +345,7 @@ void i2c_isr()
           sodr |= pins.sda | pins.scl;
 
           p->txn_state = TXN_START;
-          
+
           if (p->restart) {
             p->bus_state = I2C_RECLOCK0;
           } else {
@@ -366,7 +366,7 @@ void i2c_isr()
         if (lines & pins.sda) {
           /* Pull SDA low. */
           codr |= pins.sda;
-          
+
           p->bus_state = I2C_PAUSE;
           p->p_ticks = I2C_PAUSE_LEN;
           p->p_next = I2C_SEND_START_BIT1;
@@ -450,7 +450,7 @@ void i2c_isr()
            * up.
            */
           codr |= pins.sda;
-          
+
           p->bus_state = I2C_PAUSE;
           p->p_ticks = I2C_PAUSE_LEN;
           p->p_next = I2C_SEND_STOP_BIT0;
@@ -524,7 +524,7 @@ void i2c_isr()
                 p->txn_result = TXN_STAT_SUCCESS;
                 p->txn_state = TXN_STOP;
               }
-              
+
               break;
             }
 
