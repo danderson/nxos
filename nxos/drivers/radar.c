@@ -85,16 +85,9 @@ void radar_txn(U8 sensor, U8 *data, U8 size, i2c_txn_mode mode, bool restart)
   i2c_txn_err err;
   i2c_txn_status status;
 
-  if (mode == TXN_MODE_READ)
-    display_string("< ");
-  else {
-    display_string("0x");
-    display_hex(data[0]);
-    display_string("> ");
-  }
-
   err = i2c_start_transaction(sensor, data, size, mode, restart);
   if (err != I2C_ERR_OK) {
+    display_string(mode == TXN_MODE_WRITE ? "> " : "< ");
     display_string("TXN error (");
     display_uint(err);
     display_string(") !\n");
@@ -102,11 +95,8 @@ void radar_txn(U8 sensor, U8 *data, U8 size, i2c_txn_mode mode, bool restart)
     while (i2c_busy(sensor));
 
     status = i2c_get_txn_status(sensor);
-    if (status == TXN_STAT_SUCCESS) {
-      display_string("OK.\n");
-    }
-
-    else {
+    if (status != TXN_STAT_SUCCESS) {
+      display_string(mode == TXN_MODE_WRITE ? "> " : "< ");
       display_string("DATA error (");
       display_uint(status);
       display_string(")\n");
@@ -132,11 +122,12 @@ void radar_test(U8 sensor)
   display_cursor_set_pos(0, 0);
   display_string("I2C Radar Test\n");
 
-  /* Read product ID */
   U8 cmd;
   U8 product_id[8] = { 0x00 };
   U8 sensor_type[8] = { 0x00 };
+  U8 version[8] = { 0x00 };
 
+  /* Read product ID */
   cmd = RADAR_PRODUCT_ID;
   radar_txn(sensor, &cmd, 1, TXN_MODE_WRITE, FALSE);
   radar_txn(sensor, product_id, 8, TXN_MODE_READ, TRUE);
@@ -146,10 +137,17 @@ void radar_test(U8 sensor)
   radar_txn(sensor, &cmd, 1, TXN_MODE_WRITE, FALSE);
   radar_txn(sensor, sensor_type, 8, TXN_MODE_READ, TRUE);
 
+  /* Read sensor type
+  cmd = RADAR_VERSION;
+  radar_txn(sensor, &cmd, 1, TXN_MODE_WRITE, FALSE);
+  radar_txn(sensor, version, 8, TXN_MODE_READ, TRUE);
+  */
   display_string(">> ");
   display_string((char *)product_id);
   display_string(" ");
   display_string((char *)sensor_type);
+  display_string(" ");
+  display_string((char *)version);
   display_end_line();
 
   display_string("Done.\n");
