@@ -757,7 +757,7 @@ U16 usb_has_data() {
 }
 
 
-void *usb_get_buffer() {
+volatile void *usb_get_buffer() {
   return (usb_state.rx_buffer[usb_state.rx_current_user_buffer_idx]);
 }
 

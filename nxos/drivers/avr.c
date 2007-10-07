@@ -6,6 +6,7 @@
 #include "util.h"
 
 #define AVR_ADDRESS 1
+#define AVR_MAX_FAILED_CHECKSUMS 3
 
 const char avr_init_handshake[] =
   "\xCC" "Let's samba nxt arm in arm, (c)LEGO System A/S";
@@ -22,11 +23,11 @@ static volatile struct {
     AVR_RECV,              /* Reception of from_avr in progress. */
   } mode;
 
-  /* Used to check the state of TWI transmissions. */
-  bool tx_done;
+  /* Used to detect link failures and restart the AVR link. */
+  U8 failed_consecutive_checksums;
 } avr_state = {
   AVR_UNINITIALIZED, /* We start uninitialized. */
-  FALSE,             /* TX not completed. */
+  0,                 /* No failed checksums yet. */
 };
 
 
@@ -171,8 +172,12 @@ static void avr_unpack_from_avr() {
   for (i=0; i<sizeof(raw_from_avr); i++)
     checksum += raw_from_avr[i];
 
-  if (checksum != 0xff)
-    return; /* TODO: Add some kind of reporting here. */
+  if (checksum != 0xff) {
+    avr_state.failed_consecutive_checksums++;
+    return;
+  } else {
+    avr_state.failed_consecutive_checksums = 0;
+  }
 
   /* Unpack and store the 4 sensor analog readings. */
   for (i = 0; i < NXT_N_SENSORS; i++) {
@@ -222,8 +227,11 @@ static void avr_unpack_from_avr() {
 
 /* The main AVR driver state machine. This routine gets called
  * periodically every millisecond by the system timer code.
+ *
+ * It is called directly in the main system timer interrupt, and so
+ * must return as fast as possible.
  */
-void avr_1kHz_update() {
+void avr_fast_update() {
   /* The action taken depends on the state of the AVR
    * communication.
    */
@@ -246,8 +254,8 @@ void avr_1kHz_update() {
      * doesn't see us coming up.
      */
     twi_write_async(AVR_ADDRESS, (U8*)avr_init_handshake,
-                    sizeof(avr_init_handshake)-1,
-                    (bool*)&avr_state.tx_done);
+                    sizeof(avr_init_handshake)-1);
+    avr_state.failed_consecutive_checksums = 0;
     avr_state.mode = AVR_INIT;
     break;
 
@@ -256,7 +264,7 @@ void avr_1kHz_update() {
      * millisecond wait, which is accomplished by the use of two
      * intermediate state machine states.
      */
-    if (avr_state.tx_done)
+    if (twi_ready())
       avr_state.mode = AVR_WAIT_2MS;
     break;
 
@@ -272,18 +280,17 @@ void avr_1kHz_update() {
      * the AVR.
      */
     avr_state.mode = AVR_SEND;
-    avr_state.tx_done = TRUE;
     break;
 
   case AVR_SEND:
     /* If the transmission is complete, switch to receive mode and
      * read the status structure from the AVR.
      */
-    if (avr_state.tx_done) {
+    if (twi_ready()) {
       avr_state.mode = AVR_RECV;
       memset(raw_from_avr, 0, sizeof(raw_from_avr));
       twi_read_async(AVR_ADDRESS, raw_from_avr,
-                     sizeof(raw_from_avr), (bool*)&avr_state.tx_done);
+                     sizeof(raw_from_avr));
     }
 
   case AVR_RECV:
@@ -291,12 +298,18 @@ void avr_1kHz_update() {
      * from_avr struct, pack the data in the to_avr struct into a raw
      * buffer, and shovel that over the i2c bus to the AVR.
      */
-    if (avr_state.tx_done) {
+    if (twi_ready()) {
       avr_unpack_from_avr();
-      avr_state.mode = AVR_SEND;
-      avr_pack_to_avr();
-      twi_write_async(AVR_ADDRESS, raw_to_avr, sizeof(raw_to_avr),
-                      (bool*)&avr_state.tx_done);
+      /* If the number of failed consecutive checksums is over the
+       * restart threshold, consider the link down and reboot the
+       * link. */
+      if (avr_state.failed_consecutive_checksums >= AVR_MAX_FAILED_CHECKSUMS) {
+        avr_state.mode = AVR_LINK_DOWN;
+      } else {
+        avr_state.mode = AVR_SEND;
+        avr_pack_to_avr();
+        twi_write_async(AVR_ADDRESS, raw_to_avr, sizeof(raw_to_avr));
+      }
     }
     break;
   }

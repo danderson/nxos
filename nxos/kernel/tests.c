@@ -223,7 +223,8 @@ void tests_sensors() {
 
 
 void tests_sysinfo() {
-  U32 i, t;
+  U32 i;
+  U32 t = 0;
   const U32 display_seconds = 15;
   U8 avr_major, avr_minor;
   hello();
@@ -319,6 +320,10 @@ void tests_usb() {
     for (i = 0 ; i < 500 && !usb_has_data(); i++)
     {
       systick_wait_ms(200);
+      display_cursor_set_pos(0, 2);
+      display_string("(Connected : ");
+      display_uint((U32)usb_is_connected());
+      display_string(")");
     }
 
     if (i >= 500)
@@ -395,14 +400,14 @@ void tests_usb() {
     }
     else {
       i = 1;
-      usb_send((U8 *)USB_UNKNOWN, sizeof(USB_UNKNOWN));
+      usb_send((U8 *)USB_UNKNOWN, sizeof(USB_UNKNOWN)-1);
     }
 
     if (i == 0) {
       if (!usb_overloaded())
-	usb_send((U8 *)USB_OK, sizeof(USB_OK));
+	usb_send((U8 *)USB_OK, sizeof(USB_OK)-1);
       else
-	usb_send((U8 *)USB_OVERLOADED, sizeof(USB_OVERLOADED));
+	usb_send((U8 *)USB_OVERLOADED, sizeof(USB_OVERLOADED)-1);
     }
 
     /* Stop interpreting */
