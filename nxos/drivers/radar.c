@@ -21,6 +21,7 @@
 #include "i2c.h"
 #include "i2c_memory.h"
 #include "usb.h"
+#include "sound.h"
 
 /* As defined in the NXT Hardware Developer Kit, the Ultrasonic sensor
  * has been given address 1 (within a 7 bit context).
@@ -178,9 +179,14 @@ void radar_test(U8 sensor)
 
   display_string(">> ");
 
-  if (r0 < 0xFF) {
+  if (r0 && r0 < 0xFF) {
     display_uint(r0);
     display_string(" cm\n");
+
+    /* Emit a beep, range goes from approx 8 kHz for smallest distances
+     * to 380 Hz for greater detected distances (up to ??cm).
+     */
+    sound_freq_async(8000 - r0 * 30, 100);
   } else {
     display_string("n/a\n");
   }

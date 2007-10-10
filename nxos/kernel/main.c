@@ -63,7 +63,7 @@ void main() {
 
   while (avr_get_button() != BUTTON_CANCEL) {
     radar_test(RADAR_SENSOR_SLOT);
-    systick_wait_ms(500);
+    systick_wait_ms(1000);
   }
 
   core_shutdown();
