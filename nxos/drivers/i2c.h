@@ -3,6 +3,11 @@
 
 #include "mytypes.h"
 
+/* The NXT does not support I2C transactions longer than
+ * 16 bytes (buffer length).
+ */
+#define I2C_MAX_TXN_SIZE 16
+
 typedef enum {
   I2C_ERR_OK = 0,
   I2C_ERR_UNKNOWN_SENSOR,
@@ -26,6 +31,9 @@ typedef enum
 
 void i2c_init();
 void i2c_register(U8 sensor, U8 address);
+
+void i2c_log(const char *s);
+void i2c_log_uint(U32 val);
 
 i2c_txn_err i2c_start_transaction(U8 sensor, U8 *data, int size,
                                   i2c_txn_mode mode, bool restart);
