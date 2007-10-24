@@ -5,8 +5,8 @@ SRCDIR=$ROOT/src
 BUILDDIR=$ROOT/build
 PREFIX=$ROOT/install
 
-GCC_URL=ftp://ftp.uvsq.fr/pub/gcc/releases/gcc-4.2.1/gcc-4.2.1.tar.bz2
-GCC_VERSION=4.2.1
+GCC_URL=ftp://ftp.irisa.fr/pub/mirrors/gcc.gnu.org/gcc/releases/gcc-4.2.2/gcc-core-4.2.2.tar.bz2
+GCC_VERSION=4.2.2
 GCC_DIR=gcc-$GCC_VERSION
 
 BINUTILS_URL=http://ftp.gnu.org/gnu/binutils/binutils-2.18.tar.bz2
