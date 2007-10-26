@@ -40,7 +40,7 @@
 	.endm
 
 	.global start
-	.extern main
+	.extern kernel_main
 
 
 /**********************************************************
@@ -206,7 +206,7 @@ wait_mclk_3:
 	mov r7, #0
 
 	/* Start the main kernel code using an interworking branch. */
-	ldr r5, =main
+	ldr r5, =kernel_main
 	mov lr, pc
 	bx  r5
 
