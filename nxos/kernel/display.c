@@ -47,6 +47,7 @@ static inline void dirty_display() {
 /* Clear the display. */
 void display_clear() {
   memset(&display.buffer[0][0], 0, sizeof(display.buffer));
+  display_cursor_set_pos(0, 0);
   dirty_display();
 }
 
