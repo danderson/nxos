@@ -5,28 +5,61 @@
 
 #include "at91sam7s256.h"
 
+/* Comment out to disable I2C logging. */
+#define I2C_LOG TRUE
+
 #include "mytypes.h"
 #include "nxt.h"
 #include "interrupts.h"
 #include "systick.h"
+#include "util.h"
 #include "aic.h"
 #include "sensors.h"
 #include "i2c.h"
 
+#ifdef I2C_LOG
 #include "display.h"
+#endif
+
+#include "avr.h"
 
 /* The base clock frequency of the sensor I2C bus in Hz. */
 #define I2C_BUS_SPEED 9600
 
+/* A classic I2C exchange includes up to 4 partial transactions. */
+#define I2C_MAX_TXN 4
+
 /* Length of the I2C pauses (in 4th of BUS_SPEED) */
 #define I2C_PAUSE_LEN 3
 
-#define I2C_LOG FALSE
+
+struct i2c_txn_info
+{
+  /* Bus control triggers, tells the state machine to issue start,
+   * stop or restart bits at the begniing or at the end of the
+   * transaction.
+   */
+  i2c_control pre_control, post_control;
+
+  /* Sub transaction mode, tells whether data will be writen or
+   * read to/from the bus.
+   */
+  i2c_txn_mode mode;
+
+  /* Data to be sent or to buffer for reception. */
+  U8 *data;
+  U8 data_size;
+  
+  /* Sub transaction result. */
+  i2c_txn_status result;
+};
 
 static volatile struct i2c_port {
   enum {
     I2C_OFF = 0, /* Port not initialized in I2C mode. */
     I2C_IDLE,    /* No transaction in progress. */
+    I2C_CONFIG,  /* Nothing is happening, but the bus is locked by
+                  * transaction configuration. */
     I2C_PAUSE,
     I2C_RECLOCK0,
     I2C_RECLOCK1,
@@ -46,8 +79,14 @@ static volatile struct i2c_port {
     I2C_SEND_STOP_BIT1,
   } bus_state;
 
-  /* The connected device address on the I2C bus. */
-  U8 device_addr;
+
+  U8 device_addr;           /* The connected device address on the bus... */
+  U8 addr[TXN_MODE_COUNT];  /* ... and the read/write ORed addresses. */
+  
+  /* Toggles the use of degraded I2C mode for LEGO Radar
+   * compatibility (use STOP/START instead of RESTART, etc).
+   */
+  bool lego_compat; 
 
   enum {
     TXN_NONE = 0,
@@ -59,45 +98,38 @@ static volatile struct i2c_port {
     TXN_STOP,
   } txn_state;
 
-  /** Transaction related members. */
+  /** I2C transactions and current transaction number. */
+  struct i2c_txn_info txns[I2C_MAX_TXN];
+  S8 current_txn;
+  S8 n_txns;
 
-  i2c_txn_mode txn_mode;  /* Transaction mode. See i2c.h#i2c_txn_mode. */
-  bool restart;
-
-  U8 *data;           /* A buffer to hold the data to transmit or
-                       * receive.
-                       */
-  int data_size;      /* Data size, in bytes. */
-  int processed;      /* Sent/received bytes. */
-
-  /* The currently transmitted byte, and the
-   * position of the bit currently transmitted
-   * in this byte.
+  /* Data flow tracking values : currently processed bytes, the
+   * currently transmitted byte, and the position of the bit currently
+   * transmitted in this byte.
    */
+  U8 processed;
   U8 current_byte;
   S8 current_pos;
 
-  i2c_txn_status txn_result;
-
-  /* Pause mechanism: number of interrupts to let pass,
-   * and bus state to reach after the pause.
+  /* Pause mechanism for non-I2C compliant sensors (like the LEGO
+   * Ultrasonic radar): number of interrupts to let pass, and bus
+   * state to reach after the pause.
    */
-  U8 p_ticks;
+  S8 p_ticks;
   U8 p_next;
+
 } i2c_state[NXT_N_SENSORS] = {
-  { I2C_OFF, 0, TXN_NONE, TXN_MODE_WRITE, FALSE, NULL, 0, 0, 0, 0,
-    TXN_STAT_UNKNOWN, 0, I2C_IDLE },
-  { I2C_OFF, 0, TXN_NONE, TXN_MODE_WRITE, FALSE, NULL, 0, 0, 0, 0,
-    TXN_STAT_UNKNOWN, 0, I2C_IDLE },
-  { I2C_OFF, 0, TXN_NONE, TXN_MODE_WRITE, FALSE, NULL, 0, 0, 0, 0,
-    TXN_STAT_UNKNOWN, 0, I2C_IDLE },
-  { I2C_OFF, 0, TXN_NONE, TXN_MODE_WRITE, FALSE, NULL, 0, 0, 0, 0,
-    TXN_STAT_UNKNOWN, 0, I2C_IDLE },
+  { I2C_OFF, 0, { 0 }, FALSE, TXN_NONE, {{ 0 }}, 0, 0, 0, 0, 0, 0, I2C_IDLE },
+  { I2C_OFF, 0, { 0 }, FALSE, TXN_NONE, {{ 0 }}, 0, 0, 0, 0, 0, 0, I2C_IDLE },
+  { I2C_OFF, 0, { 0 }, FALSE, TXN_NONE, {{ 0 }}, 0, 0, 0, 0, 0, 0, I2C_IDLE },
+  { I2C_OFF, 0, { 0 }, FALSE, TXN_NONE, {{ 0 }}, 0, 0, 0, 0, 0, 0, I2C_IDLE },
 };
 
+#ifdef I2C_LOG
 U32 offset = 0;
 U8 dump[1024] = { 0x42 };
-bool record = FALSE;
+bool record = TRUE;
+#endif
 
 /** Initializes the I2C SoftMAC driver, configures the TC (Timer Counter)
  * and set the interrupt handler.
@@ -157,7 +189,9 @@ void i2c_log_uint(U32 val)
 }
 
 /** Register a remote device (by its address) on the given sensor. */
-void i2c_register(U8 sensor, U8 address) {
+void i2c_register(U8 sensor, U8 address, bool lego_compat) {
+  volatile struct i2c_port *p;
+
   if (sensor >= NXT_N_SENSORS || address <= 0)
     return;
 
@@ -166,45 +200,136 @@ void i2c_register(U8 sensor, U8 address) {
    */
   sensors_i2c_enable(sensor);
 
-  i2c_state[sensor].bus_state = I2C_IDLE;
-  i2c_state[sensor].txn_state = TXN_NONE;
-  i2c_state[sensor].device_addr = address;
+  p = &i2c_state[sensor];
+
+  p->bus_state = I2C_IDLE;
+  p->txn_state = TXN_NONE;
+  p->device_addr = address;
+  p->lego_compat = lego_compat;
+  
+  p->addr[TXN_MODE_WRITE] = (address << 1) | TXN_MODE_WRITE;
+  p->addr[TXN_MODE_READ] = (address << 1) | TXN_MODE_READ;
+
+  /* Reset the bus transaction structures and parameters. */
+  //memset((U8 *)i2c_state[sensor].txns, 0,
+  //  I2C_MAX_TXN*sizeof(struct i2c_txn_info));
+  i2c_state[sensor].current_txn = 0;
+  i2c_state[sensor].n_txns = 0;
 }
 
-/** Start an I2C transaction.
+/** Add a I2C sub transaction.
  *
- * For a write transaction, data should point to the bytes to send to
- * the sensor. For a read transaction, data should be pre-allocated
- * with enough space to receive the data from the sensor and be zero-ed.
- *
- * Returns non-zero if an error occured.
+ * Adds a sub transaction for the given sensor. The given data (along with its
+ * size) will be writen or read from the bus. Additionnal pre control and
+ * post control can be performed (see enum i2c_control).
  */
-i2c_txn_err i2c_start_transaction(U8 sensor, U8 *data, int size,
-                                  i2c_txn_mode mode, bool restart)
+static i2c_txn_err i2c_add_txn(U8 sensor, i2c_txn_mode mode,
+                               U8 *data, int size,
+                               i2c_control pre_control, i2c_control post_control)
 {
+  volatile struct i2c_txn_info *t;
+  
+  if (sensor >= NXT_N_SENSORS)
+    return I2C_ERR_UNKNOWN_SENSOR;
+  
+  if (i2c_state[sensor].n_txns == I2C_MAX_TXN)
+    return I2C_ERR_TXN_FULL;
+
+  /* Retrieve the sub transaction i2c_txn_info structure. */
+  t = &(i2c_state[sensor].txns[i2c_state[sensor].n_txns]);
+
+  /* Set the transaction parameters. */
+  t->pre_control = pre_control;
+  t->post_control = post_control;
+  t->mode = mode;
+  t->data = data;
+  t->data_size = size;
+  
+  i2c_state[sensor].n_txns++;
+  return I2C_ERR_OK;
+}
+
+/** Triggers the configured I2C transactions.
+ *
+ * Returns I2C_ERR_NOT_READY if the bus is busy.
+ */
+static i2c_txn_err i2c_trigger(U8 sensor) {
+  i2c_state[sensor].txn_state = TXN_WAITING;
+  i2c_state[sensor].bus_state = I2C_IDLE;
+
+  return I2C_ERR_OK;
+}
+
+/** Start a new I2C transaction.
+ *
+ * If the I2C bus is available, a new transaction (consisting in 2 to 4
+ * sub transactions) will be performed.
+ *
+ * For a write transaction, two sub transactions will be performed. The data
+ * and data_size parameters must be provided, initialized and containing the
+ * data to be sent on the bus (in most cases, the internal address in the
+ * remote device and the value to put in this address).
+ *
+ * For a read transaction, four sub transactions will be performed. In
+ * addition to the data and data_size parameters, the recv_buf and recv_size
+ * parameters must be initialized. The recv_buf must be able to contain the
+ * recv_size bytes that will be read from the bus.
+ *
+ * Returns an i2c_txn_err error code.
+ */
+i2c_txn_err i2c_start_transaction(U8 sensor, i2c_txn_mode mode,
+                                  U8 *data, U8 data_size,
+                                  U8 *recv_buf, U8 recv_size)
+{
+  volatile struct i2c_txn_info *t;
+  
   if (sensor >= NXT_N_SENSORS)
     return I2C_ERR_UNKNOWN_SENSOR;
 
   if (i2c_busy(sensor))
     return I2C_ERR_NOT_READY;
 
-  if (!data || !size)
+  /* In any case, data must be initialized, and with a known data size. */
+  if (!data || !data_size)
+    return I2C_ERR_DATA;
+  
+  if (mode == TXN_MODE_READ && (!recv_buf || !recv_size))
     return I2C_ERR_DATA;
 
-  /* The bus is ready to perform a transaction. Initialize the sensor
-   * bus data structure.
+  i2c_state[sensor].bus_state = I2C_CONFIG;
+
+  t = i2c_state[sensor].txns;
+  i2c_state[sensor].current_txn = 0;
+  i2c_state[sensor].n_txns = 0;
+  // memset((U8 *)t, 0, I2C_MAX_TXN*sizeof(struct i2c_txn_info));
+
+  /* In any case, write the device address and the given data
+   * (can be an internal address, or an internal address followed
+   * by a value, etc). This second sub transaction is ended by a
+   * STOP if the device works in degraded mode or if this transaction
+   * is only a write transaction.
    */
-  i2c_state[sensor].txn_state = TXN_WAITING;
-  i2c_state[sensor].txn_result = TXN_STAT_IN_PROGRESS;
-  i2c_state[sensor].txn_mode = mode;
-  i2c_state[sensor].restart = restart;
-  i2c_state[sensor].data = data;
-  i2c_state[sensor].data_size = size;
+  i2c_add_txn(sensor, TXN_MODE_WRITE,
+              &(i2c_state[sensor].addr[TXN_MODE_WRITE]), 1,
+              I2C_CONTROL_START, I2C_CONTROL_NONE);
+  i2c_add_txn(sensor, TXN_MODE_WRITE, data, data_size, I2C_CONTROL_NONE,
+              i2c_state[sensor].lego_compat || mode == TXN_MODE_WRITE
+                ? I2C_CONTROL_STOP
+                : I2C_CONTROL_NONE);
 
-  i2c_state[sensor].processed = 0;
-  i2c_state[sensor].current_byte = 0;
-  i2c_state[sensor].current_pos = 0;
+  /* If this is a read transaction, write the device address on the bus
+   * and switch to read mode, storing the received bytes in the provided
+   * buffer ; ending with a STOP.
+   */
+  if (mode == TXN_MODE_READ) {
+    i2c_add_txn(sensor, TXN_MODE_WRITE,
+                &(i2c_state[sensor].addr[TXN_MODE_READ]), 1,
+                I2C_CONTROL_RESTART, I2C_CONTROL_NONE);
+    i2c_add_txn(sensor, TXN_MODE_READ, recv_buf, recv_size, I2C_CONTROL_NONE,
+                I2C_CONTROL_STOP);
+  }
 
+  i2c_trigger(sensor);
   return I2C_ERR_OK;
 }
 
@@ -212,10 +337,30 @@ i2c_txn_err i2c_start_transaction(U8 sensor, U8 *data, int size,
  */
 i2c_txn_status i2c_get_txn_status(U8 sensor)
 {
+  volatile struct i2c_port *p;
+
   if (sensor >= NXT_N_SENSORS)
     return TXN_STAT_UNKNOWN;
 
-  return i2c_state[sensor].txn_result;
+  p = &i2c_state[sensor];
+  
+  /* If the current sub transaction was left in the FAILED state,
+   * the whole transaction is failed.
+   */
+  if (p->txns[p->current_txn].result == TXN_STAT_FAILED)
+    return TXN_STAT_FAILED;
+  
+  /* If the transaction is not failed, it's in progress until the
+   * current_txn number reaches the number of sub transactions (minus 1
+   * because indexes start at 0).
+   */
+  if (p->current_txn == p->n_txns - 1)
+    return TXN_STAT_IN_PROGRESS;
+
+  /* When everything's done, simply return the last sub transaction
+   * result.
+   */
+  return p->txns[p->current_txn].result;
 }
 
 bool i2c_busy(U8 sensor)
@@ -224,39 +369,74 @@ bool i2c_busy(U8 sensor)
     return FALSE;
 
   return i2c_state[sensor].bus_state > I2C_IDLE
-    || i2c_state[sensor].txn_result == TXN_STAT_IN_PROGRESS;
+    || i2c_state[sensor].current_txn < i2c_state[sensor].n_txns;
 }
+
+/** Sets the I2C bus state for the given sensor to the provided state.
+ *
+ * This function takes into account the lego_compat parameter of the given
+ * I2C port and will include a pause before going to 'next_state' if the
+ * port is configured for lego I2C radar compatibility.
+ *
+ * Note: only use this function to change the I2C bus state when a pause
+ * is required in compat mode.
+ */
+void i2c_set_bus_state(U8 sensor, U8 next_state) {
+  volatile struct i2c_port *p;
+
+  if (sensor >= NXT_N_SENSORS)
+    return;
+  
+  p = &i2c_state[sensor];
+  
+  if (p->lego_compat) {
+    p->bus_state = I2C_PAUSE;
+    p->p_ticks = next_state == I2C_IDLE
+      ? 10 * I2C_PAUSE_LEN
+      : I2C_PAUSE_LEN;
+    p->p_next = next_state;
+    return;
+  }
+  
+  p->bus_state = next_state;
+}
+
 
 /** Interrupt handler. */
 void i2c_isr()
 {
   volatile struct i2c_port *p;
+  volatile struct i2c_txn_info *t;
   U32 dummy;
   U32 lines = *AT91C_PIOA_PDSR;
   U32 codr = 0;
   U32 sodr = 0;
-  short i;
+  short sensor;
 
   /* Read the TC0 status register to ack the TC0 timer and allow this
    * interrupt handler to be called again.
    */
   dummy = *AT91C_TC0_SR;
 
-  for (i=0; i<NXT_N_SENSORS; i++) {
-    volatile sensor_pins pins = sensors_get_pins(i);
-    p = &i2c_state[i];
+  for (sensor=0; sensor<NXT_N_SENSORS; sensor++) {
+    volatile sensor_pins pins = sensors_get_pins(sensor);
+    p = &i2c_state[sensor];
+    t = &(p->txns[p->current_txn]);
 
-    if (i == 0 && offset < 1020
-        && p->bus_state >= I2C_IDLE
+#ifdef I2C_LOG
+    if (sensor == 0 && offset < 1020
+        && p->bus_state > I2C_CONFIG
         && record == TRUE) {
       dump[offset++] = (lines & pins.sda) ? 1 : 0;
       dump[offset++] = (lines & pins.scl) ? 1 : 0;
     }
+#endif
 
     switch (p->bus_state)
       {
       case I2C_OFF:
-        /* Port is OFF, do nothing. */
+      case I2C_CONFIG:
+        /* Port is OFF or in txn configuration mode, do nothing. */
         break;
 
       case I2C_RECLOCK0:
@@ -294,22 +474,34 @@ void i2c_isr()
            */
           i2c_log(" no-ack!\n");
 
-          p->txn_result = TXN_STAT_FAILED;
+          t->result = TXN_STAT_FAILED;
+          
+          /* Always issue a STOP bit after a ACK fault. */
           p->bus_state = I2C_SEND_STOP_BIT0;
           p->txn_state = TXN_STOP;
+          
+          /* Bypass remaining sub transactions. */
+          p->current_txn = p->n_txns;
         } else {
-          if (p->processed <= p->data_size) {
+          if (p->processed < t->data_size) {
             p->txn_state = TXN_TRANSMIT_BYTE;
           } else {
-            p->txn_result = TXN_STAT_SUCCESS;
-            p->txn_state = TXN_STOP;
+            t->result = TXN_STAT_SUCCESS;
+            p->current_txn++;
+
+            if (t->post_control == I2C_CONTROL_STOP) {
+              p->bus_state = I2C_SCL_LOW;
+              p->txn_state = TXN_STOP;
+            } else {
+              p->bus_state = I2C_IDLE;
+              p->txn_state = TXN_WAITING;
+            }
           }
 
           /* Pull SCL low to complete the clock pulse. SDA should be
            * released by the slave after that.
            */
           codr |= pins.scl;
-          p->bus_state = I2C_SCL_LOW;
 
           i2c_log(" r-ack.\n");
         }
@@ -338,19 +530,34 @@ void i2c_isr()
         break;
 
       case I2C_IDLE:
-        if (p->txn_state == TXN_WAITING) {
-          /* A transaction is waiting. Set both pins high, just to be
-           * sure, and proceed to SEND_START_BIT.
-           */
-          sodr |= pins.sda | pins.scl;
-
-          p->txn_state = TXN_START;
-
-          if (p->restart) {
-            p->bus_state = I2C_RECLOCK0;
+        /* If current_txn < n_txns, we have work to do. */
+        if (p->txn_state == TXN_WAITING && p->current_txn < p->n_txns) {
+          if (t->pre_control == I2C_CONTROL_NONE) {
+            p->txn_state = TXN_TRANSMIT_BYTE;
+            p->bus_state = I2C_SCL_LOW;
           } else {
-            p->bus_state = I2C_SEND_START_BIT0;
+            /* Before issuing a START bit, set both pins high, just to be
+             * sure, and proceed to SEND_START_BIT.
+             */
+            sodr |= pins.sda | pins.scl;
+            
+            if (t->pre_control == I2C_CONTROL_RESTART && p->lego_compat) {
+              p->bus_state = I2C_RECLOCK0;
+            } else {
+              p->bus_state = I2C_SEND_START_BIT0;
+            }
+            
+            p->txn_state = TXN_START;
           }
+          
+          /* Prepare the first bit to be sent. */
+          p->processed = 0;
+          p->current_byte = t->data[p->processed];
+          p->current_pos = 7;
+        }
+        
+        if (p->current_txn == p->n_txns) {
+          p->txn_state = TXN_NONE;
         }
 
         break;
@@ -367,9 +574,7 @@ void i2c_isr()
           /* Pull SDA low. */
           codr |= pins.sda;
 
-          p->bus_state = I2C_PAUSE;
-          p->p_ticks = I2C_PAUSE_LEN;
-          p->p_next = I2C_SEND_START_BIT1;
+          i2c_set_bus_state(sensor, I2C_SEND_START_BIT1);
         } else {
           /* Something is holding SDA low. Reclock until we get our data
            * line back.
@@ -383,16 +588,7 @@ void i2c_isr()
         /* Pull SCL low. */
         codr |= pins.scl;
 
-        /* After the start bit has been sent, switch to byte sending
-         * mode with the device address + mode.
-         */
-        p->current_byte = (p->device_addr << 1) | p->txn_mode;
-        p->current_pos = 7;
-        p->processed = 0;
-
-        p->bus_state = I2C_PAUSE;
-        p->p_ticks = I2C_PAUSE_LEN;
-        p->p_next = I2C_SCL_LOW;
+        i2c_set_bus_state(sensor, I2C_SCL_LOW);
         p->txn_state = TXN_TRANSMIT_BYTE;
         break;
 
@@ -404,12 +600,8 @@ void i2c_isr()
           /* In write mode, it's time to set SDA to the bit
            * value we want. In read mode, let the remote device set
            * SDA.
-           *
-           * If p->processed is 0, it means we are sending the remote
-           * device address, which should be done in both write and
-           * read transaction modes.
            */
-          if (p->txn_mode == TXN_MODE_WRITE || p->processed == 0) {
+          if (t->mode == TXN_MODE_WRITE) {
             if ((p->current_byte & (1 << p->current_pos))) {
               sodr |= pins.sda;
               i2c_log_uint(1);
@@ -446,14 +638,11 @@ void i2c_isr()
           break;
 
         case TXN_STOP:
-          /* Pull SDA low, be be able to release it up after SCL went
+          /* Pull SDA low, to be able to release it up after SCL went
            * up.
            */
           codr |= pins.sda;
-
-          p->bus_state = I2C_PAUSE;
-          p->p_ticks = I2C_PAUSE_LEN;
-          p->p_next = I2C_SEND_STOP_BIT0;
+          i2c_set_bus_state(sensor, I2C_SEND_STOP_BIT0);
           break;
 
         default:
@@ -473,9 +662,9 @@ void i2c_isr()
          * the bit set in I2C_SCL_LOW. In read mode, retrieve SDA
          * value and store it.
          */
-        if (p->txn_mode == TXN_MODE_READ && p->processed > 0) {
+        if (t->mode == TXN_MODE_READ) {
           U8 value = (lines & pins.sda) ? 1 : 0;
-          p->data[p->processed - 1] |= (value << p->current_pos);
+          t->data[p->processed] |= (value << p->current_pos);
           p->current_pos--;
           i2c_log_uint(value);
         }
@@ -488,48 +677,37 @@ void i2c_isr()
         codr |= pins.scl;
 
         if (p->current_pos < 0) {
-          /* Note: processed goes from 1 to data_size and not to 0 to
-           * data_size - 1 (because of the address being sent before
-           * the data.
-           */
-
-          switch (p->txn_mode)
-            {
-            case TXN_MODE_WRITE:
-              /* In write mode, update the current_byte being
-               * processed so it can be send next until we reach
-               * data_size.
-               */
-              if (p->processed < p->data_size) {
-                p->current_byte = p->data[p->processed];
-              }
-
-              /* In a write transaction, we expect a ACK after each
-               * byte.
-               */
-              p->txn_state = TXN_READ_ACK;
-              break;
-
-            case TXN_MODE_READ:
-              /* In read mode, we expect a ACK after the first byte
-               * (the address, written by the master). Otherwise, we
-               * need to give ACK to the slave so it can continue
-               * transmission.
-               */
-              if (p->processed == 0) {
-                p->txn_state = TXN_READ_ACK;
-              } else if (p->processed < p->data_size) {
-                p->txn_state = TXN_WRITE_ACK;
-              } else {
-                p->txn_result = TXN_STAT_SUCCESS;
-                p->txn_state = TXN_STOP;
-              }
-
-              break;
-            }
-
           p->processed++;
           p->current_pos = 7;
+
+          if (t->mode == TXN_MODE_WRITE) {
+            /* In write mode, update the current_byte being
+             * processed so it can be send next until we reach
+             * data_size. Now, we expect a ACK from the slave.
+             */
+            if (p->processed < t->data_size) {
+              p->current_byte = t->data[p->processed];
+            }
+            
+            p->txn_state = TXN_READ_ACK;
+          } else {
+            /* In read mode, we need to give ACK to the slave so it can
+             * continue transmission.
+             */
+            if (p->processed < t->data_size) {
+              p->txn_state = TXN_WRITE_ACK;
+            } else {
+              if (t->post_control == I2C_CONTROL_STOP) {
+                p->txn_state = TXN_STOP;
+              } else {
+                p->bus_state = I2C_IDLE;
+                p->txn_state = TXN_WAITING;
+              }
+            
+              t->result = TXN_STAT_SUCCESS;
+              p->current_txn++;
+            }
+          }
         }
 
         p->bus_state = I2C_SCL_LOW;
@@ -539,19 +717,15 @@ void i2c_isr()
         /* First, rise SCL. */
         sodr |= pins.scl;
 
-        p->bus_state = I2C_PAUSE;
-        p->p_ticks = I2C_PAUSE_LEN;
-        p->p_next = I2C_SEND_STOP_BIT1;
+        i2c_set_bus_state(sensor, I2C_SEND_STOP_BIT1);
         break;
 
       case I2C_SEND_STOP_BIT1:
         /* Finally, release SDA. */
         sodr |= pins.sda;
 
-        p->bus_state = I2C_PAUSE;
-        p->p_ticks = I2C_PAUSE_LEN * 10;
-        p->p_next = I2C_IDLE;
-        p->txn_state = TXN_NONE;
+        i2c_set_bus_state(sensor, I2C_IDLE);
+        p->txn_state = TXN_WAITING;
         break;
       }
 

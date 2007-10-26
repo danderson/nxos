@@ -6,5 +6,6 @@
 void radar_init(U8 sensor);
 bool radar_info(U8 sensor);
 void radar_test(U8 sensor);
+void radar_read_r0(U8 sensor);
 
 #endif

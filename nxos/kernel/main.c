@@ -52,7 +52,14 @@ void main() {
 
   radar_init(RADAR_SENSOR_SLOT);
   systick_wait_ms(100);
+  
+  radar_test(RADAR_SENSOR_SLOT);
+  
+  display_string("going down...\n");
+  systick_wait_ms(500);
+  
 
+  /*
   while (radar_info(RADAR_SENSOR_SLOT) == FALSE) {
     systick_wait_ms(500);
     while (avr_get_button() != BUTTON_OK);
@@ -62,9 +69,10 @@ void main() {
   while (avr_get_button() != BUTTON_OK);
 
   while (avr_get_button() != BUTTON_CANCEL) {
-    radar_test(RADAR_SENSOR_SLOT);
+    radar_read_r0(RADAR_SENSOR_SLOT);
     systick_wait_ms(1000);
   }
+  */
 
   core_shutdown();
 }

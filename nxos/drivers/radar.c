@@ -63,10 +63,10 @@ extern U32 offset;
 extern U8 dump[1024];
 extern bool record;
 
-/** Initializes the radar sensor. */
+/** Initializes the radar sensor in LEGO compatibility mode. */
 void radar_init(U8 sensor)
 {
-  i2c_memory_init(sensor, RADAR_I2C_ADDRESS);
+  i2c_memory_init(sensor, RADAR_I2C_ADDRESS, TRUE);
 }
 
 void radar_display_lines(U8 sensor)
@@ -91,6 +91,36 @@ void radar_send_dump() {
   while (usb_can_send());
 
   display_string("done.\n");
+}
+
+void radar_test(U8 sensor)
+{
+  U8 product_id[8] = { 0x0 };
+  i2c_txn_err err;
+
+  display_clear();
+  display_cursor_set_pos(0, 0);
+  display_string("<? \n");
+  
+  err = i2c_memory_read(sensor, RADAR_PRODUCT_ID, product_id, 8);
+
+  systick_wait_ms(1000);
+  display_string("> err: ");
+  display_uint(err);
+  display_end_line();
+
+  if (*product_id) {
+    display_string(">> ");
+    display_string((char *)product_id);
+    display_end_line();
+  } else {
+    display_string("ERROR\n");
+  }
+
+  while (avr_get_button() != BUTTON_OK);
+  display_clear();
+  display_cursor_set_pos(0, 0);
+  radar_send_dump();
 }
 
 bool radar_info(U8 sensor)
@@ -128,7 +158,7 @@ bool radar_info(U8 sensor)
   return FALSE;
 }
 
-void radar_test(U8 sensor)
+void radar_read_r0(U8 sensor)
 {
   U8 r0 = 0x00;
 
