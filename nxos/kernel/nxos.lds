@@ -157,12 +157,12 @@ SECTIONS {
     . = ALIGN(8);
     __irq_stack__ = .;
 
-    /* system stack */
-    __system_stack_bottom__ = . ;
-    . += 0x400; /* 1k system stack. */
+    /* supervisor stack */
+    __supervisor_stack_bottom__ = . ;
+    . += 0x400; /* 1k supervisor stack. */
     . = ALIGN(16);
-    __system_stack__ = .;
-    __system_stack_top__ = . ;
+    __supervisor_stack__ = .;
+    __supervisor_stack_top__ = . ;
   } > ram
 
   __stack_start__ = ADDR(.stack);

@@ -2,18 +2,13 @@
 .code 32
 .align 	0
 
+#include "asm_decls.h"
+
 /*
  * Definition of a few constants, for readability.
  */
 #define AIC_IVR 0xFFFFF100   /* AIC Interrupt Vector Register */
 #define AIC_EOICR 0xFFFFF130 /* End Of Interrupt Control Register */
-
-#define IRQ_FIQ_MASK 0xC0 /* This bitmask disables IRQ and FIQ
-                           * handling in the CPSR. */
-
-#define MODE_IRQ 0x12   /* IRQ mode. */
-#define MODE_SYS 0x1F   /* Supervisor mode. */
-
 
 /**********************************************************
  * Default handlers for unknown IRQ and FIQ interrupts, and
@@ -32,7 +27,7 @@ unhandled_exception:
 
 /**********************************************************
  * IRQ entry/exit routine. This gets called for all
- * interrupts, saves state, switches to System mode,
+ * interrupts, saves state, switches to Supervisor mode,
  * enables nested IRQ handling, and calls the service
  * routing that was registered with the AIC for the given
  * IRQ.
@@ -61,8 +56,8 @@ irq_handler:
 	 */
 	str lr, [lr]
 
-	/* Switch to System mode and reenable IRQ and FIQ handling. */
-	msr cpsr_c, #MODE_SYS
+	/* Switch to Supervisor mode and reenable IRQ and FIQ handling. */
+	msr cpsr_c, #MODE_SVC
 
 	/* Dispatch the IRQ to the registed handler. */
 	stmfd sp!, {r0-r12,lr}

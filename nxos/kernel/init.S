@@ -2,6 +2,8 @@
 .text
 .align 0
 
+#include "asm_decls.h"
+
 /*
  * Definition of a few constants, for readability.
  */
@@ -14,12 +16,6 @@
 #define PMC_MOR 0xFFFFFC20  /* Main Oscillator Register */
 #define PMC_PLLR 0xFFFFFC2C /* PLL Register */
 #define PMC_MCKR 0xFFFFFC30 /* Master Clock Register */
-
-#define IRQ_FIQ_MASK 0xC0 /* This bitmask disables IRQ and FIQ
-                           * handling in the CPSR. */
-
-#define MODE_IRQ 0x12   /* IRQ mode. */
-#define MODE_SYS 0x1F   /* Supervisor mode. */
 
 #define MEM_START 0x0
 #define RAM_START 0x200000 /* The first address of RAM. */
@@ -53,7 +49,7 @@
 start:
 	/* Disable interrupts. They will be enabled if we are
 	 * rebooting, or being booted from SAM-BA. */
-	msr cpsr_c, #(MODE_SYS | IRQ_FIQ_MASK)
+	msr cpsr_c, #(MODE_SVC | IRQ_FIQ_MASK)
 
 	/* RAM needs to be remapped to the bottom of memory. If we are
 	 * booting from ram, this is already done, but if we're running
@@ -198,9 +194,9 @@ wait_mclk_3:
 	ldr sp, =__irq_stack__
 	bic sp, sp, #7
 
-	/* Set up the System mode stack. */
-	msr cpsr_c, #(MODE_SYS | IRQ_FIQ_MASK)
-	ldr sp, =__system_stack__
+	/* Set up the supervisor mode stack. */
+	msr cpsr_c, #(MODE_SVC | IRQ_FIQ_MASK)
+	ldr sp, =__supervisor_stack__
 	bic sp, sp, #7
 
 
