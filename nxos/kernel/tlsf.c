@@ -49,15 +49,15 @@
  *
  */
 
-#include <stdio.h>
-#include <string.h>
+#include "util.h"
 
 #ifndef TLSF_USE_LOCKS
 #define	TLSF_USE_LOCKS 	(0)
 #endif
 
 #if TLSF_USE_LOCKS
-#include "target.h"
+#error Cannot build TLSF with locks in NxOS!
+//#include "target.h"
 #endif
 
 #include "tlsf.h"

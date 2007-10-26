@@ -8,7 +8,9 @@ typedef signed short S16;
 typedef unsigned long U32;
 typedef signed long S32;
 
+typedef U32 size_t;
 typedef U8 bool;
+
 #define FALSE 0
 #define TRUE (!FALSE)
 
