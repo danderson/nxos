@@ -71,7 +71,8 @@ extern U8 __boot_from_samba__;
 #define USERSPACE_END SYMADDR(__userspace_end__)
 #define USERSPACE_SIZE SECSIZE(USERSPACE_START, USERSPACE_END)
 
-#define BOOT_FROM_SAMBA (SYMADDR(__boot_from_samba__) != NULL ? TRUE : FALSE)
+#define BOOT_FROM_SAMBA ((U32)SYMADDR(__boot_from_samba__) != NULL ? TRUE : \
+                                                                     FALSE)
 #define BOOT_FROM_ROM (!BOOT_FROM_SAMBA)
 
 #endif
