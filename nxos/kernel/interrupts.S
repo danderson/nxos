@@ -43,37 +43,83 @@ irq_handler:
 	sub lr, lr, #4
 	stmfd sp!, {lr}
 	mrs lr, spsr
-	stmfd sp!, {r0, lr}
+	stmfd sp!, {lr}
+
+	/* If we were interrupted out of User or System mode, there is a
+	 * scheduler running, and we need to save the task state nicely.
+	 *
+	 * This code is beautiful. An ode of joy to everything ARM. Conditional
+	 * execution, status bit updates, the next few instructions
+	 * have it all.
+	 *
+	 * Note that each code path pushes one final value on the
+	 * stack. This value is 0 if this interrupt is nested, and !0 if
+	 * this interrupt is interrupting a user task. This value will be
+	 * used to figure out how to return from the interrupt later.
+	 */
+
+	/* Compare the SPSR mode bits to both 0000 and 1111 (usr/sys mode). */
+	ands lr, lr, #7
+	eornes lr, lr, #7
+
+	/* Switch to either sys or svc mode to save the state. */
+	msreq cpsr_c, #(MODE_SYS | IRQ_FIQ_MASK)
+	msrne cpsr_c, #(MODE_SVC | IRQ_FIQ_MASK)
+
+	/* Save the state. If we're saving a user task, also grab the task
+	 * CPSR and PC from the IRQ stack.
+	 */
+	stmfd sp!, {r0-r12,lr}
+	ldreq r0, =__irq_stack__
+	ldmeqdb r0, {r1,r2}
+	stmeqfd sp!, {r1,r2}
+	movne r0, #0
 
 	/* Get the IVR value. */
-	ldr lr, =AIC_IVR
-	ldr r0, [lr]
+	ldr r1, =AIC_IVR
+	ldr r2, [r1]
 
 	/* If we're in Protected mode (usually for JTAG debugging), we
 	 * need to write back to the IVR register to tell the AIC it
 	 * can dispatch other higher priority interrupts again.
 	 * In normal mode, this has no effect, so we can safely do it.
 	 */
-	str lr, [lr]
+	str r1, [r1]
 
-	/* Switch to Supervisor mode and reenable IRQ and FIQ handling. */
+	/* Switch to Supervisor mode if necessary, reenable IRQ and FIQ handling,
+	 * and stack either 0 (nested IRQ) or the address of the IRQ stack base (for
+	 * a task IRQ).
+	 */
 	msr cpsr_c, #MODE_SVC
+	stmfd sp!, {r0}
 
-	/* Dispatch the IRQ to the registed handler. */
-	stmfd sp!, {r0-r12,lr}
+	/* Dispatch the IRQ to the registered handler. */
 	mov lr, pc
-	bx r0
+	bx r2
 
-	/* Restore registers and switch back to IRQ mode. */
+	/* Restore the interrupted state. How this is done depends on the value at
+	 * the top of the stack, as explained above.
+	 *
+	 * Note that we inhibit IRQ and FIQ handling during task restoration only if
+	 * we're restoring a user task. Getting interrupted while we're tweaking around
+	 * in system mode would confuse the IRQ handler into breaking things.
+	 */
+	ldmfd sp!, {r0}
+	cmp r0, #0
+	msrne cpsr_c, #(MODE_SYS | IRQ_FIQ_MASK)
+	ldmnefd sp!, {r1,r2}
+	stmnedb r0, {r1,r2}
 	ldmfd sp!, {r0-r12,lr}
-	msr cpsr_c, #(MODE_IRQ | IRQ_FIQ_MASK)
 
-	/* Tell the AIC that the interrupt has been handled. */
+	/* Switch back to IRQ mode and tell the AIC that the interrupt has been
+	 * handled.
+	 */
+	msr cpsr_c, #(MODE_IRQ | IRQ_FIQ_MASK)
 	ldr lr, =AIC_EOICR
 	str lr, [lr]
 
-	/* Restore r0 and the SPSR */
-	ldmfd sp!, {r0, lr}
+	/* Restore the SPSR */
+	ldmfd sp!, {lr}
 	msr spsr_all, lr
 
 	/* Restore execution to the main code. */
