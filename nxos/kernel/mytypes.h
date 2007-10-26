@@ -12,6 +12,8 @@ typedef U8 bool;
 #define FALSE 0
 #define TRUE (!FALSE)
 
+#ifndef NULL
 #define NULL 0
+#endif
 
 #endif
