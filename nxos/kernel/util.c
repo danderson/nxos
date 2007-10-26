@@ -6,15 +6,17 @@
 
 #include "mytypes.h"
 
-void memcpy(U8 *dest, const U8 *src, U32 len) {
+void memcpy(void *dest, const U8 *src, U32 len) {
+  U8 *dst = (U8*)dest;
   while (len--) {
-    *dest++ = *src++;
+    *dst++ = *src++;
   }
 }
 
-void memset(U8 *dest, const U8 val, U32 len) {
+void memset(void *dest, const U8 val, U32 len) {
+  U8 *dst = (U8*)dest;
   while (len--) {
-    *dest++ = val;
+    *dst++ = val;
   }
 }
 
