@@ -26,6 +26,8 @@ extern void main();
 
 static void core_init() {
   aic_init();
+  interrupts_enable(); // TODO: figure out why moving this crashes the 
+                       // kernel.
   systick_init();
   sound_init();
   avr_init();
@@ -34,7 +36,6 @@ static void core_init() {
   display_init();
   sensors_init();
   usb_init();
-  interrupts_enable();
 
   /* Delay a little post-init, to let all the drivers settle down. */
   systick_wait_ms(100);
