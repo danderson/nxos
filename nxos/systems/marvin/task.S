@@ -2,7 +2,7 @@
 .text
 .align 0
 
-#include "asm_decls.h"
+#include "base/asm_decls.h"
 
 	.global run_first_task
 	.extern main_returned

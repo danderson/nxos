@@ -4,17 +4,17 @@
 
 #include "mytypes.h"
 #include "interrupts.h"
-#include "aic.h"
-#include "systick.h"
-#include "avr.h"
-#include "twi.h"
-#include "lcd.h"
+#include "drivers/aic.h"
+#include "drivers/systick.h"
+#include "drivers/avr.h"
+#include "drivers/twi.h"
+#include "drivers/lcd.h"
 #include "display.h"
-#include "sound.h"
+#include "drivers/sound.h"
 #include "memmap.h"
-#include "sensors.h"
-#include "motors.h"
-#include "usb.h"
+#include "drivers/sensors.h"
+#include "drivers/motors.h"
+#include "drivers/usb.h"
 
 
 static bool test_silent = FALSE;

@@ -1,7 +1,7 @@
 #ifndef __NXOS_TASK_H__
 #define __NXOS_TASK_H__
 
-#include "mytypes.h"
+#include "base/mytypes.h"
 
 typedef void (*task_main_t)();
 

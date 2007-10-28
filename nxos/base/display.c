@@ -6,9 +6,9 @@
 
 #include "mytypes.h"
 #include "interrupts.h"
-#include "systick.h"
-#include "aic.h"
-#include "lcd.h"
+#include "drivers/systick.h"
+#include "drivers/aic.h"
+#include "drivers/lcd.h"
 #include "util.h"
 #include "display.h"
 

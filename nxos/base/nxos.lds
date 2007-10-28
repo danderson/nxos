@@ -19,7 +19,7 @@
  * Memory definitions.
  */
 
-KERNEL_RAM = 10k;
+KERNEL_RAM = 15k;
 
 MEMORY {
 ROM_ONLY rom : ORIGIN = 1M, LENGTH =256k
@@ -34,7 +34,7 @@ RAM_SIZE = 64k;
 
 SECTIONS {
   .reserved : {
-    . = (64k - 15k - 64);
+    . = (64k - KERNEL_RAM - 64);
   } > ram
 
   __userspace_start__ = ADDR(.reserved);

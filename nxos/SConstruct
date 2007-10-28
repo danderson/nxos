@@ -1,0 +1,85 @@
+import os
+import os.path
+import glob
+
+def find_on_path(filename):
+    paths = os.environ.get('PATH')
+    if not paths:
+        return None
+    for p in paths.split(':'):
+        path = os.path.abspath(os.path.join(p, filename))
+        if os.path.isfile(path):
+            return p
+    return None
+
+def determine_gcc_version(gcc_binary):
+    stdout = os.popen('%s --version' % gcc_binary)
+    gcc_output = stdout.read().split()
+    stdout.close()
+    grab_next = False
+    for token in gcc_output:
+        if grab_next:
+            return token
+        elif token == '(GCC)':
+            grab_next = True
+    return None
+
+def CheckTool(context, envname, toolname=None):
+    toolname = toolname or envname.lower()
+    toolname = '%s-%s' % (context.env['CROSS_COMPILE_HOST'], toolname)
+    context.Message("Checking for %s..." % toolname)
+    toolpath = find_on_path(toolname)
+    if not toolpath:
+        context.Result('not found')
+        return False
+    else:
+        context.Result('ok')
+        context.env[envname] = toolname
+        context.env.AppendENVPath('PATH', toolpath)
+        return True
+
+def CheckLibGcc(context, gccname):
+    context.Message("Locating a cross-compiled libgcc...")
+    toolpath = find_on_path(gccname)
+    if not toolpath:
+        context.Result("%s not found" % toolname)
+        return False
+    gcc_version = determine_gcc_version(gccname)
+    if not gcc_version:
+        context.Result("Could not determine gcc version")
+        return False
+    gcc_install_dir = os.path.split(os.path.normpath(toolpath))[0]
+    libgcc_path = os.path.join(gcc_install_dir, 'lib', 'gcc',
+                               context.env['CROSS_COMPILE_HOST'],
+                               gcc_version, 'interwork', 'libgcc.a')
+    if not os.path.isfile(libgcc_path):
+        context.Result("Not found")
+        return False
+    context.Result("ok")
+    context.env.Append(NXOS_LIBGCC=libgcc_path)
+    return True
+
+###############################################################
+# Construct and configure a cross-compiler environment
+###############################################################
+env = Environment(tools=['gcc', 'as', 'gnulink', 'ar'], NXOS_LIBGCC=[])
+
+if not env.GetOption('clean'):
+    conf = Configure(env, custom_tests = {'CheckTool': CheckTool,
+                                          'CheckLibGcc': CheckLibGcc})
+    conf.env['CROSS_COMPILE_HOST'] = 'arm-elf'
+    if not (conf.CheckTool('CC', 'gcc') and conf.CheckTool('AR') and
+            conf.CheckTool('OBJCOPY') and conf.CheckTool('LINK', 'ld') and
+            conf.CheckLibGcc(conf.env['CC'])):
+        print "Missing or incomplete arm-elf toolchain, cannot continue!"
+        Exit(1)
+    env = conf.Finish()
+
+env.Replace(CCFLAGS= ['-mcpu=arm7tdmi', '-Wall', '-Werror', '-Os',
+                      '-ffreestanding', '-fsigned-char', '-ffunction-sections',
+                      '-fdata-sections', #'-fomit-frame-pointer',
+                      '-msoft-float', '-mthumb-interwork', '-mthumb'],
+            ASFLAGS = ['-Wall', '-Werror', '-Os',
+                       '-Wa,-mcpu=arm7tdmi,-mfpu=softfpa,-mthumb-interwork'])
+
+SConscript(['base/SConscript', 'systems/marvin/SConscript'], 'env')
