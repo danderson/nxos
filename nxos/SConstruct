@@ -1,6 +1,6 @@
 import os
 import os.path
-import glob
+from glob import glob
 
 def find_on_path(filename):
     paths = os.environ.get('PATH')
@@ -62,7 +62,8 @@ def CheckLibGcc(context, gccname):
 ###############################################################
 # Construct and configure a cross-compiler environment
 ###############################################################
-env = Environment(tools=['gcc', 'as', 'gnulink', 'ar'], NXOS_LIBGCC=[])
+env = Environment(tools=['gcc', 'as', 'gnulink', 'ar'],
+                  NXOS_LIBGCC=[], CPPPATH='#')
 
 if not env.GetOption('clean'):
     conf = Configure(env, custom_tests = {'CheckTool': CheckTool,
@@ -82,4 +83,6 @@ env.Replace(CCFLAGS= ['-mcpu=arm7tdmi', '-Wall', '-Werror', '-Os',
             ASFLAGS = ['-Wall', '-Werror', '-Os',
                        '-Wa,-mcpu=arm7tdmi,-mfpu=softfpa,-mthumb-interwork'])
 
-SConscript(['base/SConscript', 'systems/marvin/SConscript'], 'env')
+buildable_systems = glob('systems/*/SConscript')
+
+SConscript(['base/SConscript'] + buildable_systems, 'env')
