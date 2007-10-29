@@ -132,9 +132,21 @@ def appkernel_tool(env):
     env.AppKernel = appkernel_func
 
 ###############################################################
+# Options that can be provided on the commandline
+###############################################################
+buildable_systems = [os.path.split(os.path.dirname(x))[1]
+                     for x in glob('systems/*/SConscript')]
+
+opts = Options('build_flags.py')
+opts.Add(ListOption('appkernels',
+                    'List of application kernels to build', 'tests',
+                    buildable_systems))
+
+###############################################################
 # Construct and configure a cross-compiler environment
 ###############################################################
-env = Environment(tools=['gcc', 'as', 'gnulink', 'ar', appkernel_tool],
+env = Environment(options=opts,
+                  tools=['gcc', 'as', 'gnulink', 'ar', appkernel_tool],
                   NXOS_LIBGCC=[], CPPPATH='#')
 
 if not env.GetOption('clean'):
@@ -155,6 +167,10 @@ env.Replace(CCFLAGS= ['-mcpu=arm7tdmi', '-Wall', '-Werror', '-Os',
             ASFLAGS = ['-Wall', '-Werror', '-Os',
                        '-Wa,-mcpu=arm7tdmi,-mfpu=softfpa,-mthumb-interwork'])
 
-# Build the baseplate, and all application kernels.
-buildable_systems = glob('systems/*/SConscript')
-SConscript(['base/SConscript'] + buildable_systems, 'env CheckTool')
+# Build the baseplate, and all selected application kernels.
+if env.GetOption('clean'):
+    appkernels = buildable_systems
+else:
+    appkernels = env['appkernels']
+systems_to_build = ['systems/%s/SConscript' % x for x in appkernels]
+SConscript(['base/SConscript'] + systems_to_build, 'env CheckTool')
