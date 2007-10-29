@@ -5,6 +5,11 @@ import sys
 import os.path
 import struct
 
+nxt_path = os.path.join(
+    os.path.split(os.path.abspath(__file__))[0], '..', 'pynxt')
+sys.path = [nxt_path]+sys.path
+
+import nxt
 import nxt.samba
 import nxt.flash
 
@@ -90,16 +95,16 @@ def main():
         return 0
 
     if samba:
-        print 'Uploading firmware... ',
+        print 'Uploading firmware...',
         s.write_buffer(loadaddr, fw)
         print 'Ok'
     else:
-        print 'Flashing firmware... ',
+        print 'Flashing firmware...',
         f = nxt.flash.FlashController(s)
         f.flash(fw)
         print 'Ok'
 
-    print 'Jumping to 0x%x... ' % loadaddr,
+    print 'Jumping to 0x%x...' % loadaddr,
     s.jump(loadaddr)
     print 'Ok'
     s.close()
