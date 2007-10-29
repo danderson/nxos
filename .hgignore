@@ -12,5 +12,6 @@ nxos/build
 nxos/.*\.bin$
 nxos/.*\.a$
 nxos/systems/[^/]+/.*\.lds
+nxos/systems/tvm/tvm
 pynxt/flash_driver.bin$
 pynxt/MANIFEST$

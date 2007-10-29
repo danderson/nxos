@@ -39,9 +39,11 @@ def determine_gcc_version(gcc_binary):
 # This is used to check for the presence of a working cross-compiler
 # toolchain, and to properly set up the environment to do it. See below
 # in the configuration section for details.
-def CheckTool(context, envname, toolname=None):
+def CheckTool(context, envname, toolname=None, hostprefix=None):
     toolname = toolname or envname.lower()
-    toolname = '%s-%s' % (context.env['CROSS_COMPILE_HOST'], toolname)
+    if hostprefix is None:
+        hostprefix = '%s-' % context.env['CROSS_COMPILE_HOST']
+    toolname = '%s%s' % (hostprefix, toolname)
     context.Message("Checking for %s..." % toolname)
     toolpath = find_on_path(toolname)
     if not toolpath:
@@ -105,11 +107,15 @@ def appkernel_tool(env):
             kvariant + '.bin', [variant_kernel_elf],
             '$OBJCOPY -O binary $SOURCES $TARGET')
 
-    def AppKernel(self, kernel_name, sources, kernelsize='50k'):
+    def AppKernel(self, kernel_name, sources, kernelsize='50k',
+                  kernelisbuilt=False):
         env = self.Copy()
 
         # Build a .a with all the application kernel code.
-        app_kernel = env.StaticLibrary(kernel_name, sources)
+        if kernelisbuilt:
+            app_kernel = sources
+        else:
+            app_kernel = env.StaticLibrary(kernel_name, sources)
 
         # Generate an ld script with the right kernel size, then derive
         # the samba and rom variants from that.
@@ -151,4 +157,4 @@ env.Replace(CCFLAGS= ['-mcpu=arm7tdmi', '-Wall', '-Werror', '-Os',
 
 # Build the baseplate, and all application kernels.
 buildable_systems = glob('systems/*/SConscript')
-SConscript(['base/SConscript'] + buildable_systems, 'env')
+SConscript(['base/SConscript'] + buildable_systems, 'env CheckTool')
