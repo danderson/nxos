@@ -1,0 +1,3 @@
+from glob import glob
+Import('env')
+env.AppKernel('marvin', glob('*.[cS]'), kernelsize='10k')

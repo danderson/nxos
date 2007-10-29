@@ -1,0 +1,3 @@
+from glob import glob
+Import('env')
+env.AppKernel('tests', glob('*.[cS]'), kernelsize='50k')
