@@ -1,0 +1,17 @@
+.*~
+\.o
+\.elf
+\.pyc
+\.log
+\.scon[sf]
+nxos/base/font\.h
+nxos/config\.
+nxos/configure$
+nxos/arm-gcc
+nxos/build
+nxos/.*\.bin$
+nxos/.*\.a$
+nxos/systems/[^/]+/.*\.lds
+nxos/systems/tvm/tvm
+pynxt/flash_driver.bin$
+pynxt/MANIFEST$

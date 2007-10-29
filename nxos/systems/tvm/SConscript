@@ -1,0 +1,31 @@
+from glob import glob
+
+Import('env CheckTool')
+
+env = env.Copy()
+
+# The Transterpreter kernel requires a KRoC build
+if not env.GetOption('clean'):
+    conf = Configure(env, custom_tests = {'CheckTool': CheckTool})
+    if not conf.CheckTool('KROC', 'kroc', hostprefix=''):
+        print 'The Kent Retargetable Occam Compiler is not on the path.'
+        print 'Cannot build the TVM application kernel.'
+        Exit(1)
+    env = conf.Finish()
+
+# Force invoking the TVM build system each time, by having a command
+# that builds a non-existent file.
+tvm_libs = AlwaysBuild(env.Command('tvm-stamp',
+                                   ['SConscript', 'build-tvm-bits.sh'],
+                                   Action('./build-tvm-bits.sh', chdir=1)))
+
+# Grab the two built TVM libraries, and make their existence depend on
+# the TVM build system invocation.
+tvm_interpreter_lib = File('tvm/interpreter/libinterpreter.a')
+tvm_wrapper_lib = File('tvm/wrappers/nxos/libtvmnxos.a')
+env.Depends(tvm_interpreter_lib, tvm_libs)
+env.Depends(tvm_wrapper_lib, tvm_libs)
+
+# And finally, construct an application kernel with those two libraries.
+env.AppKernel('tvm', [tvm_wrapper_lib, tvm_interpreter_lib],
+              kernelsize='50k', kernelisbuilt=True)
