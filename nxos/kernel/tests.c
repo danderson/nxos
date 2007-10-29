@@ -15,6 +15,7 @@
 #include "sensors.h"
 #include "motors.h"
 #include "usb.h"
+#include "bt.h"
 
 
 static bool test_silent = FALSE;
@@ -298,6 +299,12 @@ static U8 compare_str(char *str_a, char *str_b, U32 max)
 }
 
 
+void tests_bt()
+{
+  bt_init();
+}
+
+
 #define USB_UNKNOWN    "Unknown"
 #define USB_OK         "Ok"
 #define USB_OVERLOADED "Ok but overloaded"
@@ -366,6 +373,8 @@ void tests_usb() {
       tests_tachy();
     else if (compare_str(buffer, "all", lng))
       tests_all();
+    else if (compare_str(buffer, "bt", lng))
+      tests_bt();
     else if (compare_str(buffer, "halt", lng))
       break;
     else if (compare_str(buffer, "Al", lng))

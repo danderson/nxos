@@ -3,10 +3,16 @@
 
 #include "mytypes.h"
 
-/**
- * This driver only support the uart where the bluetooth chip is connected.
- */
 
+/***
+ *** This driver only support the uart where the bluetooth chip is
+ *** connected.
+ ***/
+
+
+/* this macro is just here to see clearly where the debug code is
+ */
+#define UART_DEBUG
 
 /*
  * called back each time something has been readed.
@@ -26,7 +32,7 @@ void uart_init(uart_read_callback_t callback);
  * Will send the data asap.
  * If the two slot in the pdc are used, this function will be blocking.
  */
-void uart_write(void *data, U16 lng);
+void uart_send(void *data, U16 lng);
 
 bool uart_can_write();
 
