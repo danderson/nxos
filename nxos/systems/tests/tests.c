@@ -13,6 +13,7 @@
 #include "base/drivers/sensors.h"
 #include "base/drivers/motors.h"
 #include "base/drivers/usb.h"
+#include "base/drivers/bt.h"
 
 
 static bool test_silent = FALSE;
@@ -269,6 +270,20 @@ void tests_sysinfo() {
 }
 
 
+void tests_bt() {
+  int i;
+
+  bt_init();
+
+  for (i = 0 ; i < 5 ; i++)
+    {
+      display_clear();
+      display_uint(uart_nmb_interrupt());
+      systick_wait_ms(1000);
+    }
+}
+
+
 
 /* returns 1 if they are identic
  * 0 else
@@ -358,6 +373,8 @@ void tests_usb() {
       tests_sensors();
     else if (compare_str(buffer, "tachy", lng))
       tests_tachy();
+    else if (compare_str(buffer, "bt", lng))
+      tests_bt();
     else if (compare_str(buffer, "all", lng))
       tests_all();
     else if (compare_str(buffer, "halt", lng))
