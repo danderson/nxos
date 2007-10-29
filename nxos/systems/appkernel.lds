@@ -19,12 +19,13 @@
  * Memory definitions.
  */
 
-KERNEL_RAM = @KSIZE@;
+RAM_KERNEL_RAM = @RAM_KSIZE@;
+ROM_KERNEL_RAM = @ROM_KSIZE@;
 
 MEMORY {
 ROM_ONLY rom : ORIGIN = 1M, LENGTH =256k
 vector_ram   : ORIGIN = 2M, LENGTH = 64
-ram          : ORIGIN = 2M + 64, LENGTH = 64K - 64
+ram          : ORIGIN = 2M + 64, LENGTH = 64K - 64 + 21
 }
 
 ROM_ONLY ROM_BASE = 1M;
@@ -34,7 +35,8 @@ RAM_SIZE = 64k;
 
 SECTIONS {
   .reserved : {
-    . = (64k - KERNEL_RAM - 64);
+    SAMBA_ONLY . = (64k - RAM_KERNEL_RAM - 64);
+    ROM_ONLY . = (64k - ROM_KERNEL_RAM - 64);
   } > ram
 
   __userspace_start__ = ADDR(.reserved);
@@ -172,4 +174,34 @@ SECTIONS {
    */
   __free_ram_start__ = __stack_end__ ;
   __free_ram_end__ = (RAM_BASE + RAM_SIZE);
+
+  /*
+   * The magic metadata struct is tacked onto the start of the kernel binary.
+   */
+  .magic : {
+    /* Magic identifier */
+    LONG(0xDEADBEEF);
+    /* Kernel in-ram size */
+    __kernel_in_ram_size__ =  SIZEOF(.vectors) + SIZEOF(.init) +
+      SIZEOF(.ram_text) + SIZEOF(.data) +
+      SIZEOF(.bss) + SIZEOF(.stack)
+      SAMBA_ONLY + SIZEOF(.text)
+      ;
+    LONG(__kernel_in_ram_size__);
+    /* Wasted ram space (after the kernel) */
+    SAMBA_ONLY LONG(RAM_KERNEL_RAM - __kernel_in_ram_size__);
+    ROM_ONLY LONG(ROM_KERNEL_RAM - __kernel_in_ram_size__);
+    /* Kernel in-rom size */
+    SAMBA_ONLY LONG(0);
+    ROM_ONLY   LONG(SIZEOF(.vectors) + SIZEOF(.init) +
+    ROM_ONLY        SIZEOF(.ram_text) + SIZEOF(.data) + SIZEOF(.text));
+    /* Bootup address */
+    SAMBA_ONLY LONG(__userspace_end__);
+    ROM_ONLY LONG(0x100000);
+    /* SAM-BA kernel? */
+    SAMBA_ONLY BYTE(1);
+    ROM_ONLY BYTE(0);
+  }
+  SAMBA_ONLY > ram
+  ROM_ONLY > rom
 }
