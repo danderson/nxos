@@ -19,7 +19,7 @@
  * Memory definitions.
  */
 
-KERNEL_RAM = 15k;
+KERNEL_RAM = @KSIZE@;
 
 MEMORY {
 ROM_ONLY rom : ORIGIN = 1M, LENGTH =256k

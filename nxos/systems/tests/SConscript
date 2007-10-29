@@ -1,19 +1,3 @@
 from glob import glob
-
 Import('env')
-
-env = env.Copy()
-
-tests = env.StaticLibrary('tests', glob('*.[cS]'))
-
-samba_lds = env.Command(
-    'tests_samba.lds', 'tests.lds',
-    "cat $SOURCES | sed -e 's/SAMBA_ONLY//' -e '/ROM_ONLY/d' >$TARGET")
-tests_samba_elf = env.Command(
-    'tests_samba.elf', [env['NXOS_BASEPLATE'], tests, env['NXOS_LIBGCC']],
-    '$LINK -o $TARGET -T %s -Os -Map ${TARGET}.map -cref --gc-sections $SOURCES' % samba_lds[0].path)
-env.Depends(tests_samba_elf, samba_lds)
-
-tests_samba = env.Command(
-    'tests_samba.bin', [tests_samba_elf],
-    '$OBJCOPY -O binary $SOURCES $TARGET')
+env.AppKernel('tests', glob('*.[cS]'), kernelsize='50k')

@@ -1,5 +1,6 @@
 import os
 import os.path
+import new
 from glob import glob
 
 def find_on_path(filename):
@@ -60,9 +61,56 @@ def CheckLibGcc(context, gccname):
     return True
 
 ###############################################################
+# Tool that installs an application kernel helper.
+###############################################################
+
+def appkernel_tool(env):
+    def AppKernel(self, kernelname, sources, kernelsize='50k'):
+        env = self.Copy()
+
+        # Build a .a with all the application kernel code.
+        app_kernel = env.StaticLibrary(kernelname, sources)
+
+        # Generate an ld script with the right kernel size, then derive
+        # the samba and rom variants from that.
+        app_kernel_lds = env.Command(
+            '%s.lds' % kernelname, ['#systems/appkernel.lds'],
+            "cat $SOURCES | sed -e 's/@KSIZE@/%s/' >$TARGET" % kernelsize)
+        app_kernel_samba_lds = env.Command(
+            '%s_samba.lds' % kernelname, [app_kernel_lds],
+            "cat $SOURCES | sed -e 's/SAMBA_ONLY//' -e '/ROM_ONLY/d' > $TARGET")
+        app_kernel_rom_lds = env.Command(
+            '%s_rom.lds' % kernelname, [app_kernel_lds],
+            "cat $SOURCES | sed -e 's/ROM_ONLY//' -e '/SAMBA_ONLY/d' > $TARGET")
+
+        # Build ELF kernels for both variants...
+        app_kernel_samba_elf = env.Command(
+            '%s_samba.elf' % kernelname, [env['NXOS_BASEPLATE'], app_kernel,
+                             env['NXOS_LIBGCC']],
+            '$LINK -o $TARGET -T %s -Os -cref '
+            '--gc-sections $SOURCES' % app_kernel_samba_lds[0].path)
+        env.Depends(app_kernel_samba_elf, app_kernel_samba_lds)
+        app_kernel_rom_elf = env.Command(
+            '%s_rom.elf' % kernelname, [env['NXOS_BASEPLATE'], app_kernel,
+                           env['NXOS_LIBGCC']],
+            '$LINK -o $TARGET -T %s -Os -cref '
+            '--gc-sections $SOURCES' % app_kernel_rom_lds[0].path)
+        env.Depends(app_kernel_rom_elf, app_kernel_rom_lds)
+
+        # ... And derive the .bin blobs from there.
+        app_kernel_samba = env.Command(
+            '%s_samba.bin' % kernelname, [app_kernel_samba_elf],
+            '$OBJCOPY -O binary $SOURCES $TARGET')
+        app_kernel_rom = env.Command(
+            '%s_rom.bin' % kernelname, [app_kernel_rom_elf],
+            '$OBJCOPY -O binary $SOURCES $TARGET')
+    appkernel_func = new.instancemethod(AppKernel, env, env.__class__)
+    env.AppKernel = appkernel_func
+
+###############################################################
 # Construct and configure a cross-compiler environment
 ###############################################################
-env = Environment(tools=['gcc', 'as', 'gnulink', 'ar'],
+env = Environment(tools=['gcc', 'as', 'gnulink', 'ar', appkernel_tool],
                   NXOS_LIBGCC=[], CPPPATH='#')
 
 if not env.GetOption('clean'):

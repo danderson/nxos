@@ -11,6 +11,6 @@ nxos/arm-gcc
 nxos/build
 nxos/.*\.bin$
 nxos/.*\.a$
-nxos/systems/.*(samba|rom)\.lds
+nxos/systems/[^/]+/.*\.lds
 pynxt/flash_driver.bin$
 pynxt/MANIFEST$
