@@ -108,7 +108,8 @@ def appkernel_tool(env):
             '$OBJCOPY -O binary $SOURCES $TARGET')
 
     def AppKernel(self, kernel_name, sources, kernelsize='50k',
-                  kernelisbuilt=False):
+                  romkernelsize=None, kernelisbuilt=False):
+        romkernelsize = romkernelsize or kernelsize
         env = self.Copy()
 
         # Build a .a with all the application kernel code.
@@ -121,7 +122,8 @@ def appkernel_tool(env):
         # the samba and rom variants from that.
         app_kernel_lds = env.Command(
             '%s.lds' % kernel_name, ['#systems/appkernel.lds'],
-            "cat $SOURCES | sed -e 's/@KSIZE@/%s/' >$TARGET" % kernelsize)
+            "cat $SOURCES | sed -e 's/@RAM_KSIZE@/%s/' -e 's/@ROM_KSIZE@/%s/' "
+            ">$TARGET" % (kernelsize, romkernelsize))
 
         # Build the SAM-BA and ROM kernel variants.
         AppKernelVariant(env, kernel_name, 'samba', app_kernel, app_kernel_lds,
