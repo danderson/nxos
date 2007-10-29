@@ -25,8 +25,7 @@ ROM_KERNEL_RAM = @ROM_KSIZE@;
 MEMORY {
 ROM_ONLY rom : ORIGIN = 1M, LENGTH =256k
 vector_ram   : ORIGIN = 2M, LENGTH = 64
-ram          : ORIGIN = 2M + 64, LENGTH = 64K - 64
-nxos_meta    : ORIGIN = 0, LENGTH = 21
+ram          : ORIGIN = 2M + 64, LENGTH = 64K - 64 + 21
 }
 
 ROM_ONLY ROM_BASE = 1M;
@@ -202,5 +201,7 @@ SECTIONS {
     /* SAM-BA kernel? */
     SAMBA_ONLY BYTE(1);
     ROM_ONLY BYTE(0);
-  } > nxos_meta
+  }
+  SAMBA_ONLY > ram
+  ROM_ONLY > rom
 }
