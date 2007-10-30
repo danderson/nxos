@@ -14,6 +14,7 @@
 #include "base/drivers/motors.h"
 #include "base/drivers/usb.h"
 #include "base/drivers/bt.h"
+#include "base/drivers/uart.h"
 
 
 static bool test_silent = FALSE;
@@ -270,15 +271,18 @@ void tests_sysinfo() {
 }
 
 
-void tests_bt() {
+void tests_bt()
+{
   int i;
 
   bt_init();
 
-  for (i = 0 ; i < 5 ; i++)
+  for (i = 0 ; i < 10 ; i++)
     {
       display_clear();
       display_uint(uart_nmb_interrupt());
+      display_end_line();
+      display_uint(uart_writing());
       systick_wait_ms(1000);
     }
 }
