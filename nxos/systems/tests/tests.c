@@ -259,10 +259,10 @@ void tests_sysinfo() {
     display_uint(avr_get_button());
     display_end_line();
 
-    display_string("AVR Ver.: ");
-    display_uint(avr_major);
-    display_string(".");
-    display_uint(avr_minor);
+    display_string("Battery: ");
+    display_uint(avr_get_battery_voltage());
+    display_string(" mV");
+    display_end_line();
 
     systick_wait_ms(250);
   }
@@ -283,6 +283,13 @@ void tests_bt()
       display_uint(uart_nmb_interrupt());
       display_end_line();
       display_uint(uart_writing());
+      display_end_line();
+      display_hex(uart_get_last_csr());
+      display_end_line();
+      display_hex(uart_get_csr());
+      display_end_line();
+      display_hex(uart_get_state());
+
       systick_wait_ms(1000);
     }
 }
