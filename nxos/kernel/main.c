@@ -17,8 +17,7 @@
 #include "radar.h"
 
 #include "tests.h"
-
-#define RADAR_SENSOR_SLOT 0
+#include "bootup.h"
 
 static void core_init() {
   aic_init();
@@ -50,29 +49,8 @@ void main() {
   //tests_usb();
   //tests_all();
 
-  radar_init(RADAR_SENSOR_SLOT);
-  systick_wait_ms(100);
+  //bootup();
+  tests_radar(RADAR_SENSOR_SLOT);
   
-  radar_test(RADAR_SENSOR_SLOT);
-  
-  display_string("going down...\n");
-  systick_wait_ms(500);
-  
-
-  /*
-  while (radar_info(RADAR_SENSOR_SLOT) == FALSE) {
-    systick_wait_ms(500);
-    while (avr_get_button() != BUTTON_OK);
-  }
-
-  systick_wait_ms(1000);
-  while (avr_get_button() != BUTTON_OK);
-
-  while (avr_get_button() != BUTTON_CANCEL) {
-    radar_read_r0(RADAR_SENSOR_SLOT);
-    systick_wait_ms(1000);
-  }
-  */
-
   core_shutdown();
 }
