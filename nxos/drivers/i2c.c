@@ -5,8 +5,7 @@
 
 #include "at91sam7s256.h"
 
-/* Comment out to disable I2C logging. */
-#define I2C_LOG TRUE
+#define I2C_LOG FALSE
 
 #include "mytypes.h"
 #include "nxt.h"
@@ -15,13 +14,8 @@
 #include "util.h"
 #include "aic.h"
 #include "sensors.h"
-#include "i2c.h"
-
-#ifdef I2C_LOG
 #include "display.h"
-#endif
-
-#include "avr.h"
+#include "i2c.h"
 
 /* The base clock frequency of the sensor I2C bus in Hz. */
 #define I2C_BUS_SPEED 9600
@@ -125,11 +119,6 @@ static volatile struct i2c_port {
   { I2C_OFF, 0, { 0 }, FALSE, TXN_NONE, {{ 0 }}, 0, 0, 0, 0, 0, 0, I2C_IDLE },
 };
 
-#ifdef I2C_LOG
-U32 offset = 0;
-U8 dump[1024] = { 0x42 };
-bool record = TRUE;
-#endif
 
 /** Initializes the I2C SoftMAC driver, configures the TC (Timer Counter)
  * and set the interrupt handler.
@@ -256,7 +245,7 @@ static i2c_txn_err i2c_add_txn(U8 sensor, i2c_txn_mode mode,
 static i2c_txn_err i2c_trigger(U8 sensor) {
   i2c_state[sensor].txn_state = TXN_WAITING;
   i2c_state[sensor].bus_state = I2C_IDLE;
-
+  
   return I2C_ERR_OK;
 }
 
@@ -343,13 +332,13 @@ i2c_txn_status i2c_get_txn_status(U8 sensor)
     return TXN_STAT_UNKNOWN;
 
   p = &i2c_state[sensor];
-  
+
   /* If the current sub transaction was left in the FAILED state,
    * the whole transaction is failed.
    */
   if (p->txns[p->current_txn].result == TXN_STAT_FAILED)
     return TXN_STAT_FAILED;
-  
+
   /* If the transaction is not failed, it's in progress until the
    * current_txn number reaches the number of sub transactions (minus 1
    * because indexes start at 0).
@@ -386,9 +375,9 @@ void i2c_set_bus_state(U8 sensor, U8 next_state) {
 
   if (sensor >= NXT_N_SENSORS)
     return;
-  
+
   p = &i2c_state[sensor];
-  
+
   if (p->lego_compat) {
     p->bus_state = I2C_PAUSE;
     p->p_ticks = next_state == I2C_IDLE
@@ -397,7 +386,7 @@ void i2c_set_bus_state(U8 sensor, U8 next_state) {
     p->p_next = next_state;
     return;
   }
-  
+
   p->bus_state = next_state;
 }
 
@@ -422,15 +411,6 @@ void i2c_isr()
     volatile sensor_pins pins = sensors_get_pins(sensor);
     p = &i2c_state[sensor];
     t = &(p->txns[p->current_txn]);
-
-#ifdef I2C_LOG
-    if (sensor == 0 && offset < 1020
-        && p->bus_state > I2C_CONFIG
-        && record == TRUE) {
-      dump[offset++] = (lines & pins.sda) ? 1 : 0;
-      dump[offset++] = (lines & pins.scl) ? 1 : 0;
-    }
-#endif
 
     switch (p->bus_state)
       {
@@ -542,6 +522,9 @@ void i2c_isr()
             sodr |= pins.sda | pins.scl;
             
             if (t->pre_control == I2C_CONTROL_RESTART && p->lego_compat) {
+              /* In LEGO compatibility mode, issue a reclock before the
+               * restart (which is just a new START bit).
+               */
               p->bus_state = I2C_RECLOCK0;
             } else {
               p->bus_state = I2C_SEND_START_BIT0;
@@ -590,6 +573,7 @@ void i2c_isr()
 
         i2c_set_bus_state(sensor, I2C_SCL_LOW);
         p->txn_state = TXN_TRANSMIT_BYTE;
+
         break;
 
       case I2C_SCL_LOW:
