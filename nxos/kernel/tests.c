@@ -15,7 +15,9 @@
 #include "sensors.h"
 #include "motors.h"
 #include "usb.h"
+#include "radar.h"
 
+#include "tests.h"
 
 static bool test_silent = FALSE;
 
@@ -446,6 +448,57 @@ void tests_usb_hardcore() {
   goodbye();
 }
 
+void tests_radar(U8 sensor) {
+  U8 interval, reading;
+  S8 object;
+
+  test_silent = TRUE;
+  hello();
+
+  radar_init(sensor);
+
+  display_clear();
+  display_cursor_set_pos(0, 0);
+  display_string("Discovering...\n");
+  
+  while (!radar_detect(sensor)) {
+    display_string("Error! Retrying\n");
+    systick_wait_ms(500);
+    
+    display_clear();
+    display_cursor_set_pos(0, 0);
+    display_string("Discovering...\n");
+  }
+  
+  display_string("Found.\n\n");
+  radar_info(sensor);
+  interval = radar_get_interval(sensor);
+
+  while (avr_get_button() != BUTTON_OK);
+  
+  while (avr_get_button() != BUTTON_RIGHT) {    
+    display_clear();
+    display_cursor_set_pos(0, 0);
+
+    for (object=0 ; object<8 ; object++) {
+      display_uint(object);
+      display_string("> ");
+      
+      reading = radar_read_distance(sensor, object);
+      
+      if (reading > 0x00 && reading < 0xFF) {
+        display_uint(reading);
+        display_string(" cm\n");
+      } else {
+        display_string("n/a\n");
+      }
+    }
+    
+    systick_wait_ms(interval*500);
+  }
+
+  goodbye();
+}
 
 void tests_all() {
   test_silent = TRUE;
@@ -456,6 +509,7 @@ void tests_all() {
   tests_tachy();
   tests_sensors();
   tests_sysinfo();
+  tests_radar(RADAR_SENSOR_SLOT);
 
   test_silent = FALSE;
   goodbye();
