@@ -277,7 +277,7 @@ void tests_bt()
 
   bt_init();
 
-  for (i = 0 ; i < 10 ; i++)
+  for (i = 0 ; i < 20 ; i++)
     {
       display_clear();
       display_uint(uart_nmb_interrupt());
@@ -289,6 +289,8 @@ void tests_bt()
       display_hex(uart_get_csr());
       display_end_line();
       display_hex(uart_get_state());
+      display_end_line();
+      bt_debug();
 
       systick_wait_ms(1000);
     }
