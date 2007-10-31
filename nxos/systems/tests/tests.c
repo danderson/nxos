@@ -277,12 +277,13 @@ void tests_bt()
 
   bt_init();
 
+  bt_set_friendly_name("WebBidule");
+  bt_set_discoverable(TRUE);
+
   for (i = 0 ; i < 20 ; i++)
     {
       display_clear();
       display_uint(uart_nmb_interrupt());
-      display_end_line();
-      display_uint(uart_writing());
       display_end_line();
       display_hex(uart_get_last_csr());
       display_end_line();
