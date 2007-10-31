@@ -33,4 +33,5 @@ run_first_task:
 	bic r1, r1, #MODE_SYS
 	orr r1, r1, #MODE_SVC
 	msr cpsr_c, r1
-	ldmfd sp!, {pc}
+	ldmfd sp!, {lr}
+	bx lr
