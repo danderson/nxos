@@ -271,6 +271,14 @@ void tests_sysinfo() {
 }
 
 
+static void tests_bt_inquiry_callback(bt_device_t *device)
+{
+  display_string("# ");
+  display_string(device->name);
+  display_end_line();
+}
+
+
 void tests_bt()
 {
   int i;
@@ -280,7 +288,16 @@ void tests_bt()
   bt_set_friendly_name("WebBidule");
   bt_set_discoverable(TRUE);
 
-  for (i = 0 ; i < 20 ; i++)
+  display_clear();
+  display_string("Scanning ...");
+  display_end_line();
+
+  bt_inquiry(tests_bt_inquiry_callback,
+             /* max dev : */ 255,
+             /* timeout : */ 0x10,
+             /* class: */ (U8[]){ 0, 0, 0, 0 });
+
+  for (i = 0 ; i < 10 ; i++)
     {
       display_clear();
       display_uint(uart_nmb_interrupt());
