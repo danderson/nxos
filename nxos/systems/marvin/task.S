@@ -35,16 +35,6 @@ run_first_task:
 	ldmfd sp!, {lr}
 	bx lr
 
-	.global swap_task_stacks
-swap_task_stacks:
-	mrs r2, cpsr
-	msr cpsr_c, #(MODE_SYS | IRQ_FIQ_MASK)
-	mov r1, sp
-	mov sp, r0
-	msr cpsr_all, r2
-	mov r0, r1
-	bx lr
-
 	.global get_system_stack
 get_system_stack:
 	mrs r1, cpsr
@@ -53,7 +43,10 @@ get_system_stack:
 	msr cpsr_all, r1
 	bx lr
 
-	.global get_cpsr
-get_cpsr:
-	mrs r0, cpsr
+	.global set_system_stack
+set_system_stack:
+	mrs r1, cpsr
+	msr cpsr_c, #(MODE_SYS | IRQ_FIQ_MASK)
+	mov sp, r0
+	msr cpsr_all, r1
 	bx lr
