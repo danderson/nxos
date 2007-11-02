@@ -3,8 +3,9 @@
 
 #include "base/mytypes.h"
 
-typedef void (*task_main_t)();
-
-extern void run_first_task(task_main_t task, U32 *stack);
+extern void run_first_task(void (task)(void), U32 *stack);
+extern U32 *swap_task_stacks(U32 *new_stack);
+extern volatile U32 *get_system_stack();
+extern U32 get_cpsr();
 
 #endif /* __NXOS_TASK_H__ */
