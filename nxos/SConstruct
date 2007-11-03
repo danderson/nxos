@@ -147,9 +147,11 @@ opts.Add(ListOption('appkernels',
 ###############################################################
 # Construct and configure a cross-compiler environment
 ###############################################################
-env = Environment(options=opts,
-                  tools=['gcc', 'as', 'gnulink', 'ar', appkernel_tool],
-                  NXOS_LIBGCC=[], CPPPATH='#')
+env = Environment(options = opts,
+                  tools = ['gcc', 'as', 'gnulink', 'ar',
+                           'doxygen', appkernel_tool],
+                  toolpath = ['scons_tools'],
+                  NXOS_LIBGCC = [], CPPPATH = '#')
 
 if not env.GetOption('clean'):
     conf = Configure(env, custom_tests = {'CheckTool': CheckTool,

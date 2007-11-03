@@ -9,6 +9,7 @@ void tests_sensors();
 void tests_tachy();
 void tests_usb();
 void tests_usb_hardcore();
+void tests_radar();
 
 void tests_all();
 

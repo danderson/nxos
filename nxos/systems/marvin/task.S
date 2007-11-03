@@ -5,7 +5,6 @@
 #include "base/asm_decls.h"
 
 	.global run_first_task
-	.extern main_returned
 run_first_task:
 	stmfd sp!, {lr}
 
@@ -33,4 +32,21 @@ run_first_task:
 	bic r1, r1, #MODE_SYS
 	orr r1, r1, #MODE_SVC
 	msr cpsr_c, r1
-	ldmfd sp!, {pc}
+	ldmfd sp!, {lr}
+	bx lr
+
+	.global get_system_stack
+get_system_stack:
+	mrs r1, cpsr
+	msr cpsr_c, #(MODE_SYS | IRQ_FIQ_MASK)
+	mov r0, sp
+	msr cpsr_all, r1
+	bx lr
+
+	.global set_system_stack
+set_system_stack:
+	mrs r1, cpsr
+	msr cpsr_c, #(MODE_SYS | IRQ_FIQ_MASK)
+	mov sp, r0
+	msr cpsr_all, r1
+	bx lr
