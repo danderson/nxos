@@ -5,9 +5,12 @@
 #include "base/display.h"
 #include "base/drivers/sound.h"
 #include "base/drivers/systick.h"
-#include "base/drivers/avr.h"
-#include "base/drivers/lcd.h"
-#include "base/drivers/usb.h"
+
+/* TODO: Evil, fix once the Big Api Renaming of 2007 is over. */
+#include "base/drivers/_avr.h"
+#include "base/drivers/_lcd.h"
+#include "base/drivers/_usb.h"
+
 #include "base/util.h"
 #include "task.h"
 
@@ -26,9 +29,9 @@ task_t *current_task = NULL;
 task_t *idle_task = NULL;
 
 static void shutdown() {
-  nx_lcd_shutdown();
-  nx_usb_disable();
-  nx_avr_power_down();
+  nx__lcd_shutdown();
+  nx__usb_disable();
+  nx__avr_power_down();
 }
 
 /* The main scheduler code. */

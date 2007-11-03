@@ -6,9 +6,10 @@
 #include "base/memmap.h"
 #include "base/drivers/aic.h"
 #include "base/drivers/systick.h"
-#include "base/drivers/avr.h"
-#include "base/drivers/twi.h"
-#include "base/drivers/lcd.h"
+/* TODO: evil, decide if necessary. */
+#include "base/drivers/_avr.h"
+//#include "base/drivers/twi.h"
+//#include "base/drivers/lcd.h"
 #include "base/drivers/sound.h"
 #include "base/drivers/sensors.h"
 #include "base/drivers/motors.h"
@@ -126,16 +127,16 @@ tests_motor() {
   nx_display_string("--- AVR test ---\n"
 		    "----------------\n");
 
-  nx_avr_set_motor(0, 80, 0);
+  nx__avr_set_motor(0, 80, 0);
   nx_systick_wait_ms(1000);
 
-  nx_avr_set_motor(0, -80, 0);
+  nx__avr_set_motor(0, -80, 0);
   nx_systick_wait_ms(1000);
 
-  nx_avr_set_motor(0, 80, 0);
+  nx__avr_set_motor(0, 80, 0);
   nx_systick_wait_ms(1000);
 
-  nx_avr_set_motor(0, 0, 1);
+  nx__avr_set_motor(0, 0, 1);
   nx_systick_wait_ms(200);
 
   goodbye();
