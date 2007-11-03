@@ -285,7 +285,15 @@ void tests_bt()
 
   bt_init();
 
-  bt_set_friendly_name("WebBidule");
+  display_clear();
+  display_string("Setting friendly name ...");
+  display_end_line();
+
+  bt_set_friendly_name("tulipe");
+
+  display_string("Setting as discoverable ...");
+  display_end_line();
+
   bt_set_discoverable(TRUE);
 
   display_clear();
