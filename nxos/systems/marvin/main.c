@@ -5,8 +5,14 @@
 #include "base/display.h"
 #include "base/drivers/sound.h"
 #include "base/drivers/systick.h"
+#include "base/drivers/avr.h"
+#include "base/drivers/lcd.h"
+#include "base/drivers/usb.h"
 #include "base/util.h"
 #include "task.h"
+
+/* Number of milliseconds to let tasks run between context switches. */
+#define TASK_SWITCH_RESOLUTION 10
 
 /* Data structures to maintain task state. */
 typedef struct task {
@@ -15,17 +21,32 @@ typedef struct task {
   struct task *next; /* Pointer to the next task in the list (circular list). */
 } task_t;
 
-volatile task_t *current_task = NULL;
+task_t *available_tasks = NULL;
+task_t *current_task = NULL;
+task_t *idle_task = NULL;
+
+static void shutdown() {
+  lcd_shutdown();
+  usb_disable();
+  avr_power_down();
+}
 
 /* The main scheduler code. */
 void systick_cb() {
   static int mod = 0;
 
-  mod = (mod + 1) % 1000;
+  if (avr_get_button() == BUTTON_CANCEL)
+    shutdown();
+
+  mod = (mod + 1) % TASK_SWITCH_RESOLUTION;
 
   if (mod == 0) {
     current_task->stack_current = get_system_stack();
-    current_task = current_task->next;
+    if (current_task == idle_task && available_tasks != NULL) {
+      current_task = available_tasks;
+    } else if (current_task->next != current_task) {
+      current_task = current_task->next;
+    }
     set_system_stack(current_task->stack_current);
   }
 }
@@ -85,18 +106,19 @@ void test_display() {
 }
 
 void main() {
-  task_t *task1, *task2, *idle_task;
+  task_t *task1, *task2, *idle;
   init_memory_pool(USERSPACE_SIZE, USERSPACE_START);
-  idle_task = new_task(NULL);
+  idle = new_task(NULL);
   task1 = new_task(test_beep);
   task2 = new_task(test_display);
   task1->next = task2;
-  task2->next = idle_task;
-  idle_task->next = task1;
-  idle_task->stack_current += sizeof(struct task_state);
-  current_task = idle_task;
+  task2->next = task1;
+  idle->next = idle;
+  idle->stack_current += sizeof(struct task_state);
+  idle_task = current_task = idle;
+  available_tasks = task1;
 
   interrupts_disable();
   systick_install_scheduler(systick_cb);
-  run_first_task(test_idle, idle_task->stack_current+1024);
+  run_first_task(test_idle, idle->stack_current+1024);
 }
