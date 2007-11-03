@@ -26,16 +26,16 @@ task_t *current_task = NULL;
 task_t *idle_task = NULL;
 
 static void shutdown() {
-  lcd_shutdown();
-  usb_disable();
-  avr_power_down();
+  nx_lcd_shutdown();
+  nx_usb_disable();
+  nx_avr_power_down();
 }
 
 /* The main scheduler code. */
 void systick_cb() {
   static int mod = 0;
 
-  if (avr_get_button() == BUTTON_CANCEL)
+  if (nx_avr_get_button() == BUTTON_CANCEL)
     shutdown();
 
   mod = (mod + 1) % TASK_SWITCH_RESOLUTION;
@@ -52,13 +52,13 @@ void systick_cb() {
 }
 
 /* Create a new task, ready to be fired up. */
-static task_t *new_task(closure_t func) {
-  struct task_state *state = NULL;
-  task_t *task = rtl_malloc(sizeof(*task));
-  task->stack_base = rtl_malloc(1024);
+static task_t *new_task(nx_closure_t func) {
+  nx_task_stack_t *state = NULL;
+  task_t *task = malloc(sizeof(*task));
+  task->stack_base = malloc(1024);
   task->stack_current = task->stack_base + 1024 - sizeof(*state);
   task->next = task;
-  state = (struct task_state*)task->stack_current;
+  state = (nx_task_stack_t*)task->stack_current;
   state->pc = (U32)func;
   state->cpsr = 0x1F; // TODO: nice #define
   if (state->pc & 0x1) {
@@ -69,28 +69,28 @@ static task_t *new_task(closure_t func) {
 }
 
 /* Debug code. Dump the full state of a task. */
-inline void dump_task(struct task_state *t) {
-  display_clear();
-  display_hex(t->cpsr); display_string(" "); display_hex(t->pc); display_string("\n");
-  display_hex(t->r0); display_string(" "); display_hex(t->r1); display_string("\n");
-  display_hex(t->r2); display_string(" "); display_hex(t->r3); display_string("\n");
-  display_hex(t->r4); display_string(" "); display_hex(t->r5); display_string("\n");
-  display_hex(t->r6); display_string(" "); display_hex(t->r7); display_string("\n");
-  display_hex(t->r8); display_string(" "); display_hex(t->r9); display_string("\n");
-  display_hex(t->r10); display_string(" "); display_hex(t->r11); display_string("\n");
-  display_hex(t->r12); display_string(" "); display_hex(t->lr);
+inline void dump_task(nx_task_stack_t *t) {
+  nx_display_clear();
+  nx_display_hex(t->cpsr); nx_display_string(" "); nx_display_hex(t->pc); nx_display_string("\n");
+  nx_display_hex(t->r0); nx_display_string(" "); nx_display_hex(t->r1); nx_display_string("\n");
+  nx_display_hex(t->r2); nx_display_string(" "); nx_display_hex(t->r3); nx_display_string("\n");
+  nx_display_hex(t->r4); nx_display_string(" "); nx_display_hex(t->r5); nx_display_string("\n");
+  nx_display_hex(t->r6); nx_display_string(" "); nx_display_hex(t->r7); nx_display_string("\n");
+  nx_display_hex(t->r8); nx_display_string(" "); nx_display_hex(t->r9); nx_display_string("\n");
+  nx_display_hex(t->r10); nx_display_string(" "); nx_display_hex(t->r11); nx_display_string("\n");
+  nx_display_hex(t->r12); nx_display_string(" "); nx_display_hex(t->lr);
 }
 
 /* Test tasks. The idle task, a beeper, and a counter display task. */
 void test_idle() {
-  interrupts_enable();
+  nx_interrupts_enable();
   while(1);
 }
 
 void test_beep() {
   while(1) {
-    sound_freq(440, 500);
-    systick_wait_ms(1500);
+    nx_sound_freq(440, 500);
+    nx_systick_wait_ms(1500);
   }
 }
 
@@ -99,26 +99,26 @@ void test_display() {
   while(1) {
     counter++;
     if (!counter)
-      display_clear();
-    display_cursor_set_pos(0,0);
-    display_uint(counter);
+      nx_display_clear();
+    nx_display_cursor_set_pos(0,0);
+    nx_display_uint(counter);
   }
 }
 
 void main() {
   task_t *task1, *task2, *idle;
-  init_memory_pool(USERSPACE_SIZE, USERSPACE_START);
+  nx_mem_init(NX_USERSPACE_SIZE, NX_USERSPACE_START);
   idle = new_task(NULL);
   task1 = new_task(test_beep);
   task2 = new_task(test_display);
   task1->next = task2;
   task2->next = task1;
   idle->next = idle;
-  idle->stack_current += sizeof(struct task_state);
+  idle->stack_current += sizeof(nx_task_stack_t);
   idle_task = current_task = idle;
   available_tasks = task1;
 
-  interrupts_disable();
-  systick_install_scheduler(systick_cb);
+  nx_interrupts_disable();
+  nx_systick_install_scheduler(systick_cb);
   run_first_task(test_idle, idle->stack_current+1024);
 }
