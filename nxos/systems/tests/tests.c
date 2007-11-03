@@ -271,17 +271,10 @@ void tests_sysinfo() {
 }
 
 
-static void tests_bt_inquiry_callback(bt_device_t *device)
-{
-  display_string("# ");
-  display_string(device->name);
-  display_end_line();
-}
-
-
 void tests_bt()
 {
   int i;
+  bt_device_t *dev;
 
   bt_init();
 
@@ -300,10 +293,19 @@ void tests_bt()
   display_string("Scanning ...");
   display_end_line();
 
-  bt_inquiry(tests_bt_inquiry_callback,
-             /* max dev : */ 255,
-             /* timeout : */ 0x10,
-             /* class: */ (U8[]){ 0, 0, 0, 0 });
+
+  bt_begin_inquiry(/* max dev : */ 255,
+                   /* timeout : */ 0x10,
+                   /* class :   */ (U8[]){ 0, 0, 0, 0 });
+
+  while(bt_get_state() == BT_STATE_INQUIRING) {
+    if (bt_has_found_device()) {
+      dev = bt_get_discovered_device();
+      display_string("# ");
+      display_string(dev->name);
+      display_end_line();
+    }
+  }
 
   for (i = 0 ; i < 10 ; i++)
     {
