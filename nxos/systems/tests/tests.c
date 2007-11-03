@@ -14,7 +14,7 @@
 #include "base/drivers/motors.h"
 #include "base/drivers/usb.h"
 #include "base/drivers/bt.h"
-#include "base/drivers/uart.h"
+#include "base/drivers/_uart.h"
 
 
 static bool test_silent = FALSE;
