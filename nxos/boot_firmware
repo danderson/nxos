@@ -1,0 +1,114 @@
+#!/usr/bin/env python
+
+from __future__ import division
+import sys
+import os.path
+import struct
+
+nxt_path = os.path.join(
+    os.path.split(os.path.abspath(__file__))[0], '..', 'pynxt')
+sys.path = [nxt_path]+sys.path
+
+import nxt
+import nxt.samba
+import nxt.flash
+
+USAGE = '''
+Syntax: %(n)s <kernel binary file>
+        %(n)s <kernel name> <boot type>
+
+Examples:
+        %(n)s systems/tests/tests_samba.bin
+        %(n)s tests rom
+'''.strip()
+
+STATUS_REPORT = '''
+Kernel %s:
+ * In-RAM size: %s
+ * In-ROM size: %s
+ * Wasted RAM: %s
+ * Load address: 0x%x
+ * Boot method: %s
+'''.strip()
+
+def kernel_path_from_name(name, variant):
+    return 'systems/%s/%s_%s.bin' % (name, name, variant)
+
+def get_kernel():
+    if len(sys.argv) not in (2,3):
+        print USAGE % {'n': sys.argv[0]}
+        return (None, None, None)
+    if len(sys.argv) == 3:
+        kernel_file = kernel_path_from_name(sys.argv[1], sys.argv[2])
+    else:
+        kernel_file = sys.argv[1]
+
+    if not os.path.isfile(kernel_file):
+        print 'Kernel image %s not found.' % kernel_file
+        return (None, None, None)
+
+    # Load the firmware image, and separate the header from the actual
+    # image.
+    f = open(kernel_file)
+    fw_and_header = f.read()
+    f.close()
+    header = fw_and_header[-21:]
+    fw = fw_and_header[:-21]
+
+    header = struct.unpack('<5LB', header)
+    if header[0] != 0xDEADBEEF:
+        print 'Invalid magic on kernel image, cannot process.'
+        return (None, None, None)
+    return (kernel_file, header, fw)
+
+def format_number(size):
+    if size < 1024:
+        return '%dB' % size
+    else:
+        return '%.2fkB' % (size/1024)
+
+def main():
+    filename, header, fw = get_kernel()
+    if fw is None:
+        return 1
+    (_, ramsize, ramwaste, romsize, loadaddr, samba) = header
+    print STATUS_REPORT % (filename, format_number(ramsize),
+                           format_number(romsize), format_number(ramwaste),
+                           loadaddr, {0:'Flash Boot', 1:'SAM-BA Boot'}[samba])
+    print
+    a = raw_input('Boot? [Y/n] ').lower()
+    while a not in ('', 'y', 'n', 'yes', 'no'):
+        a = raw_input('Boot? [Y/n] ').lower()
+    if a in ('no', 'n'):
+        return 0
+
+    s = nxt.samba.SambaBrick()
+    try:
+        print 'Looking for the NXT in SAM-BA mode...'
+        s.open(timeout=60)
+        print 'Brick found!'
+    except nxt.samba.SambaOpenError, e:
+        print 'Error: %s.' % str(e)
+        return 1
+    except KeyboardInterrupt:
+        print 'Cancelled.'
+        return 0
+
+    if samba:
+        print 'Uploading firmware...',
+        s.write_buffer(loadaddr, fw)
+        print 'Ok'
+    else:
+        print 'Flashing firmware...',
+        f = nxt.flash.FlashController(s)
+        f.flash(fw)
+        print 'Ok'
+
+    print 'Jumping to 0x%x...' % loadaddr,
+    s.jump(loadaddr)
+    print 'Ok'
+    s.close()
+    return 0
+
+if __name__ == '__main__':
+    sys.exit(main())

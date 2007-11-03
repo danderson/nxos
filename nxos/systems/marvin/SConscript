@@ -1,0 +1,4 @@
+from glob import glob
+Import('env')
+env.AppKernel('marvin', glob('*.[cS]'), kernelsize='20k')
+# TODO: Doxygen, once there is something to document.
