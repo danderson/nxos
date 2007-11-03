@@ -4,7 +4,7 @@
 \.pyc
 \.log
 \.scon[sf]
-nxos/base/font\.h
+nxos/base/_font\.h
 nxos/config\.
 nxos/configure$
 nxos/arm-gcc

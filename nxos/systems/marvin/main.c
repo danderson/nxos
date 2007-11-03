@@ -1,4 +1,4 @@
-#include "base/mytypes.h"
+#include "base/types.h"
 #include "base/tlsf.h"
 #include "base/memmap.h"
 #include "base/interrupts.h"

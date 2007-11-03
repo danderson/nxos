@@ -1,6 +1,6 @@
 /* Various test routines for components of the NXT. */
 
-#include "base/mytypes.h"
+#include "base/types.h"
 #include "base/interrupts.h"
 #include "base/display.h"
 #include "base/memmap.h"
