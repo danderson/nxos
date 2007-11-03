@@ -295,7 +295,7 @@ void tests_bt()
 
 
   bt_begin_inquiry(/* max dev : */ 255,
-                   /* timeout : */ 0x10,
+                   /* timeout : */ 0x20,
                    /* class :   */ (U8[]){ 0, 0, 0, 0 });
 
   while(bt_get_state() == BT_STATE_INQUIRING) {
