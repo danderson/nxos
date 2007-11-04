@@ -1,6 +1,8 @@
 # Generally annoying things.
 \.(o|a|pyc|bin|elf|map|orig|log)$
 ~$
+\#[^\#]+\#$
+\.\#[^\#]+$
 
 # Python distutils creates this when building.
 ^pynxt/build
