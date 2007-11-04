@@ -4,7 +4,7 @@
 \.pyc
 \.log
 \.scon[sf]
-nxos/base/font\.h
+nxos/base/_font\.h
 nxos/config\.
 nxos/configure$
 nxos/arm-gcc
@@ -13,6 +13,7 @@ nxos/.*\.bin$
 nxos/.*\.a$
 nxos/systems/[^/]+/.*\.lds
 nxos/systems/tvm/tvm
+nxos/doc
 pynxt/flash_driver\.bin$
 pynxt/MANIFEST$
 pynxt/build

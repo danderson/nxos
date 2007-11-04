@@ -1,40 +1,43 @@
 /* Various test routines for components of the NXT. */
 
-#include "base/mytypes.h"
+#include "base/types.h"
 #include "base/interrupts.h"
 #include "base/display.h"
 #include "base/memmap.h"
 #include "base/drivers/aic.h"
 #include "base/drivers/systick.h"
-#include "base/drivers/avr.h"
-#include "base/drivers/twi.h"
-#include "base/drivers/lcd.h"
+/* TODO: evil, decide if necessary. */
+#include "base/drivers/_avr.h"
+//#include "base/drivers/twi.h"
+//#include "base/drivers/lcd.h"
 #include "base/drivers/sound.h"
 #include "base/drivers/sensors.h"
 #include "base/drivers/motors.h"
 #include "base/drivers/usb.h"
+#include "base/drivers/radar.h"
 #include "base/drivers/bt.h"
 #include "base/drivers/_uart.h"
 
+#include "tests.h"
 
 static bool test_silent = FALSE;
 
 static void hello() {
   if (test_silent)
     return;
-  sound_freq(1000, 100);
-  systick_wait_ms(50);
-  sound_freq(2000, 100);
-  systick_wait_ms(900);
+  nx_sound_freq(1000, 100);
+  nx_systick_wait_ms(50);
+  nx_sound_freq(2000, 100);
+  nx_systick_wait_ms(900);
 }
 
 static void goodbye() {
   if (test_silent)
     return;
-  sound_freq(2000, 100);
-  systick_wait_ms(50);
-  sound_freq(1000, 100);
-  systick_wait_ms(900);
+  nx_sound_freq(2000, 100);
+  nx_systick_wait_ms(50);
+  nx_sound_freq(1000, 100);
+  nx_systick_wait_ms(900);
 }
 
 void beep_word(U32 value) {
@@ -48,10 +51,10 @@ void beep_word(U32 value) {
   }
   while (i > 0) {
     if (value & 0x80000000)
-      sound_freq(2000, 300);
+      nx_sound_freq(2000, 300);
     else
-      sound_freq(1000, 300);
-    systick_wait_ms(700);
+      nx_sound_freq(1000, 300);
+    nx_systick_wait_ms(700);
     value <<= 1;
     i--;
   }
@@ -66,19 +69,19 @@ void tests_display() {
 
   hello();
 
-  display_clear();
-  display_cursor_set_pos(0, 0);
+  nx_display_clear();
+  nx_display_cursor_set_pos(0, 0);
 
-  display_string("- Display test -\n"
-                 "----------------\n");
+  nx_display_string("- Display test -\n"
+		    "----------------\n");
   for (i=32; i<128; i++) {
     buf[0] = i;
-    display_string(buf);
+    nx_display_string(buf);
     if ((i % 16) == 15)
-      display_string("\n");
+      nx_display_string("\n");
   }
 
-  systick_wait_ms(5000);
+  nx_systick_wait_ms(5000);
   goodbye();
 }
 
@@ -100,21 +103,21 @@ void tests_sound() {
 
   hello();
 
-  display_clear();
-  display_cursor_set_pos(0,0);
-  display_string("-- Sound test --\n"
-                 "----------------\n");
+  nx_display_clear();
+  nx_display_cursor_set_pos(0,0);
+  nx_display_string("-- Sound test --\n"
+		    "----------------\n");
 
   while (pain[i] != end) {
     if (pain[i] == sleep500)
-      systick_wait_ms(150);
+      nx_systick_wait_ms(150);
     else
-      sound_freq(pain[i], 150);
-    systick_wait_ms(150);
+      nx_sound_freq(pain[i], 150);
+    nx_systick_wait_ms(150);
     i++;
   }
 
-  systick_wait_ms(1000);
+  nx_systick_wait_ms(1000);
   goodbye();
 }
 
@@ -123,22 +126,22 @@ void
 tests_motor() {
   hello();
 
-  display_clear();
-  display_cursor_set_pos(0,0);
-  display_string("--- AVR test ---\n"
-                 "----------------\n");
+  nx_display_clear();
+  nx_display_cursor_set_pos(0,0);
+  nx_display_string("--- AVR test ---\n"
+		    "----------------\n");
 
-  avr_set_motor(0, 80, 0);
-  systick_wait_ms(1000);
+  nx__avr_set_motor(0, 80, 0);
+  nx_systick_wait_ms(1000);
 
-  avr_set_motor(0, -80, 0);
-  systick_wait_ms(1000);
+  nx__avr_set_motor(0, -80, 0);
+  nx_systick_wait_ms(1000);
 
-  avr_set_motor(0, 80, 0);
-  systick_wait_ms(1000);
+  nx__avr_set_motor(0, 80, 0);
+  nx_systick_wait_ms(1000);
 
-  avr_set_motor(0, 0, 1);
-  systick_wait_ms(200);
+  nx__avr_set_motor(0, 0, 1);
+  nx_systick_wait_ms(200);
 
   goodbye();
 }
@@ -148,39 +151,39 @@ void tests_tachy() {
   int i;
   hello();
 
-  motors_rotate_angle(0, 80, 1024, TRUE);
-  motors_rotate_time(1, -80, 3000, FALSE);
-  motors_rotate(2, 80);
+  nx_motors_rotate_angle(0, 80, 1024, TRUE);
+  nx_motors_rotate_time(1, -80, 3000, FALSE);
+  nx_motors_rotate(2, 80);
 
   for (i=0; i<30; i++) {
-    display_clear();
-    display_cursor_set_pos(0,0);
+    nx_display_clear();
+    nx_display_cursor_set_pos(0,0);
 
-    display_clear();
-    display_cursor_set_pos(0,0);
-    display_string("Tachymeter  test\n"
-                   "----------------\n");
+    nx_display_clear();
+    nx_display_cursor_set_pos(0,0);
+    nx_display_string("Tachymeter  test\n"
+		      "----------------\n");
 
-    display_string("Tach A: ");
-    display_hex(motors_get_tach_count(0));
-    display_end_line();
+    nx_display_string("Tach A: ");
+    nx_display_hex(nx_motors_get_tach_count(0));
+    nx_display_end_line();
 
-    display_string("Tach B: ");
-    display_hex(motors_get_tach_count(1));
-    display_end_line();
+    nx_display_string("Tach B: ");
+    nx_display_hex(nx_motors_get_tach_count(1));
+    nx_display_end_line();
 
-    display_string("Tach C: ");
-    display_hex(motors_get_tach_count(2));
-    display_end_line();
+    nx_display_string("Tach C: ");
+    nx_display_hex(nx_motors_get_tach_count(2));
+    nx_display_end_line();
 
-    display_string("Refresh: ");
-    display_uint(i);
-    display_end_line();
+    nx_display_string("Refresh: ");
+    nx_display_uint(i);
+    nx_display_end_line();
 
-    systick_wait_ms(250);
+    nx_systick_wait_ms(250);
   }
 
-  motors_stop(2, TRUE);
+  nx_motors_stop(2, TRUE);
 
   goodbye();
 }
@@ -191,31 +194,31 @@ void tests_sensors() {
   const U32 display_seconds = 15;
   hello();
 
-  sensors_analog_enable(0);
+  nx_sensors_analog_enable(0);
 
   for (i=0; i<(display_seconds*4); i++) {
-    display_clear();
-    display_cursor_set_pos(0,0);
-    display_string("- Sensor  info -\n"
-                   "----------------\n");
+    nx_display_clear();
+    nx_display_cursor_set_pos(0,0);
+    nx_display_string("- Sensor  info -\n"
+		      "----------------\n");
 
-    display_string("Port 1: ");
-    display_uint(sensors_analog_get(0));
-    display_end_line();
+    nx_display_string("Port 1: ");
+    nx_display_uint(nx_sensors_analog_get(0));
+    nx_display_end_line();
 
-    display_string("Port 2: ");
-    display_uint(sensors_analog_get(1));
-    display_end_line();
+    nx_display_string("Port 2: ");
+    nx_display_uint(nx_sensors_analog_get(1));
+    nx_display_end_line();
 
-    display_string("Port 3: ");
-    display_uint(sensors_analog_get(2));
-    display_end_line();
+    nx_display_string("Port 3: ");
+    nx_display_uint(nx_sensors_analog_get(2));
+    nx_display_end_line();
 
-    display_string("Port 4: ");
-    display_uint(sensors_analog_get(3));
-    display_end_line();
+    nx_display_string("Port 4: ");
+    nx_display_uint(nx_sensors_analog_get(3));
+    nx_display_end_line();
 
-    systick_wait_ms(250);
+    nx_systick_wait_ms(250);
   }
 
   goodbye();
@@ -229,42 +232,42 @@ void tests_sysinfo() {
   U8 avr_major, avr_minor;
   hello();
 
-  avr_get_version(&avr_major, &avr_minor);
+  nx_avr_get_version(&avr_major, &avr_minor);
 
   for (i=0; i<(display_seconds*4); i++) {
     if (i % 4 == 0)
-      t = systick_get_ms();
+      t = nx_systick_get_ms();
 
-    display_clear();
-    display_cursor_set_pos(0,0);
-    display_string("- System  info -\n"
-                   "----------------\n");
+    nx_display_clear();
+    nx_display_cursor_set_pos(0,0);
+    nx_display_string("- System  info -\n"
+		      "----------------\n");
 
-    display_string("Time  : ");
-    display_uint(t);
-    display_end_line();
+    nx_display_string("Time  : ");
+    nx_display_uint(t);
+    nx_display_end_line();
 
-    display_string("Boot from ");
-    if (BOOT_FROM_SAMBA)
-      display_string("SAM-BA");
+    nx_display_string("Boot from ");
+    if (NX_BOOT_FROM_SAMBA)
+      nx_display_string("SAM-BA");
     else
-      display_string("ROM");
-    display_end_line();
+      nx_display_string("ROM");
+    nx_display_end_line();
 
-    display_string("Free RAM: ");
-    display_uint(USERSPACE_SIZE);
-    display_end_line();
+    nx_display_string("Free RAM: ");
+    nx_display_uint(NX_USERSPACE_SIZE);
+    nx_display_end_line();
 
-    display_string("Buttons: ");
-    display_uint(avr_get_button());
-    display_end_line();
+    nx_display_string("Buttons: ");
+    nx_display_uint(nx_avr_get_button());
+    nx_display_end_line();
 
-    display_string("Battery: ");
-    display_uint(avr_get_battery_voltage());
-    display_string(" mV");
-    display_end_line();
+    nx_display_string("Battery: ");
+    nx_display_uint(nx_avr_get_battery_voltage());
+    nx_display_string(" mV");
+    nx_display_end_line();
 
-    systick_wait_ms(250);
+    nx_systick_wait_ms(250);
   }
 
   goodbye();
@@ -276,51 +279,51 @@ void tests_bt()
   int i;
   bt_device_t *dev;
 
-  bt_init();
+  nx_bt_init();
 
-  display_clear();
-  display_string("Setting friendly name ...");
-  display_end_line();
+  nx_display_clear();
+  nx_display_string("Setting friendly name ...");
+  nx_display_end_line();
 
-  bt_set_friendly_name("tulipe");
+  nx_bt_set_friendly_name("tulipe");
 
-  display_string("Setting as discoverable ...");
-  display_end_line();
+  nx_display_string("Setting as discoverable ...");
+  nx_display_end_line();
 
-  bt_set_discoverable(TRUE);
+  nx_bt_set_discoverable(TRUE);
 
-  display_clear();
-  display_string("Scanning ...");
-  display_end_line();
+  nx_display_clear();
+  nx_display_string("Scanning ...");
+  nx_display_end_line();
 
 
-  bt_begin_inquiry(/* max dev : */ 255,
-                   /* timeout : */ 0x20,
-                   /* class :   */ (U8[]){ 0, 0, 0, 0 });
+  nx_bt_begin_inquiry(/* max dev : */ 255,
+		      /* timeout : */ 0x20,
+		      /* class :   */ (U8[]){ 0, 0, 0, 0 });
 
-  while(bt_get_state() == BT_STATE_INQUIRING) {
-    if (bt_has_found_device()) {
-      dev = bt_get_discovered_device();
-      display_string("# ");
-      display_string(dev->name);
-      display_end_line();
+  while(nx_bt_get_state() == BT_STATE_INQUIRING) {
+    if (nx_bt_has_found_device()) {
+      dev = nx_bt_get_discovered_device();
+      nx_display_string("# ");
+      nx_display_string(dev->name);
+      nx_display_end_line();
     }
   }
 
   for (i = 0 ; i < 10 ; i++)
     {
-      display_clear();
-      display_uint(uart_nmb_interrupt());
-      display_end_line();
-      display_hex(uart_get_last_csr());
-      display_end_line();
-      display_hex(uart_get_csr());
-      display_end_line();
-      display_hex(uart_get_state());
-      display_end_line();
-      bt_debug();
+      nx_display_clear();
+      nx_display_uint(nx_uart_nmb_interrupt());
+      nx_display_end_line();
+      nx_display_hex(nx_uart_get_last_csr());
+      nx_display_end_line();
+      nx_display_hex(nx_uart_get_csr());
+      nx_display_end_line();
+      nx_display_hex(nx_uart_get_state());
+      nx_display_end_line();
+      nx_bt_debug();
 
-      systick_wait_ms(1000);
+      nx_systick_wait_ms(1000);
     }
 }
 
@@ -368,36 +371,36 @@ void tests_usb() {
   hello();
 
   while(1) {
-    display_cursor_set_pos(0, 0);
-    display_string("Waiting command ...");
+    nx_display_cursor_set_pos(0, 0);
+    nx_display_string("Waiting command ...");
 
-    for (i = 0 ; i < 500 && !usb_has_data(); i++)
+    for (i = 0 ; i < 500 && !nx_usb_has_data(); i++)
     {
-      systick_wait_ms(200);
+      nx_systick_wait_ms(200);
     }
 
     if (i >= 500)
       break;
 
-    display_clear();
+    nx_display_clear();
 
-    lng = usb_has_data();
+    lng = nx_usb_has_data();
 
-    buffer = (char *)usb_get_buffer();
-    if ((lng+1) < USB_BUFFER_SIZE)
+    buffer = (char *)nx_usb_get_buffer();
+    if ((lng+1) < NX_USB_BUFFER_SIZE)
       buffer[lng+1] = '\0';
     else
-      buffer[USB_BUFFER_SIZE-1] = '\0';
+      buffer[NX_USB_BUFFER_SIZE-1] = '\0';
 
-    display_cursor_set_pos(0, 0);
-    display_string("==");
-    display_uint(lng);
+    nx_display_cursor_set_pos(0, 0);
+    nx_display_string("==");
+    nx_display_uint(lng);
 
-    display_cursor_set_pos(0, 1);
-    display_string(buffer);
+    nx_display_cursor_set_pos(0, 1);
+    nx_display_string(buffer);
 
-    display_cursor_set_pos(0, 2);
-    display_hex((U32)(USB_UNKNOWN));
+    nx_display_cursor_set_pos(0, 2);
+    nx_display_hex((U32)(USB_UNKNOWN));
 
     /* Start interpreting */
 
@@ -414,6 +417,8 @@ void tests_usb() {
       tests_sensors();
     else if (compare_str(buffer, "tachy", lng))
       tests_tachy();
+    else if (compare_str(buffer, "radar", lng))
+      tests_radar();
     else if (compare_str(buffer, "bt", lng))
       tests_bt();
     else if (compare_str(buffer, "all", lng))
@@ -421,60 +426,59 @@ void tests_usb() {
     else if (compare_str(buffer, "halt", lng))
       break;
     else if (compare_str(buffer, "Al", lng))
-      motors_rotate_angle(0, 70, 100, 1);
+      nx_motors_rotate_angle(0, 70, 100, 1);
     else if (compare_str(buffer, "Ar", lng))
-      motors_rotate_angle(0, -70, 100, 1);
+      nx_motors_rotate_angle(0, -70, 100, 1);
     else if (compare_str(buffer, "Ac", lng)) {
-      motors_rotate(0, 75);
-      while((t = motors_get_tach_count(0)) != 0) {
+      nx_motors_rotate(0, 75);
+      while((t = nx_motors_get_tach_count(0)) != 0) {
 	if (t < 0) {
-	  motors_rotate(0, 75);
+	  nx_motors_rotate(0, 75);
 	} else {
-	  motors_rotate(0, -75);
+	  nx_motors_rotate(0, -75);
 	}
-	display_cursor_set_pos(1, 1);
-	display_hex(t);
-	display_string("          ");
+	nx_display_cursor_set_pos(1, 1);
+	nx_display_hex(t);
+	nx_display_string("          ");
       }
-      motors_stop(0, 1);
+      nx_motors_stop(0, 1);
     } else if (compare_str(buffer, "BCf", lng)) {
-      motors_rotate(1, -100);
-      motors_rotate(2, -100);
-      systick_wait_ms(MOVE_TIME);
-      motors_stop(1, 0);
-      motors_stop(2, 0);
+      nx_motors_rotate(1, -100);
+      nx_motors_rotate(2, -100);
+      nx_systick_wait_ms(MOVE_TIME);
+      nx_motors_stop(1, 0);
+      nx_motors_stop(2, 0);
     } else if (compare_str(buffer, "BCr", lng)) {
-      motors_rotate(1, 80);
-      motors_rotate(2, 80);
-      systick_wait_ms(MOVE_TIME);
-      motors_stop(1, 0);
-      motors_stop(2, 0);
+      nx_motors_rotate(1, 80);
+      nx_motors_rotate(2, 80);
+      nx_systick_wait_ms(MOVE_TIME);
+      nx_motors_stop(1, 0);
+      nx_motors_stop(2, 0);
     }
     else {
       i = 1;
-      usb_send((U8 *)USB_UNKNOWN, sizeof(USB_UNKNOWN)-1);
+      nx_usb_send((U8 *)USB_UNKNOWN, sizeof(USB_UNKNOWN)-1);
     }
 
     if (i == 0) {
-      if (!usb_overloaded())
-	usb_send((U8 *)USB_OK, sizeof(USB_OK)-1);
+      if (!nx_usb_overloaded())
+	nx_usb_send((U8 *)USB_OK, sizeof(USB_OK)-1);
       else
-	usb_send((U8 *)USB_OVERLOADED, sizeof(USB_OVERLOADED)-1);
+	nx_usb_send((U8 *)USB_OVERLOADED, sizeof(USB_OVERLOADED)-1);
     }
 
     /* Stop interpreting */
 
-    systick_wait_ms(500);
+    nx_systick_wait_ms(500);
 
-    display_clear();
+    nx_display_clear();
 
-    usb_flush_buffer();
+    nx_usb_flush_buffer();
 
   }
 
   goodbye();
 }
-
 
 void tests_usb_hardcore() {
   int i, lng;
@@ -483,25 +487,75 @@ void tests_usb_hardcore() {
 
   hello();
 
-  systick_wait_ms(6000);
+  nx_systick_wait_ms(6000);
 
   for (i = 0 ; i < 1800 ; i++) {
 
-    if ( (lng = usb_has_data()) > 0) {
-      buffer = (char *)usb_get_buffer();
+    if ( (lng = nx_usb_has_data()) > 0) {
+      buffer = (char *)nx_usb_get_buffer();
       if (compare_str(buffer, "halt", lng)) {
 	break;
       }
-      usb_flush_buffer();
+      nx_usb_flush_buffer();
     }
 
 
-    usb_send((U8 *)"TEST", 5);
+    nx_usb_send((U8 *)"TEST", 5);
   }
 
   goodbye();
 }
 
+void tests_radar() {
+  U8 interval, reading;
+  S8 object;
+
+  hello();
+
+  nx_radar_init(0);
+
+  nx_display_clear();
+  nx_display_cursor_set_pos(0, 0);
+  nx_display_string("Discovering...\n");
+
+  while (!nx_radar_detect(0)) {
+    nx_display_string("Error! Retrying\n");
+    nx_systick_wait_ms(500);
+
+    nx_display_clear();
+    nx_display_cursor_set_pos(0, 0);
+    nx_display_string("Discovering...\n");
+  }
+
+  nx_display_string("Found.\n\n");
+  nx_radar_info(0);
+  interval = nx_radar_get_interval(0);
+
+  while (nx_avr_get_button() != BUTTON_OK);
+
+  while (nx_avr_get_button() != BUTTON_RIGHT) {
+    nx_display_clear();
+    nx_display_cursor_set_pos(0, 0);
+
+    for (object=0 ; object<8 ; object++) {
+      nx_display_uint(object);
+      nx_display_string("> ");
+
+      reading = nx_radar_read_distance(0, object);
+
+      if (reading > 0x00 && reading < 0xFF) {
+        nx_display_uint(reading);
+        nx_display_string(" cm\n");
+      } else {
+        nx_display_string("n/a\n");
+      }
+    }
+
+    nx_systick_wait_ms(interval*500);
+  }
+
+  goodbye();
+}
 
 void tests_all() {
   test_silent = TRUE;
@@ -512,6 +566,7 @@ void tests_all() {
   tests_tachy();
   tests_sensors();
   tests_sysinfo();
+  tests_radar();
 
   test_silent = FALSE;
   goodbye();
