@@ -274,10 +274,86 @@ void tests_sysinfo() {
 }
 
 
+
+static void tests_bt_list_known_devices() {
+  bt_device_t *dev;
+
+  /* Listing known devices */
+
+  nx_display_clear();
+  nx_display_string("Known devices: ");
+  nx_display_end_line();
+
+  nx_bt_begin_known_devices_dumping();
+  while(nx_bt_get_state() == BT_STATE_KNOWN_DEVICES_DUMPING) {
+    if (nx_bt_has_known_device()) {
+      dev = nx_bt_get_known_device();
+      nx_display_string("# ");
+      nx_display_string(dev->name);
+      nx_display_end_line();
+    }
+  }
+
+  nx_systick_wait_ms(2000);
+}
+
+
+static void tests_bt_scan_and_add() {
+  bt_device_t *dev;
+
+  nx_display_clear();
+  nx_display_string("Scanning and adding ...");
+  nx_display_end_line();
+
+
+  nx_bt_begin_inquiry(/* max dev : */ 255,
+		      /* timeout : */ 0x20,
+		      /* class :   */ (U8[]){ 0, 0, 0, 0 });
+
+  while(nx_bt_get_state() == BT_STATE_INQUIRING) {
+    if (nx_bt_has_found_device()) {
+      dev = nx_bt_get_discovered_device();
+      nx_display_string("# ");
+      nx_display_string(dev->name);
+      nx_display_end_line();
+
+      nx_bt_add_known_device(dev);
+    }
+  }
+
+}
+
+
+static void tests_bt_scan_and_remove() {
+  bt_device_t *dev;
+
+  nx_display_clear();
+  nx_display_string("Scanning and removing ...");
+  nx_display_end_line();
+
+
+  nx_bt_begin_inquiry(/* max dev : */ 255,
+		      /* timeout : */ 0x20,
+		      /* class :   */ (U8[]){ 0, 0, 0, 0 });
+
+  while(nx_bt_get_state() == BT_STATE_INQUIRING) {
+    if (nx_bt_has_found_device()) {
+      dev = nx_bt_get_discovered_device();
+      nx_display_string("# ");
+      nx_display_string(dev->name);
+      nx_display_end_line();
+
+      nx_bt_remove_known_device(dev->addr);
+    }
+  }
+
+}
+
 void tests_bt()
 {
   int i;
-  bt_device_t *dev;
+
+  /* Configuring the BT */
 
   nx_bt_init();
 
@@ -292,23 +368,27 @@ void tests_bt()
 
   nx_bt_set_discoverable(TRUE);
 
-  nx_display_clear();
-  nx_display_string("Scanning ...");
-  nx_display_end_line();
+  /* Listing known devices */
+
+  tests_bt_list_known_devices();
+
+  /* Scanning & adding */
+
+  tests_bt_scan_and_add();
+
+  /* Listing known devices */
+
+  tests_bt_list_known_devices();
 
 
-  nx_bt_begin_inquiry(/* max dev : */ 255,
-		      /* timeout : */ 0x20,
-		      /* class :   */ (U8[]){ 0, 0, 0, 0 });
+  /* Scanning & removing */
 
-  while(nx_bt_get_state() == BT_STATE_INQUIRING) {
-    if (nx_bt_has_found_device()) {
-      dev = nx_bt_get_discovered_device();
-      nx_display_string("# ");
-      nx_display_string(dev->name);
-      nx_display_end_line();
-    }
-  }
+  tests_bt_scan_and_remove();
+
+
+  /* Listing known devices */
+
+  tests_bt_list_known_devices();
 
   for (i = 0 ; i < 10 ; i++)
     {
