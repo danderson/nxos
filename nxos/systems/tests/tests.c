@@ -276,7 +276,7 @@ void tests_sysinfo() {
 
 
 static void tests_bt_list_known_devices() {
-  bt_device_t *dev;
+  bt_device_t dev;
 
   /* Listing known devices */
 
@@ -287,9 +287,9 @@ static void tests_bt_list_known_devices() {
   nx_bt_begin_known_devices_dumping();
   while(nx_bt_get_state() == BT_STATE_KNOWN_DEVICES_DUMPING) {
     if (nx_bt_has_known_device()) {
-      dev = nx_bt_get_known_device();
+      nx_bt_get_known_device(&dev);
       nx_display_string("# ");
-      nx_display_string(dev->name);
+      nx_display_string(dev.name);
       nx_display_end_line();
     }
   }
@@ -299,7 +299,7 @@ static void tests_bt_list_known_devices() {
 
 
 static void tests_bt_scan_and_add() {
-  bt_device_t *dev;
+  bt_device_t dev;
 
   nx_display_clear();
   nx_display_string("Scanning and adding ...");
@@ -312,12 +312,12 @@ static void tests_bt_scan_and_add() {
 
   while(nx_bt_get_state() == BT_STATE_INQUIRING) {
     if (nx_bt_has_found_device()) {
-      dev = nx_bt_get_discovered_device();
+      nx_bt_get_discovered_device(&dev);
       nx_display_string("# ");
-      nx_display_string(dev->name);
+      nx_display_string(dev.name);
       nx_display_end_line();
 
-      nx_bt_add_known_device(dev);
+      nx_bt_add_known_device(&dev);
     }
   }
 
@@ -325,7 +325,7 @@ static void tests_bt_scan_and_add() {
 
 
 static void tests_bt_scan_and_remove() {
-  bt_device_t *dev;
+  bt_device_t dev;
 
   nx_display_clear();
   nx_display_string("Scanning and removing ...");
@@ -338,12 +338,12 @@ static void tests_bt_scan_and_remove() {
 
   while(nx_bt_get_state() == BT_STATE_INQUIRING) {
     if (nx_bt_has_found_device()) {
-      dev = nx_bt_get_discovered_device();
+      nx_bt_get_discovered_device(&dev);
       nx_display_string("# ");
-      nx_display_string(dev->name);
+      nx_display_string(dev.name);
       nx_display_end_line();
 
-      nx_bt_remove_known_device(dev->addr);
+      nx_bt_remove_known_device(dev.addr);
     }
   }
 
