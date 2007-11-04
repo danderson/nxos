@@ -1,19 +1,19 @@
-.*~
-\.o
-\.elf
-\.pyc
-\.log
-\.scon[sf]
-nxos/base/_font\.h
-nxos/config\.
-nxos/configure$
-nxos/arm-gcc
-nxos/build
-nxos/.*\.bin$
-nxos/.*\.a$
-nxos/systems/[^/]+/.*\.lds
-nxos/systems/tvm/tvm
-nxos/doc
-pynxt/flash_driver\.bin$
-pynxt/MANIFEST$
-pynxt/build
+# Generally annoying things.
+\.(o|a|pyc|bin|elf|map|orig|log)$
+~$
+
+# Python distutils creates this when building.
+^pynxt/build
+
+# Files generated during a NxOS build.
+^nxos/systems/[^/]+/.*\.lds
+^nxos/base/_font.h$
+^nxos/doc/[^/]+/
+
+# The TVM port has a whole SVN checkout not managed by hg.
+^nxos/systems/tvm/tvm
+
+# SCons cruft
+^nxos/.sconsign.dblite$
+^nxos/.sconf_temp
+^nxos/build_flags.py$
