@@ -116,7 +116,9 @@ def appkernel_tool(env):
         if kernelisbuilt:
             app_kernel = sources
         else:
-            app_kernel = env.StaticLibrary(kernel_name, sources)
+            app_kernel = []
+            for s in sources:
+                app_kernel.append(env.Object(s.split('.')[0], s))
 
         # Generate an ld script with the right kernel size, then derive
         # the samba and rom variants from that.
