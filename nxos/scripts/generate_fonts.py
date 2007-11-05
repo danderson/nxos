@@ -6,6 +6,10 @@
 
 import sys
 
+# Fix the PYTHONPATH for scons builds.
+if sys.platform == 'darwin':
+    sys.path.append('/opt/local/lib/python2.4/site-packages')
+
 try:
     from PIL import Image
 except ImportError:
