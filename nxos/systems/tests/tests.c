@@ -587,18 +587,19 @@ void tests_usb_hardcore() {
 }
 
 void tests_radar() {
+  U32 sensor = 0;
   U8 interval, reading;
   S8 object;
 
   hello();
 
-  nx_radar_init(0);
+  nx_radar_init(sensor);
 
   nx_display_clear();
   nx_display_cursor_set_pos(0, 0);
   nx_display_string("Discovering...\n");
 
-  while (!nx_radar_detect(0)) {
+  while (!nx_radar_detect(sensor)) {
     nx_display_string("Error! Retrying\n");
     nx_systick_wait_ms(500);
 
@@ -608,8 +609,8 @@ void tests_radar() {
   }
 
   nx_display_string("Found.\n\n");
-  nx_radar_info(0);
-  interval = nx_radar_get_interval(0);
+  nx_radar_info(sensor);
+  interval = nx_radar_read_value(sensor, RADAR_INTERVAL);
 
   while (nx_avr_get_button() != BUTTON_OK);
 
@@ -621,7 +622,7 @@ void tests_radar() {
       nx_display_uint(object);
       nx_display_string("> ");
 
-      reading = nx_radar_read_distance(0, object);
+      reading = nx_radar_read_distance(sensor, object);
 
       if (reading > 0x00 && reading < 0xFF) {
         nx_display_uint(reading);
