@@ -593,10 +593,10 @@ void tests_radar() {
 
   hello();
 
-  nx_radar_init(sensor);
-
   nx_display_clear();
   nx_display_cursor_set_pos(0, 0);
+  nx_radar_init(sensor);
+
   nx_display_string("Discovering...\n");
 
   while (!nx_radar_detect(sensor)) {
