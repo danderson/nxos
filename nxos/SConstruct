@@ -83,6 +83,7 @@ def CheckDoxygen(context):
     doxypath = find_on_path('doxygen')
     if doxypath:
         context.Result("ok")
+        context.env.AppendENVPath('PATH', doxypath)
         context.env['WITH_DOXYGEN'] = True
     else:
         context.Result("not found")
