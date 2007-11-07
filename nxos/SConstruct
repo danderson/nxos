@@ -78,6 +78,16 @@ def CheckLibGcc(context, gccname):
     context.env.Append(NXOS_LIBGCC=libgcc_path)
     return True
 
+def CheckDoxygen(context):
+    context.Message("Looking for Doxygen...")
+    doxypath = find_on_path('doxygen')
+    if doxypath:
+        context.Result("ok")
+        context.env['WITH_DOXYGEN'] = True
+    else:
+        context.Result("not found")
+        context.env['WITH_DOXYGEN'] = False
+
 ###############################################################
 # Tool that installs an application kernel helper.
 ###############################################################
@@ -153,17 +163,20 @@ env = Environment(options = opts,
                   tools = ['gcc', 'as', 'gnulink', 'ar',
                            'doxygen', appkernel_tool],
                   toolpath = ['scons_tools'],
-                  NXOS_LIBGCC = [], CPPPATH = '#')
+                  NXOS_LIBGCC = [], CPPPATH = '#',
+                  WITH_DOXYGEN = True)
 
 if not env.GetOption('clean'):
     conf = Configure(env, custom_tests = {'CheckTool': CheckTool,
-                                          'CheckLibGcc': CheckLibGcc})
+                                          'CheckLibGcc': CheckLibGcc,
+                                          'CheckDoxygen': CheckDoxygen})
     conf.env['CROSS_COMPILE_HOST'] = 'arm-elf'
     if not (conf.CheckTool('CC', 'gcc') and conf.CheckTool('AR') and
             conf.CheckTool('OBJCOPY') and conf.CheckTool('LINK', 'ld') and
             conf.CheckLibGcc(conf.env['CC'])):
         print "Missing or incomplete arm-elf toolchain, cannot continue!"
         Exit(1)
+    conf.CheckDoxygen()
     env = conf.Finish()
 
 env.Replace(CCFLAGS= ['-mcpu=arm7tdmi', '-Wall', '-Werror', '-Os',

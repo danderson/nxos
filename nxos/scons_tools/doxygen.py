@@ -129,7 +129,7 @@ def DoxySourceScan(node, env, path):
    
    for node in data.get("INPUT", []):
       if not os.path.isabs(node):
-         node = os.path.join(conf_dir, node)
+         node = os.path.normpath(os.path.join(conf_dir, node))
       if os.path.isfile(node):
          sources.append(node)
       elif os.path.isdir(node):
@@ -197,7 +197,13 @@ def DoxyEmitter(source, target, env):
    # add our output locations
    for (k, v) in output_formats.items():
       if data.get("GENERATE_" + k, v[0]) == "YES":
-         targets.append(env.Dir( os.path.join(out_dir, data.get(k + "_OUTPUT", v[1]))) )
+         if k == 'HTML' and not env.GetOption('clean'):
+            targets.append(env.File(os.path.join(out_dir, data.get(k+'_OUTPUT',
+                                                                   v[1]),
+                                                 'index.html')))
+         else:
+            targets.append(env.Dir( os.path.join(out_dir, data.get(k+"_OUTPUT",
+                                                                   v[1]))))
 
    # add the tag file if neccessary:
    tagfile = data.get("GENERATE_TAGFILE", "")
