@@ -197,7 +197,7 @@ def DoxyEmitter(source, target, env):
    # add our output locations
    for (k, v) in output_formats.items():
       if data.get("GENERATE_" + k, v[0]) == "YES":
-         if k == 'HTML':
+         if k == 'HTML' and not env.GetOption('clean'):
             targets.append(env.File(os.path.join(out_dir, data.get(k+'_OUTPUT',
                                                                    v[1]),
                                                  'index.html')))
