@@ -393,14 +393,6 @@ void tests_bt()
   for (i = 0 ; i < 10 ; i++)
     {
       nx_display_clear();
-      nx_display_uint(nx_uart_nmb_interrupt());
-      nx_display_end_line();
-      nx_display_hex(nx_uart_get_last_csr());
-      nx_display_end_line();
-      nx_display_hex(nx_uart_get_csr());
-      nx_display_end_line();
-      nx_display_hex(nx_uart_get_state());
-      nx_display_end_line();
       nx_bt_debug();
 
       nx_systick_wait_ms(1000);
