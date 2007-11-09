@@ -195,6 +195,9 @@ void tests_sensors() {
   hello();
 
   nx_sensors_analog_enable(0);
+  nx_sensors_analog_enable(1);
+  nx_sensors_analog_enable(2);
+  nx_sensors_analog_enable(3);
 
   for (i=0; i<(display_seconds*4); i++) {
     nx_display_clear();
