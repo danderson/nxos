@@ -4,8 +4,8 @@
 
 #include "base/asm_decls.h"
 
-	.global run_first_task
-run_first_task:
+	.global mv__task_run_first
+mv__task_run_first:
 	stmfd sp!, {lr}
 
 	/* We need to disable interrupts when first switching to system mode, to
@@ -35,16 +35,16 @@ run_first_task:
 	ldmfd sp!, {lr}
 	bx lr
 
-	.global get_system_stack
-get_system_stack:
+	.global mv__task_get_stack
+mv__task_get_stack:
 	mrs r1, cpsr
 	msr cpsr_c, #(MODE_SYS | IRQ_FIQ_MASK)
 	mov r0, sp
 	msr cpsr_all, r1
 	bx lr
 
-	.global set_system_stack
-set_system_stack:
+	.global mv__task_set_stack
+mv__task_set_stack:
 	mrs r1, cpsr
 	msr cpsr_c, #(MODE_SYS | IRQ_FIQ_MASK)
 	mov sp, r0
