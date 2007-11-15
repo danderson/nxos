@@ -24,7 +24,7 @@
 #define M_A 0
 #define M_B 2
 
-#define DETECT_DISTANCE 50
+#define DETECT_DISTANCE 40
 #define SPEED 100
 
 #define BEEP(x) nx_sound_freq_async(x, 100)
@@ -103,7 +103,7 @@ static void live() {
         nx_display_uint(readings[obj]);
         nx_display_string(" cm\n");
 
-        if (readings[obj] < DETECT_DISTANCE)
+        if (readings[0] < DETECT_DISTANCE)
           detect = TRUE;
       }
 
@@ -127,7 +127,7 @@ static void live() {
       nx_display_string("Turning...\n");
       nx_motors_rotate(M_A, SPEED);
       nx_motors_rotate(M_B,-SPEED);
-      nx_systick_wait_ms(2000);
+      nx_systick_wait_ms(1000);
 
       state = ST_FORWARD;
       break;
