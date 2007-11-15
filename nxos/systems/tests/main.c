@@ -2,6 +2,7 @@
 
 void main() {
   //tests_all();
-  tests_usb();
+  //tests_usb();
   //tests_usb_hardcore();
+  tests_radar();
 }
