@@ -195,6 +195,9 @@ void tests_sensors() {
   hello();
 
   nx_sensors_analog_enable(0);
+  nx_sensors_analog_enable(1);
+  nx_sensors_analog_enable(2);
+  nx_sensors_analog_enable(3);
 
   for (i=0; i<(display_seconds*4); i++) {
     nx_display_clear();
@@ -393,14 +396,6 @@ void tests_bt()
   for (i = 0 ; i < 10 ; i++)
     {
       nx_display_clear();
-      nx_display_uint(nx_uart_nmb_interrupt());
-      nx_display_end_line();
-      nx_display_hex(nx_uart_get_last_csr());
-      nx_display_end_line();
-      nx_display_hex(nx_uart_get_csr());
-      nx_display_end_line();
-      nx_display_hex(nx_uart_get_state());
-      nx_display_end_line();
       nx_bt_debug();
 
       nx_systick_wait_ms(1000);
@@ -445,8 +440,10 @@ void tests_all();
 
 void tests_usb() {
   U16 i;
-  S32 lng, t;
-  char *buffer;
+  S32 t;
+  U32 lng = 0;
+
+  char buffer[NX_USB_PACKET_SIZE];
 
   hello();
 
@@ -454,7 +451,9 @@ void tests_usb() {
     nx_display_cursor_set_pos(0, 0);
     nx_display_string("Waiting command ...");
 
-    for (i = 0 ; i < 500 && !nx_usb_has_data(); i++)
+    nx_usb_read((U8 *)&buffer, NX_USB_PACKET_SIZE * sizeof(char));
+
+    for (i = 0 ; i < 500 && !nx_usb_data_read(); i++)
     {
       nx_systick_wait_ms(200);
     }
@@ -464,13 +463,12 @@ void tests_usb() {
 
     nx_display_clear();
 
-    lng = nx_usb_has_data();
+    lng = nx_usb_data_read();
 
-    buffer = (char *)nx_usb_get_buffer();
-    if ((lng+1) < NX_USB_BUFFER_SIZE)
+    if ((lng+1) < NX_USB_PACKET_SIZE)
       buffer[lng+1] = '\0';
     else
-      buffer[NX_USB_BUFFER_SIZE-1] = '\0';
+      buffer[NX_USB_PACKET_SIZE-1] = '\0';
 
     nx_display_cursor_set_pos(0, 0);
     nx_display_string("==");
@@ -537,14 +535,11 @@ void tests_usb() {
     }
     else {
       i = 1;
-      nx_usb_send((U8 *)USB_UNKNOWN, sizeof(USB_UNKNOWN)-1);
+      nx_usb_write((U8 *)USB_UNKNOWN, sizeof(USB_UNKNOWN)-1);
     }
 
     if (i == 0) {
-      if (!nx_usb_overloaded())
-	nx_usb_send((U8 *)USB_OK, sizeof(USB_OK)-1);
-      else
-	nx_usb_send((U8 *)USB_OVERLOADED, sizeof(USB_OVERLOADED)-1);
+      nx_usb_write((U8 *)USB_OK, sizeof(USB_OK)-1);
     }
 
     /* Stop interpreting */
@@ -552,8 +547,6 @@ void tests_usb() {
     nx_systick_wait_ms(500);
 
     nx_display_clear();
-
-    nx_usb_flush_buffer();
 
   }
 
@@ -563,24 +556,24 @@ void tests_usb() {
 void tests_usb_hardcore() {
   int i, lng;
 
-  char *buffer;
+  char buffer[NX_USB_PACKET_SIZE];
 
   hello();
 
   nx_systick_wait_ms(6000);
 
+  nx_usb_read((U8 *)(&buffer), NX_USB_PACKET_SIZE);
+
   for (i = 0 ; i < 1800 ; i++) {
 
-    if ( (lng = nx_usb_has_data()) > 0) {
-      buffer = (char *)nx_usb_get_buffer();
+    if ( (lng = nx_usb_data_read()) > 0) {
       if (compare_str(buffer, "halt", lng)) {
 	break;
       }
-      nx_usb_flush_buffer();
+      nx_usb_read((U8 *)(&buffer), NX_USB_PACKET_SIZE);
     }
 
-
-    nx_usb_send((U8 *)"TEST", 5);
+    nx_usb_write((U8 *)"TEST", 5);
   }
 
   goodbye();
