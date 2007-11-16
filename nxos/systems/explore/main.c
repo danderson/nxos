@@ -6,6 +6,7 @@
  */
 
 #include "base/types.h"
+#include "base/core.h"
 #include "base/display.h"
 #include "base/dump.h"
 #include "base/drivers/avr.h"
@@ -25,9 +26,9 @@
 #define M_B 2
 
 #define DETECT_DISTANCE 40
-#define SPEED 100
+#define SPEED -100
 
-#define BEEP(x) nx_sound_freq_async(x, 100)
+#define BEEP(x) nx_sound_freq_async(x, 200)
 
 typedef enum {
   ST_STOP = 0,
@@ -40,7 +41,15 @@ typedef enum {
 static simu_state state;
 static U32 start_tick;
 
+/** Security hook. A press on concel will inconditionally halt the brick.
+ */
+void watchdog() {
+ if (nx_avr_get_button() == BUTTON_CANCEL)
+    nx_core_halt();
+}
+
 static void init() {
+  nx_systick_install_scheduler(watchdog);
   nx_radar_init(RADAR);
 
   nx_display_clear();
@@ -108,7 +117,7 @@ static void live() {
       }
 
       if (detect) {
-        BEEP(1000);
+        BEEP(2000);
         state = ST_TURN;
       }
       break;
@@ -116,8 +125,8 @@ static void live() {
     case ST_TURN:
       nx_display_string("Braking...\n");
 
-      nx_motors_rotate(M_A, -SPEED);
-      nx_motors_rotate(M_B, -SPEED);
+      nx_motors_rotate(M_A, -(SPEED));
+      nx_motors_rotate(M_B, -(SPEED));
       nx_systick_wait_ms(500);
 
       state = ST_TURN1;
@@ -126,7 +135,7 @@ static void live() {
     case ST_TURN1:
       nx_display_string("Turning...\n");
       nx_motors_rotate(M_A, SPEED);
-      nx_motors_rotate(M_B,-SPEED);
+      nx_motors_rotate(M_B,-(SPEED));
       nx_systick_wait_ms(1000);
 
       state = ST_FORWARD;
@@ -155,9 +164,8 @@ static void die() {
 void main() {
   init();
   start();
-
-  while (nx_systick_get_ms() < start_tick + RUNTIME * 1000
-    && nx_avr_get_button() != BUTTON_OK) {
+  
+  while (nx_systick_get_ms() < start_tick + RUNTIME * 1000) {
     live();
     nx_systick_wait_ms(SIMU_TICK);
   }
