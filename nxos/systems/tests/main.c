@@ -18,6 +18,7 @@ void main() {
   nx_systick_install_scheduler(security_hook);
 
   //tests_all();
-  tests_usb();
+  //tests_usb();
+  tests_bt();
   //tests_usb_hardcore();
 }
