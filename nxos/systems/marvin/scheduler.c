@@ -23,6 +23,9 @@
  */
 #define TASK_SWITCH_RESOLUTION 1
 
+/* Command codes for tasks. */
+#define TASK_DIE 0x1
+
 /* A task descriptor. */
 struct mv_task {
   U32 *stack_base; /* The stack base (allocated pointer). */
@@ -41,6 +44,11 @@ mv_task_t *current_task = NULL;
  * bootup.
  */
 mv_task_t *idle_task = NULL;
+
+/* Command word. This is used to transmit directives from tas to
+ * scheduler.
+ */
+U32 task_command = 0;
 
 /* This is where most of the magic happens. This function gets called
  * every millisecond to make a scheduling decision.
