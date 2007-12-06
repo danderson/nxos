@@ -18,7 +18,7 @@
 
 /** Demo runtime in seconds. */
 #define RUNTIME 60
-#define SIMU_TICK 500
+#define SIMU_TICK 250
 
 /** Sensors/motors ports definitions. */
 #define RADAR 0
@@ -27,6 +27,8 @@
 
 #define DETECT_DISTANCE 40
 #define SPEED -100
+#define BRAKE_WAIT 500
+#define TURN_WAIT 750
 
 #define BEEP(x) nx_sound_freq_async(x, 200)
 
@@ -83,7 +85,7 @@ static void start() {
 }
 
 static void live() {
-  U8 readings[8];
+	static U8 turn = 0;
   U32 obj;
   bool detect = FALSE;
 
@@ -106,13 +108,13 @@ static void live() {
 
     case ST_DETECT:      
       for (obj = 0 ; obj < 8 ; obj++) {
-        readings[obj] = nx_radar_read_distance(RADAR, obj);
+        U8 reading = nx_radar_read_distance(RADAR, obj);
         nx_display_uint(obj);
         nx_display_string("> ");
-        nx_display_uint(readings[obj]);
+        nx_display_uint(reading);
         nx_display_string(" cm\n");
 
-        if (readings[0] < DETECT_DISTANCE)
+        if (reading > 0 && reading <= DETECT_DISTANCE)
           detect = TRUE;
       }
 
@@ -125,18 +127,27 @@ static void live() {
     case ST_TURN:
       nx_display_string("Braking...\n");
 
-      nx_motors_rotate(M_A, -(SPEED));
-      nx_motors_rotate(M_B, -(SPEED));
-      nx_systick_wait_ms(500);
+      nx_motors_rotate(M_A, -SPEED);
+      nx_motors_rotate(M_B, -SPEED);
+      nx_systick_wait_ms(BRAKE_WAIT);
 
       state = ST_TURN1;
       break;
 
     case ST_TURN1:
       nx_display_string("Turning...\n");
-      nx_motors_rotate(M_A, SPEED);
-      nx_motors_rotate(M_B,-(SPEED));
-      nx_systick_wait_ms(1000);
+
+			if (turn == 0) {
+      	nx_motors_rotate(M_A, SPEED);
+      	nx_motors_rotate(M_B,-SPEED);
+				turn = 1;
+			} else {
+				nx_motors_rotate(M_A,-SPEED);
+      	nx_motors_rotate(M_B, SPEED);
+				turn = 0;
+			}
+			
+      nx_systick_wait_ms(TURN_WAIT);
 
       state = ST_FORWARD;
       break;
