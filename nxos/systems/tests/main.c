@@ -19,5 +19,6 @@ void main() {
 
   //tests_all();
   tests_usb();
+  //tests_bt();
   //tests_usb_hardcore();
 }
