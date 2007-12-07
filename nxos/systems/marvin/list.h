@@ -78,9 +78,9 @@
 
 /** Remove @a item from @a list */
 #define mv_list_remove(list, item) ({ \
-  if (((item)->next == (item)) && ((item)->prev == (item))) \
+      if (((item)->next == (item)) && ((item)->prev == (item))) { \
     (item)->next = (item)->prev = (list) = NULL; \
-  else { \
+  } else {					 \
     (item)->prev->next = (item)->next; \
     (item)->next->prev = (item)->prev; \
     if ((item) == (list)) \
