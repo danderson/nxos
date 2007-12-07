@@ -34,4 +34,22 @@ typedef struct mv_task mv_task_t;
  */
 void mv_scheduler_create_task(nx_closure_t func, U32 stack);
 
+/** Increment the scheduler lock.
+ *
+ * The scheduler lock is recursive. If you lock it N times, you must
+ * unlock it N times (or reset it to zero) to effectively unlock the
+ * scheduler.
+ *
+ * @note While the scheduler is locked, the currently running task
+ * effectively cannot be preempted. Be sure to keep the locking short.
+ */
+void mv_scheduler_lock();
+
+/** Decrement the scheduler lock.
+ *
+ * If the scheduler lock reaches zero, the scheduler state is unlocked
+ * and the currently running task becomes preemptable again.
+ */
+void mv_scheduler_unlock();
+
 #endif /* __NXOS_MARVIN_SCHEDULER_H__ */

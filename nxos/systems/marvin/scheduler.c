@@ -15,6 +15,7 @@
 #include "base/drivers/avr.h"
 
 #include "_task.h"
+#include "list.h"
 
 #include "_scheduler.h"
 
@@ -23,32 +24,39 @@
  */
 #define TASK_SWITCH_RESOLUTION 1
 
-/* Command codes for tasks. */
-#define TASK_DIE 0x1
-
 /* A task descriptor. */
 struct mv_task {
   U32 *stack_base; /* The stack base (allocated pointer). */
   U32 *stack_current; /* The current position of the stack pointer. */
-  struct mv_task *next; /* Pointer to the next task. */
+
+  /* The task structure is handled as a circularly linked list, as
+   * defined by list.h.
+   */
+  struct mv_task *next, *prev;
 };
 
-/* The list of tasks that are available for running. */
-mv_task_t *available_tasks = NULL;
+/* The state of the scheduler. */
+static struct {
+  struct mv_task *tasks_ready; /* All the ready tasks waiting for CPU time. */
+  struct mv_task *tasks_blocked; /* Unschedulable tasks. */
 
-/* The currently running task. */
-mv_task_t *current_task = NULL;
+  struct mv_task *task_current; /* The task currently consuming CPU. */
+  struct mv_task *task_idle; /* The idle task. */
+} sched_state = { NULL, NULL, NULL, NULL };
 
-/* The idle task. This one is only executed when no other tasks can
- * run. It is also the first task that the scheduler fires up on
- * bootup.
+/* The scheduler lock count. This is a recursive mutex that protects
+ * the data in sched_state.
  */
-mv_task_t *idle_task = NULL;
+static U32 sched_lock = 0;
 
-/* Command word. This is used to transmit directives from tas to
- * scheduler.
+/* Commands for tasks. These are transmitted to the scheduler from the
+ * task that it preempted, and lets the task request some special operations.
  */
-U32 task_command = 0;
+/* static enum { */
+/*   TASK_NONE = 0, */
+/*   TASK_YIELD, /\* The preempted task wants to yield to another task. *\/ */
+/*   TASK_DIE,   /\* The preempted tasks asked to be killed. *\/ */
+/* } task_command = TASK_NONE; */
 
 /* This is where most of the magic happens. This function gets called
  * every millisecond to make a scheduling decision.
@@ -65,15 +73,23 @@ static void scheduler_cb() {
   if (nx_avr_get_button() == BUTTON_CANCEL)
     nx_core_halt();
 
+  /* If the scheduler state is locked, nothing can be done. */
+  if (sched_lock > 0) {
+    if (cnt != 0)
+      cnt = (cnt + 1) % TASK_SWITCH_RESOLUTION;
+    return;
+  }
+
+  /* Task switching time! */
   if (cnt == 0) {
-    current_task->stack_current = mv__task_get_stack();
-    if (current_task == idle_task && available_tasks != NULL)
-      current_task = available_tasks;
-    else if (current_task->next == NULL)
-      current_task = available_tasks;
-    else
-      current_task = current_task->next;
-    mv__task_set_stack(current_task->stack_current);
+    sched_state.task_current->stack_current = mv__task_get_stack();
+    if (mv_list_is_empty(sched_state.tasks_ready)) {
+      sched_state.task_current = sched_state.task_idle;
+    } else {
+      sched_state.task_current = mv_list_get_head(sched_state.tasks_ready);
+      mv_list_rotate_forward(sched_state.tasks_ready);
+    }
+    mv__task_set_stack(sched_state.task_current->stack_current);
   }
 
   cnt = (cnt + 1) % TASK_SWITCH_RESOLUTION;
@@ -96,6 +112,8 @@ static mv_task_t *new_task(nx_closure_t func, U32 stack_size) {
     s->cpsr |= 0x20;
   }
 
+  mv_list_init_singleton(t, t);
+
   return t;
 }
 
@@ -109,22 +127,34 @@ static void task_idle() {
 }
 
 void mv__scheduler_init() {
-  idle_task = new_task(task_idle, 128);
+  sched_state.task_idle = new_task(task_idle, 128);
   /* The idle task doesn't start with a rolled up task state. Rewind its
    * current stack position.
    */
-  idle_task->stack_current += sizeof(nx_task_stack_t);
-  current_task = idle_task;
+  sched_state.task_idle->stack_current += sizeof(nx_task_stack_t);
+  sched_state.task_current = sched_state.task_idle;
 }
 
 void mv__scheduler_run() {
   nx_interrupts_disable();
   nx_systick_install_scheduler(scheduler_cb);
-  mv__task_run_first(task_idle, idle_task->stack_current);
+  mv__task_run_first(task_idle, sched_state.task_idle->stack_current);
 }
 
 void mv_scheduler_create_task(nx_closure_t func, U32 stack) {
   mv_task_t *t = new_task(func, stack);
-  t->next = available_tasks;
-  available_tasks = t;
+  mv_scheduler_lock();
+  mv_list_add_tail(sched_state.tasks_ready, t);
+  mv_scheduler_unlock();
+}
+
+void mv_scheduler_lock() {
+  /* Because the lock prevents the scheduler from preempting the task,
+   * there is no need for fancy atomic operations here.
+   */
+  sched_lock++;
+}
+
+void mv_scheduler_unlock() {
+  sched_lock--;
 }
