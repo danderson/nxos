@@ -444,7 +444,8 @@ static U8 compare_str(char *str_a, char *str_b, U32 max)
 
 void tests_all();
 
-#define MOVE_TIME 1000
+#define MOVE_TIME_AV 1000
+#define MOVE_TIME_AR 3000
 
 /**
  * @return 0 if success ; 1 if unknown command ; 2 if halt
@@ -480,9 +481,9 @@ static int tests_command(char *buffer, int lng)
   else if (compare_str(buffer, "halt", lng))
     return 2;
   else if (compare_str(buffer, "Al", lng))
-    nx_motors_rotate_angle(0, 70, 100, 1);
+    nx_motors_rotate_angle(0, 90, 100, 1);
   else if (compare_str(buffer, "Ar", lng))
-    nx_motors_rotate_angle(0, -70, 100, 1);
+    nx_motors_rotate_angle(0, -90, 100, 1);
   else if (compare_str(buffer, "Ac", lng)) {
     nx_motors_rotate(0, 75);
     while((t = nx_motors_get_tach_count(0)) != 0) {
@@ -499,26 +500,21 @@ static int tests_command(char *buffer, int lng)
   } else if (compare_str(buffer, "BCf", lng)) {
     nx_motors_rotate(1, -100);
     nx_motors_rotate(2, -100);
-    nx_systick_wait_ms(MOVE_TIME);
+    nx_systick_wait_ms(MOVE_TIME_AV);
     nx_motors_stop(1, 0);
     nx_motors_stop(2, 0);
   } else if (compare_str(buffer, "BCr", lng)) {
     nx_motors_rotate(1, 80);
     nx_motors_rotate(2, 80);
-    nx_systick_wait_ms(MOVE_TIME);
+    nx_systick_wait_ms(MOVE_TIME_AR);
     nx_motors_stop(1, 0);
     nx_motors_stop(2, 0);
   }
   else {
     i = 1;
-    nx_usb_write((U8 *)CMD_UNKNOWN, sizeof(CMD_UNKNOWN)-1);
   }
 
-  if (i == 0) {
-    nx_usb_write((U8 *)CMD_OK, sizeof(CMD_OK)-1);
-  }
-
-  return 0;
+  return i;
 }
 
 #define BT_PACKET_SIZE 128
@@ -554,7 +550,7 @@ void tests_bt() {
   while(TRUE) {
 
     for (i = 0 ;
-         i < 20 && (!nx_bt_stream_opened() || nx_bt_stream_data_read() < 2);
+         i < 800 && (!nx_bt_stream_opened() || nx_bt_stream_data_read() < 2);
          i++)
       {
         if (connection_handle >= 0) {
@@ -577,28 +573,23 @@ void tests_bt() {
 
           connection_handle = bleh;
 
-          nx_systick_wait_ms(1000);
-
           nx_bt_debug();
 
           nx_bt_stream_open(connection_handle);
-
-          nx_systick_wait_ms(1000);
 
           nx_bt_debug();
 
           nx_bt_stream_read((U8 *)&buffer, 2); /* we read the packet size first */
 
           nx_display_cursor_set_pos(0, 4);
-          nx_display_string("BLEH ...");
 
         }
 
         nx_bt_debug();
-        nx_systick_wait_ms(1000);
+        nx_systick_wait_ms(100);
       }
 
-    if (!nx_bt_stream_opened() || i >= 20)
+    if (!nx_bt_stream_opened() || i >= 800)
       break;
 
     lng = buffer[0] + (buffer[1] << 8);
@@ -608,8 +599,6 @@ void tests_bt() {
     nx_display_string("Reading ...");
     nx_display_cursor_set_pos(0, 1);
     nx_display_uint(lng);
-
-    nx_systick_wait_ms(1000);
 
     nx_bt_stream_read((U8 *)&buffer, lng);
 
@@ -641,8 +630,7 @@ void tests_bt() {
     }
     */
 
-    nx_systick_wait_ms(500);
-
+    nx_systick_wait_ms(100);
     nx_display_clear();
 
   }
@@ -653,9 +641,6 @@ void tests_bt() {
   nx_systick_wait_ms(1000);
 
   nx_bt_debug();
-
-  if (strlen(buffer) > 0)
-    nx_usb_write((U8*)&buffer, strlen(buffer));
 
   goodbye();
 }
