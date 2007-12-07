@@ -59,17 +59,20 @@ static enum {
 } task_command = CMD_NONE;
 
 /** Set the next task to run. */
-static void reschedule() {
-  sched_state.task_current->stack_current = mv__task_get_stack();
-
+static inline void reschedule() {
   if (mv_list_is_empty(sched_state.tasks_ready)) {
     sched_state.task_current = sched_state.task_idle;
   } else {
     sched_state.task_current = mv_list_get_head(sched_state.tasks_ready);
     mv_list_rotate_forward(sched_state.tasks_ready);
   }
+}
 
-  mv__task_set_stack(sched_state.task_current->stack_current);
+static inline void destroy_running_task() {
+  mv_list_remove(sched_state.tasks_ready, sched_state.task_current);
+  nx_free(sched_state.task_current->stack_base);
+  nx_free(sched_state.task_current);
+  sched_state.task_current = NULL;
 }
 
 /* This is where most of the magic happens. This function gets called
@@ -104,14 +107,26 @@ static void scheduler_cb() {
     cnt = 0;
     break;
   case CMD_DIE:
-    // TODO: implement
+    destroy_running_task();
+    cnt = 0;
     break;
   }
   task_command = CMD_NONE;
 
   /* Task switching time! */
-  if (cnt == 0)
+  if (cnt == 0) {
+    if (sched_state.task_current != NULL)
+      sched_state.task_current->stack_current = mv__task_get_stack();
     reschedule();
+    mv__task_set_stack(sched_state.task_current->stack_current);
+  }
+}
+
+void wrapup_task() {
+  nx_interrupts_disable();
+  task_command = CMD_DIE;
+  nx_systick_call_scheduler();
+  nx_interrupts_enable();
 }
 
 static mv_task_t *new_task(nx_closure_t func, U32 stack_size) {
@@ -125,6 +140,7 @@ static mv_task_t *new_task(nx_closure_t func, U32 stack_size) {
   t->stack_current = t->stack_base + (stack_size >> 2) - sizeof(*s);
   s = (nx_task_stack_t*)t->stack_current;
   s->pc = (U32)func;
+  s->lr = (U32)wrapup_task;
   s->cpsr = 0x1F; /* TODO: Nice define. */
   if (s->pc & 0x1) {
     s->pc &= 0xFFFFFFFE;
