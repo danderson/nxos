@@ -52,11 +52,25 @@ static U32 sched_lock = 0;
 /* Commands for tasks. These are transmitted to the scheduler from the
  * task that it preempted, and lets the task request some special operations.
  */
-/* static enum { */
-/*   TASK_NONE = 0, */
-/*   TASK_YIELD, /\* The preempted task wants to yield to another task. *\/ */
-/*   TASK_DIE,   /\* The preempted tasks asked to be killed. *\/ */
-/* } task_command = TASK_NONE; */
+static enum {
+  CMD_NONE = 0,
+  CMD_YIELD, /* The preempted task wants to yield to another task. */
+  CMD_DIE,   /* The preempted tasks asked to be killed. */
+} task_command = CMD_NONE;
+
+/** Set the next task to run. */
+static void reschedule() {
+  sched_state.task_current->stack_current = mv__task_get_stack();
+
+  if (mv_list_is_empty(sched_state.tasks_ready)) {
+    sched_state.task_current = sched_state.task_idle;
+  } else {
+    sched_state.task_current = mv_list_get_head(sched_state.tasks_ready);
+    mv_list_rotate_forward(sched_state.tasks_ready);
+  }
+
+  mv__task_set_stack(sched_state.task_current->stack_current);
+}
 
 /* This is where most of the magic happens. This function gets called
  * every millisecond to make a scheduling decision.
@@ -65,7 +79,7 @@ static void scheduler_cb() {
   /* We want to schedule every TASK_SWITCH_RESOLUTION ms, so we keep a
    * counter to decide when to schedule.
    */
-  static int cnt = 0;
+  static int cnt = TASK_SWITCH_RESOLUTION - 1;
 
   /* Security mechanism: in case the system crashes, as long as the
    * scheduler is still running, the brick can be powered off.
@@ -80,19 +94,24 @@ static void scheduler_cb() {
     return;
   }
 
-  /* Task switching time! */
-  if (cnt == 0) {
-    sched_state.task_current->stack_current = mv__task_get_stack();
-    if (mv_list_is_empty(sched_state.tasks_ready)) {
-      sched_state.task_current = sched_state.task_idle;
-    } else {
-      sched_state.task_current = mv_list_get_head(sched_state.tasks_ready);
-      mv_list_rotate_forward(sched_state.tasks_ready);
-    }
-    mv__task_set_stack(sched_state.task_current->stack_current);
-  }
-
   cnt = (cnt + 1) % TASK_SWITCH_RESOLUTION;
+
+  /* Process pending commands, if any */
+  switch (task_command) {
+  case CMD_NONE:
+    break;
+  case CMD_YIELD:
+    cnt = 0;
+    break;
+  case CMD_DIE:
+    // TODO: implement
+    break;
+  }
+  task_command = CMD_NONE;
+
+  /* Task switching time! */
+  if (cnt == 0)
+    reschedule();
 }
 
 static mv_task_t *new_task(nx_closure_t func, U32 stack_size) {
@@ -146,6 +165,13 @@ void mv_scheduler_create_task(nx_closure_t func, U32 stack) {
   mv_scheduler_lock();
   mv_list_add_tail(sched_state.tasks_ready, t);
   mv_scheduler_unlock();
+}
+
+void mv_scheduler_yield() {
+  nx_interrupts_disable();
+  task_command = CMD_YIELD;
+  nx_systick_call_scheduler();
+  nx_interrupts_enable();
 }
 
 void mv_scheduler_lock() {

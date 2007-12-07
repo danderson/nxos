@@ -34,6 +34,13 @@ typedef struct mv_task mv_task_t;
  */
 void mv_scheduler_create_task(nx_closure_t func, U32 stack);
 
+/** Explicitely yield the CPU.
+ *
+ * This will cause the calling task to be preempted. You shouldn't
+ * really need this, except maybe for testing purposes.
+ */
+void mv_scheduler_yield();
+
 /** Increment the scheduler lock.
  *
  * The scheduler lock is recursive. If you lock it N times, you must
