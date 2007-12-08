@@ -58,7 +58,7 @@ static enum {
   CMD_DIE,   /* The preempted tasks asked to be killed. */
 } task_command = CMD_NONE;
 
-/** Set the next task to run. */
+/* Set the next task to run. */
 static inline void reschedule() {
   if (mv_list_is_empty(sched_state.tasks_ready)) {
     sched_state.task_current = sched_state.task_idle;
@@ -157,8 +157,13 @@ static void task_idle() {
    * interrupt handling disabled. So we reenable it before getting on
    * with out Important Work: doing nothing.
    */
+  mv_scheduler_yield();
   nx_interrupts_enable();
-  while(1);
+  while(1) {
+    if (mv_list_is_empty(sched_state.tasks_blocked))
+      NX_FAIL("All tasks dead");
+    mv_scheduler_yield();
+  }
 }
 
 void mv__scheduler_init() {
