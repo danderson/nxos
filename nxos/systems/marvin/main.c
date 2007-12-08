@@ -8,11 +8,9 @@
 
 #include "base/types.h"
 #include "base/display.h"
-#include "base/memmap.h"
 #include "base/memalloc.h"
 #include "base/drivers/systick.h"
 #include "base/drivers/sound.h"
-#include "base/drivers/motors.h"
 #include "_scheduler.h"
 
 static void test_beep() {
