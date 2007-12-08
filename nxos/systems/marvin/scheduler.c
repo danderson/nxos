@@ -107,18 +107,21 @@ static void scheduler_cb() {
   cnt = (cnt + 1) % TASK_SWITCH_RESOLUTION;
 
   /* Process pending commands, if any */
-  switch (task_command) {
-  case CMD_NONE:
-    break;
-  case CMD_YIELD:
-    cnt = 0;
-    break;
-  case CMD_DIE:
-    destroy_running_task();
-    cnt = 0;
-    break;
+  if (task_command != CMD_NONE) {
+    switch (task_command) {
+    case CMD_YIELD:
+      cnt = 0;
+      break;
+    case CMD_DIE:
+      destroy_running_task();
+      cnt = 0;
+      break;
+    default:
+      break;
+    }
+    task_command = CMD_NONE;
+    nx_systick_unmask_scheduler();
   }
-  task_command = CMD_NONE;
 
   /* Task switching time! */
   if (cnt == 0) {
@@ -131,10 +134,9 @@ static void scheduler_cb() {
 
 /* Task trailer stub. This is invoked when task functions return  */
 static void task_shutdown() {
-  nx_interrupts_disable();
+  nx_systick_mask_scheduler();
   task_command = CMD_DIE;
   nx_systick_call_scheduler();
-  nx_interrupts_enable();
 }
 
 /* Build a new task descriptor for a task that will run the given
@@ -169,9 +171,13 @@ static mv_task_t *new_task(nx_closure_t func, U32 stack_size) {
  * Important Work: doing nothing.
  */
 static void task_idle() {
-  mv_scheduler_yield();
+  mv_scheduler_yield(FALSE);
   nx_interrupts_enable();
   while(1) {
+    /* It is slightly evil to consult this without first locking the
+     * scheduler, but given how the scheduler is in effect implemented,
+     * we're okay.
+     */
     if (mv_list_is_empty(sched_state.tasks_blocked))
       NX_FAIL("All tasks dead");
     mv_scheduler_yield();
@@ -218,11 +224,16 @@ void mv_scheduler_create_task(nx_closure_t func, U32 stack) {
   mv_scheduler_unlock();
 }
 
-void mv_scheduler_yield() {
-  nx_interrupts_disable();
+void mv_scheduler_yield(bool unlock) {
+  nx_systick_mask_scheduler();
   task_command = CMD_YIELD;
+  if (unlock)
+    mv_scheduler_unlock();
   nx_systick_call_scheduler();
-  nx_interrupts_enable();
+}
+
+mv_task_t *mv_scheduler_get_current_task() {
+  return sched_state.task_current;
 }
 
 void mv_scheduler_lock() {

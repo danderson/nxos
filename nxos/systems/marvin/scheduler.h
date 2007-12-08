@@ -38,8 +38,17 @@ void mv_scheduler_create_task(nx_closure_t func, U32 stack);
  *
  * This will cause the calling task to be preempted. You shouldn't
  * really need this, except maybe for testing purposes.
+ *
+ * @param unlock If TRUE, the scheduler will be atomically unlocked just
+ *               before yielding.
  */
-void mv_scheduler_yield();
+void mv_scheduler_yield(bool unlock);
+
+/** Return a handle to the current task.
+ *
+ * @return The mv_task_t handle of the current task.
+ */
+mv_task_t *mv_scheduler_get_current_task();
 
 /** Increment the scheduler lock.
  *
