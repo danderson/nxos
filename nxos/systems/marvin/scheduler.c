@@ -29,6 +29,12 @@ struct mv_task {
   U32 *stack_base; /* The stack base (allocated pointer). */
   U32 *stack_current; /* The current position of the stack pointer. */
 
+  /** Task state. */
+  enum {
+    READY = 0,
+    BLOCKED,
+  } state;
+
   /* The task structure is handled as a circularly linked list, as
    * defined by list.h.
    */
@@ -58,7 +64,7 @@ static enum {
   CMD_DIE,   /* The preempted tasks asked to be killed. */
 } task_command = CMD_NONE;
 
-/* Set the next task to run. */
+/* Decide on the next task to run. */
 static inline void reschedule() {
   if (mv_list_is_empty(sched_state.tasks_ready)) {
     sched_state.task_current = sched_state.task_idle;
@@ -68,6 +74,7 @@ static inline void reschedule() {
   }
 }
 
+/* Destroy the task that was just preempted. */
 static inline void destroy_running_task() {
   mv_list_remove(sched_state.tasks_ready, sched_state.task_current);
   nx_free(sched_state.task_current->stack_base);
@@ -76,7 +83,7 @@ static inline void destroy_running_task() {
 }
 
 /* This is where most of the magic happens. This function gets called
- * every millisecond to make a scheduling decision.
+ * every millisecond to handle scheduling decisions.
  */
 static void scheduler_cb() {
   /* We want to schedule every TASK_SWITCH_RESOLUTION ms, so we keep a
@@ -122,13 +129,17 @@ static void scheduler_cb() {
   }
 }
 
-void wrapup_task() {
+/* Task trailer stub. This is invoked when task functions return  */
+static void task_shutdown() {
   nx_interrupts_disable();
   task_command = CMD_DIE;
   nx_systick_call_scheduler();
   nx_interrupts_enable();
 }
 
+/* Build a new task descriptor for a task that will run the given
+ * function when activated.
+ */
 static mv_task_t *new_task(nx_closure_t func, U32 stack_size) {
   mv_task_t *t;
   nx_task_stack_t *s;
@@ -139,24 +150,25 @@ static mv_task_t *new_task(nx_closure_t func, U32 stack_size) {
   t->stack_base = nx_calloc(1, stack_size);
   t->stack_current = t->stack_base + (stack_size >> 2) - sizeof(*s);
   s = (nx_task_stack_t*)t->stack_current;
-  s->pc = (U32)func;
-  s->lr = (U32)wrapup_task;
+  s->pc = (U32) func;
+  s->lr = (U32) task_shutdown;
   s->cpsr = 0x1F; /* TODO: Nice define. */
   if (s->pc & 0x1) {
     s->pc &= 0xFFFFFFFE;
     s->cpsr |= 0x20;
   }
+  t->state = READY;
 
   mv_list_init_singleton(t, t);
 
   return t;
 }
 
+/* The idle task is where the scheduler first starts up, with interrupt
+ * handling disabled. So we reenable it before getting on with out
+ * Important Work: doing nothing.
+ */
 static void task_idle() {
-  /* The idle task is where the scheduler first starts up, with
-   * interrupt handling disabled. So we reenable it before getting on
-   * with out Important Work: doing nothing.
-   */
   mv_scheduler_yield();
   nx_interrupts_enable();
   while(1) {
@@ -179,6 +191,24 @@ void mv__scheduler_run() {
   nx_interrupts_disable();
   nx_systick_install_scheduler(scheduler_cb);
   mv__task_run_first(task_idle, sched_state.task_idle->stack_current);
+}
+
+void mv__scheduler_task_block(mv_task_t *task) {
+  mv_scheduler_lock();
+  NX_ASSERT(task->state == READY);
+  mv_list_remove(sched_state.tasks_ready, task);
+  task->state = BLOCKED;
+  mv_list_add_tail(sched_state.tasks_blocked, task);
+  mv_scheduler_unlock();
+}
+
+void mv__scheduler_task_unblock(mv_task_t *task) {
+  mv_scheduler_lock();
+  NX_ASSERT(task->state == BLOCKED);
+  mv_list_remove(sched_state.tasks_blocked, task);
+  task->state = READY;
+  mv_list_add_tail(sched_state.tasks_ready, task);
+  mv_scheduler_unlock();
 }
 
 void mv_scheduler_create_task(nx_closure_t func, U32 stack) {
