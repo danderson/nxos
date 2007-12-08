@@ -12,32 +12,29 @@
 #include "base/drivers/systick.h"
 #include "base/drivers/sound.h"
 #include "_scheduler.h"
+#include "semaphore.h"
 
-static void test_beep() {
-  nx_sound_freq(820, 500);
+mv_sem_t *beep_res;
+
+static void beep_consumer() {
+  while(1) {
+    mv_semaphore_dec(beep_res);
+    nx_sound_freq(820, 500);
+  }
 }
 
-static void test_display() {
-  static U32 counter = 0;
-  counter++;
-  nx_display_clear();
-  nx_display_cursor_set_pos(0,0);
-  nx_display_uint(counter);
-  nx_display_end_line();
-}
-
-static void task_spawner() {
-  int i;
-  for (i=0; i<10; i++) {
-    mv_scheduler_create_task(test_beep, 512);
-    mv_scheduler_create_task(test_display, 512);
+static void beep_producer() {
+  while(1) {
     nx_systick_wait_ms(2000);
+    mv_semaphore_inc(beep_res);
   }
 }
 
 void main() {
   nx_memalloc_init();
   mv__scheduler_init();
-  mv_scheduler_create_task(task_spawner, 512);
+  beep_res = mv_semaphore_create(0);
+  mv_scheduler_create_task(beep_consumer, 512);
+  mv_scheduler_create_task(beep_producer, 512);
   mv__scheduler_run();
 }
