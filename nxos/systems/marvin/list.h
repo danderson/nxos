@@ -15,22 +15,22 @@
 
 #include "base/types.h"
 
-/** Internal macro to insert an item before another item.
+/** Insert an @a item before another item.
  *
- * This assumes that item is part of a working list.
+ * @warning This assumes that @a before_this is part of a working list.
  */
-#define __mv_list_insert_before(before_this, item) ({ \
+#define mv_list_insert_before(before_this, item) ({ \
   (before_this)->prev->next = (item); \
   (item)->prev = (before_this)->prev; \
   (before_this)->prev = (item); \
   (item)->next = (before_this); \
 })
 
-/** Internal macro to insert an item after another item.
+/** Insert an @a item after another item.
  *
- * This assumes that item is part of a working list.
+ * This assumes that @a after_this is part of a working list.
  */
-#define __mv_list_insert_after(after_this, item) ({ \
+#define mv_list_insert_after(after_this, item) ({ \
   (after_this)->next->prev = (item); \
   (item)->next = (after_this)->next; \
   (after_this)->next = (item); \
@@ -62,16 +62,16 @@
 /** Insert @a item at the head of @list */
 #define mv_list_add_head(list, item) ({ \
   if (list) \
-    __mv_list_insert_before(list, item); \
+    mv_list_insert_before(list, item); \
   else \
     mv_list_init_singleton(list, item); \
   (list) = (item); \
 })
 
-/** Insert @a item at the tail of @list */
+/** Insert @a item at the tail of @a list */
 #define mv_list_add_tail(list, item) ({ \
   if (list) \
-    __mv_list_insert_after(list, item); \
+    mv_list_insert_after(list, item); \
   else \
     mv_list_init_singleton(list, item); \
 })
