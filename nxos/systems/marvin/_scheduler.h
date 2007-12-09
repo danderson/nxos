@@ -24,4 +24,10 @@ void mv__scheduler_init();
  */
 void mv__scheduler_run();
 
+/** Set @a task to the blocked state. */
+void mv__scheduler_task_block(mv_task_t *task);
+
+/** Set @a task to the ready state. */
+void mv__scheduler_task_unblock(mv_task_t *task);
+
 #endif /* __NXOS_MARVIN__SCHEDULER_H__ */

@@ -783,7 +783,7 @@ void tests_radar() {
       }
     }
 
-    nx_systick_wait_ms(interval*500);
+    nx_systick_wait_ms((interval > 0) ? interval * 500 : 1000);
   }
 
   goodbye();

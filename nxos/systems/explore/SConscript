@@ -1,0 +1,3 @@
+from glob import glob
+Import('env')
+env.AppKernel('explore', glob('*.[cS]'), kernelsize='50k')

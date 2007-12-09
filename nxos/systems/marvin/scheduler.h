@@ -34,4 +34,38 @@ typedef struct mv_task mv_task_t;
  */
 void mv_scheduler_create_task(nx_closure_t func, U32 stack);
 
+/** Explicitely yield the CPU.
+ *
+ * This will cause the calling task to be preempted. You shouldn't
+ * really need this, except maybe for testing purposes.
+ *
+ * @param unlock If TRUE, the scheduler will be atomically unlocked just
+ *               before yielding.
+ */
+void mv_scheduler_yield(bool unlock);
+
+/** Return a handle to the current task.
+ *
+ * @return The mv_task_t handle of the current task.
+ */
+mv_task_t *mv_scheduler_get_current_task();
+
+/** Increment the scheduler lock.
+ *
+ * The scheduler lock is recursive. If you lock it N times, you must
+ * unlock it N times (or reset it to zero) to effectively unlock the
+ * scheduler.
+ *
+ * @note While the scheduler is locked, the currently running task
+ * effectively cannot be preempted. Be sure to keep the locking short.
+ */
+void mv_scheduler_lock();
+
+/** Decrement the scheduler lock.
+ *
+ * If the scheduler lock reaches zero, the scheduler state is unlocked
+ * and the currently running task becomes preemptable again.
+ */
+void mv_scheduler_unlock();
+
 #endif /* __NXOS_MARVIN_SCHEDULER_H__ */
