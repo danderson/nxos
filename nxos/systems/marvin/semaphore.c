@@ -85,6 +85,17 @@ void mv_semaphore_dec(mv_sem_t *sem) {
   }
 }
 
+bool mv_semaphore_try_dec(mv_sem_t *sem) {
+  bool success = FALSE;
+  mv_scheduler_lock();
+  if (sem->count > 0) {
+    sem->count--;
+    success = TRUE;
+  }
+  mv_scheduler_unlock();
+  return success;
+}
+
 void mv_semaphore_inc(mv_sem_t *sem) {
   mv_scheduler_lock();
   sem->count++;

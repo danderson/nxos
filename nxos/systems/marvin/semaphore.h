@@ -17,9 +17,11 @@
 
 typedef struct mv_sem mv_sem_t;
 
+/** Symbolic names for special kinds of semaphores that can be created. */
 enum {
-  SEM_PRIVATE = 0,
-  SEM_MUTEX = 1,
+  SEM_PRIVATE = 0, /**< Private semaphore, used for inter-task
+                      signalling and synchronization. */
+  SEM_MUTEX = 1, /**< Mutex, a preemption-aware locking mechanism. */
 };
 
 /** Create and return a new semaphore initialized at @a count.
@@ -43,6 +45,16 @@ mv_sem_t *mv_semaphore_create(S32 count);
  * @param sem The semaphore to decrement.
  */
 void mv_semaphore_dec(mv_sem_t *sem);
+
+/** Attempt to acquire one resource of @a sem.
+ *
+ * The function call will not block. The return value indicates whether
+ * it returned successfully, or after failing to acquire a resource.
+ *
+ * @param sem The semaphore to decrement.
+ * @return TRUE if the resource was successfully acquire
+ */
+bool mv_semaphore_try_dec(mv_sem_t *sem);
 
 /** Release one resource of @a sem.
  *
