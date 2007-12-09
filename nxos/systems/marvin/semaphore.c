@@ -9,7 +9,6 @@
 #include "base/types.h"
 #include "base/assert.h"
 #include "base/memalloc.h"
-#include "base/interrupts.h"
 #include "base/display.h"
 
 #include "marvin/list.h"
@@ -65,9 +64,7 @@ void mv_semaphore_dec(mv_sem_t *sem) {
     /* Finally, perform the elaborate dance required to yield to the
      * scheduler.
      */
-    nx_interrupts_disable();
     mv_scheduler_yield(TRUE);
-    nx_interrupts_enable();
   } else {
     mv_scheduler_unlock();
   }
