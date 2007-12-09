@@ -62,4 +62,14 @@ bool mv_semaphore_try_dec(mv_sem_t *sem);
  */
 void mv_semaphore_inc(mv_sem_t *sem);
 
+/** Destroy @a sem and free any memory it uses.
+ *
+ * @param sem the semaphore to destroy.
+ *
+ * @warning Destroying a semaphore while tasks are blocked on it will
+ * cause Marvin to assert and crash. Be sure that the semaphore is no
+ * longer used before freeing it.
+ */
+void mv_semaphore_destroy(mv_sem_t *sem);
+
 #endif /* __NXOS_MARVIN_SEMAPHORE_H__ */

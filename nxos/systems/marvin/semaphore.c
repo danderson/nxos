@@ -47,14 +47,6 @@ mv_sem_t *mv_semaphore_create(S32 count) {
   return sem;
 }
 
-extern struct bleh {
-  mv_task_t *tasks_ready; /* All the ready tasks waiting for CPU time. */
-  mv_task_t *tasks_blocked; /* Unschedulable tasks. */
-
-  mv_task_t *task_current; /* The task currently consuming CPU. */
-  mv_task_t *task_idle; /* The idle task. */
-} sched_state;
-
 void mv_semaphore_dec(mv_sem_t *sem) {
   mv_scheduler_lock();
   sem->count--;
@@ -73,10 +65,6 @@ void mv_semaphore_dec(mv_sem_t *sem) {
     /* Finally, perform the elaborate dance required to yield to the
      * scheduler.
      */
-    nx_display_cursor_set_pos(0,0);
-    nx_display_hex((U32)sched_state.tasks_ready);
-    nx_display_end_line();
-    nx_display_hex((U32)sched_state.tasks_blocked);
     nx_interrupts_disable();
     mv_scheduler_yield(TRUE);
     nx_interrupts_enable();
@@ -109,5 +97,12 @@ void mv_semaphore_inc(mv_sem_t *sem) {
     nx_free(h);
   }
 
+  mv_scheduler_unlock();
+}
+
+void mv_semaphore_destroy(mv_sem_t *sem) {
+  mv_scheduler_lock();
+  NX_ASSERT(sem->count >= 0);
+  nx_free(sem);
   mv_scheduler_unlock();
 }
