@@ -22,7 +22,7 @@
 /* Time in milliseconds (actually in number of systick callbacks)
  * between context switches.
  */
-#define TASK_EXECUTION_QUANTUM 10
+#define TASK_EXECUTION_QUANTUM 2
 
 /* An alarm calendar entry. */
 struct mv_alarm_entry {
