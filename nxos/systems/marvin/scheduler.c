@@ -180,7 +180,7 @@ static void task_idle() {
      */
     if (mv_list_is_empty(sched_state.tasks_blocked))
       NX_FAIL("All tasks dead");
-    mv_scheduler_yield();
+    mv_scheduler_yield(FALSE);
   }
 }
 
@@ -244,5 +244,6 @@ void mv_scheduler_lock() {
 }
 
 void mv_scheduler_unlock() {
+  // TODO: Possibly make scheduling decisions before unlocking.
   sched_lock--;
 }
