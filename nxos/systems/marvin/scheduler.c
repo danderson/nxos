@@ -14,10 +14,10 @@
 #include "base/drivers/systick.h"
 #include "base/drivers/avr.h"
 
-#include "_task.h"
-#include "list.h"
+#include "marvin/_task.h"
+#include "marvin/list.h"
 
-#include "_scheduler.h"
+#include "marvin/_scheduler.h"
 
 /* Time in milliseconds (actually in number of systick callbacks)
  * between context switches.

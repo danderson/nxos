@@ -13,7 +13,7 @@
 #ifndef __NXOS_MARVIN__SCHEDULER_H__
 #define __NXOS_MARVIN__SCHEDULER_H__
 
-#include "scheduler.h"
+#include "marvin/scheduler.h"
 
 /** Initialize the scheduler. */
 void mv__scheduler_init();

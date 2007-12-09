@@ -19,7 +19,7 @@
 #include "base/drivers/bt.h"
 #include "base/drivers/_uart.h"
 
-#include "tests.h"
+#include "tests/tests.h"
 
 static bool test_silent = FALSE;
 

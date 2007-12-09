@@ -11,8 +11,9 @@
 #include "base/memalloc.h"
 #include "base/drivers/systick.h"
 #include "base/drivers/sound.h"
-#include "_scheduler.h"
-#include "semaphore.h"
+
+#include "marvin/_scheduler.h"
+#include "marvin/semaphore.h"
 
 mv_sem_t *beep_res;
 

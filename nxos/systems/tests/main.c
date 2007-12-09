@@ -2,7 +2,7 @@
 #include "base/drivers/systick.h"
 #include "base/drivers/avr.h"
 
-#include "tests.h"
+#include "tests/tests.h"
 
 /* The security hook lets the tester shut down the brick despite the
  * main thread of execution being locked up due to a bug. As long as the

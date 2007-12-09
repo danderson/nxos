@@ -12,10 +12,10 @@
 #include "base/interrupts.h"
 #include "base/display.h"
 
-#include "list.h"
-#include "_scheduler.h"
+#include "marvin/list.h"
+#include "marvin/_scheduler.h"
 
-#include "semaphore.h"
+#include "marvin/semaphore.h"
 
 struct sem_task_handle {
   mv_task_t *task;

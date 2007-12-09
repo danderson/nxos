@@ -122,6 +122,7 @@ def appkernel_tool(env):
                   romkernelsize=None, kernelisbuilt=False):
         romkernelsize = romkernelsize or kernelsize
         env = self.Copy()
+        env.Append(CPPPATH=['#systems'])
 
         # Build a .a with all the application kernel code.
         if kernelisbuilt:
