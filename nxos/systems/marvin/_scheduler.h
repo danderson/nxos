@@ -24,10 +24,25 @@ void mv__scheduler_init();
  */
 void mv__scheduler_run();
 
-/** Set @a task to the blocked state. */
+/** Set @a task to the blocked state.
+ *
+ * @param task The task to set blocked.
+*/
 void mv__scheduler_task_block(mv_task_t *task);
 
-/** Set @a task to the ready state. */
+/** Set @a task to the ready state.
+ *
+ * @param task The task to set unblocked.
+ */
 void mv__scheduler_task_unblock(mv_task_t *task);
+
+/** Suspend @a task for @a time milliseconds.
+ *
+ * This call will block the task until its wakeup time.
+ *
+ * @param task The task to suspend.
+ * @param time The number of milliseconds before resuming @a task.
+ */
+void mv__scheduler_task_suspend(mv_task_t *task, U32 time);
 
 #endif /* __NXOS_MARVIN__SCHEDULER_H__ */

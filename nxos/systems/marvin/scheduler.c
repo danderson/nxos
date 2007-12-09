@@ -22,7 +22,14 @@
 /* Time in milliseconds (actually in number of systick callbacks)
  * between context switches.
  */
-#define TASK_EXECUTION_QUANTUM 2
+#define TASK_EXECUTION_QUANTUM 10
+
+/* An alarm calendar entry. */
+struct mv_alarm_entry {
+  U32 wakeup_time;
+  mv_task_t *task;
+  struct mv_alarm_entry *prev, *next;
+};
 
 /* A task descriptor. */
 struct mv_task {
@@ -49,8 +56,10 @@ static struct {
   struct mv_task *task_current; /* The task currently consuming CPU. */
   struct mv_task *task_idle; /* The idle task. */
 
+  struct mv_alarm_entry *alarms_pending; /* A list of pending wakeup calls. */
+
   U32 last_context_switch; /* The time of the last context switch. */
-} sched_state = { NULL, NULL, NULL, NULL, 0 };
+} sched_state = { NULL, NULL, NULL, NULL, NULL, 0 };
 
 /* The scheduler lock count. This is a recursive mutex that protects
  * the data in sched_state.
@@ -88,6 +97,7 @@ static inline void destroy_running_task() {
  * every millisecond to handle scheduling decisions.
  */
 static void scheduler_cb() {
+  U32 time = nx_systick_get_ms();
   bool need_reschedule = FALSE;
 
   /* Security mechanism: in case the system crashes, as long as the
@@ -116,14 +126,20 @@ static void scheduler_cb() {
     task_command = CMD_NONE;
     nx_systick_unmask_scheduler();
   } else {
-    U32 time = nx_systick_get_ms();
-
     /* Check if the task quantum for the running task has expired. */
     if (time - sched_state.last_context_switch >= TASK_EXECUTION_QUANTUM)
       need_reschedule = TRUE;
   }
 
-  /* Task switching time! */
+  /* Wake up tasks that have scheduled alarms. */
+  while (!mv_list_is_empty(sched_state.alarms_pending) &&
+         mv_list_get_head(sched_state.alarms_pending)->wakeup_time <= time) {
+    struct mv_alarm_entry *a = mv_list_pop_head(sched_state.alarms_pending);
+    mv__scheduler_task_unblock(a->task);
+    nx_free(a);
+  }
+
+  /* Task switching time? */
   if (need_reschedule) {
     if (sched_state.task_current != NULL)
       sched_state.task_current->stack_current = mv__task_get_stack();
@@ -217,6 +233,51 @@ void mv__scheduler_task_unblock(mv_task_t *task) {
   task->state = READY;
   mv_list_add_tail(sched_state.tasks_ready, task);
   mv_scheduler_unlock();
+}
+
+void mv__scheduler_task_suspend(mv_task_t *task, U32 time) {
+  struct mv_alarm_entry *a;
+  mv_scheduler_lock();
+  NX_ASSERT(task->state == READY);
+
+  /* Prepare the alarm descriptor. */
+  a = nx_calloc(1, sizeof(*a));
+  a->wakeup_time = nx_systick_get_ms() + time;
+  a->task = task;
+
+  mv__scheduler_task_block(task);
+
+  /* If the alarm list is empty, the initialization is
+   * trivial. Otherwise, we need to locate the correct place in the list
+   * for a sorted insertion.
+   */
+  if (mv_list_is_empty(sched_state.alarms_pending)) {
+    mv_list_init_singleton(sched_state.alarms_pending, a);
+  } else {
+    struct mv_alarm_entry *ptr = sched_state.alarms_pending;
+
+    /* Locate the place for a sorted insertion. */
+    for (ptr = sched_state.alarms_pending;
+         (ptr->next != sched_state.alarms_pending &&
+          ptr->wakeup_time < a->wakeup_time);
+         ptr = ptr->next);
+
+    /* At this stage, ptr points to the right place for an
+     * insertion. But before or after ptr?
+     */
+    if (ptr->wakeup_time > a->wakeup_time) {
+      mv_list_insert_before(ptr, a);
+      if (ptr == sched_state.alarms_pending)
+        sched_state.alarms_pending = a;
+    } else {
+      mv_list_insert_after(ptr, a);
+    }
+  }
+
+  /* The alarm is programmed, atomically unlock the scheduler and
+   * yield.
+   */
+  mv_scheduler_yield(TRUE);
 }
 
 void mv_scheduler_create_task(nx_closure_t func, U32 stack) {
