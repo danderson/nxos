@@ -22,7 +22,7 @@
 /* Time in milliseconds (actually in number of systick callbacks)
  * between context switches.
  */
-#define TASK_SWITCH_RESOLUTION 1
+#define TASK_EXECUTION_QUANTUM 2
 
 /* A task descriptor. */
 struct mv_task {
@@ -48,7 +48,9 @@ static struct {
 
   struct mv_task *task_current; /* The task currently consuming CPU. */
   struct mv_task *task_idle; /* The idle task. */
-} sched_state = { NULL, NULL, NULL, NULL };
+
+  U32 last_context_switch; /* The time of the last context switch. */
+} sched_state = { NULL, NULL, NULL, NULL, 0 };
 
 /* The scheduler lock count. This is a recursive mutex that protects
  * the data in sched_state.
@@ -86,10 +88,7 @@ static inline void destroy_running_task() {
  * every millisecond to handle scheduling decisions.
  */
 static void scheduler_cb() {
-  /* We want to schedule every TASK_SWITCH_RESOLUTION ms, so we keep a
-   * counter to decide when to schedule.
-   */
-  static int cnt = TASK_SWITCH_RESOLUTION - 1;
+  bool need_reschedule = FALSE;
 
   /* Security mechanism: in case the system crashes, as long as the
    * scheduler is still running, the brick can be powered off.
@@ -98,37 +97,39 @@ static void scheduler_cb() {
     nx_core_halt();
 
   /* If the scheduler state is locked, nothing can be done. */
-  if (sched_lock > 0) {
-    if (cnt != 0)
-      cnt = (cnt + 1) % TASK_SWITCH_RESOLUTION;
+  if (sched_lock > 0)
     return;
-  }
-
-  cnt = (cnt + 1) % TASK_SWITCH_RESOLUTION;
 
   /* Process pending commands, if any */
   if (task_command != CMD_NONE) {
     switch (task_command) {
     case CMD_YIELD:
-      cnt = 0;
+      need_reschedule = TRUE;
       break;
     case CMD_DIE:
       destroy_running_task();
-      cnt = 0;
+      need_reschedule = TRUE;
       break;
     default:
       break;
     }
     task_command = CMD_NONE;
     nx_systick_unmask_scheduler();
+  } else {
+    U32 time = nx_systick_get_ms();
+
+    /* Check if the task quantum for the running task has expired. */
+    if (time - sched_state.last_context_switch >= TASK_EXECUTION_QUANTUM)
+      need_reschedule = TRUE;
   }
 
   /* Task switching time! */
-  if (cnt == 0) {
+  if (need_reschedule) {
     if (sched_state.task_current != NULL)
       sched_state.task_current->stack_current = mv__task_get_stack();
     reschedule();
     mv__task_set_stack(sched_state.task_current->stack_current);
+    sched_state.last_context_switch = nx_systick_get_ms();
   }
 }
 
@@ -194,6 +195,7 @@ void mv__scheduler_init() {
 }
 
 void mv__scheduler_run() {
+  sched_state.last_context_switch = nx_systick_get_ms();
   nx_interrupts_disable();
   nx_systick_install_scheduler(scheduler_cb);
   mv__task_run_first(task_idle, sched_state.task_idle->stack_current);
