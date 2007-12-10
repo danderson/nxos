@@ -14,5 +14,5 @@ void mv_time_sleep(U32 ms) {
   /* TODO: Decide if this should be a graceful return. */
   NX_ASSERT(ms > 0);
 
-  mv__scheduler_task_suspend(mv_scheduler_get_current_task(), ms);
+  mv__scheduler_task_suspend(ms);
 }

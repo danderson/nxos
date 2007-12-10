@@ -58,7 +58,7 @@ void mv_semaphore_dec(mv_sem_t *sem) {
     struct sem_task_handle *h = make_sem_task_handle(current);
 
     /* Mark the task as blocked and enqueue it in the semaphore info. */
-    mv__scheduler_task_block(current);
+    mv__scheduler_task_block();
     mv_list_add_tail(sem->blocked_tasks, h);
 
     /* Finally, perform the elaborate dance required to yield to the

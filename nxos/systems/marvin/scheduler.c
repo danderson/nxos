@@ -217,12 +217,12 @@ void mv__scheduler_run() {
   mv__task_run_first(task_idle, sched_state.task_idle->stack_current);
 }
 
-void mv__scheduler_task_block(mv_task_t *task) {
+void mv__scheduler_task_block() {
   mv_scheduler_lock();
-  NX_ASSERT(task->state == READY);
-  mv_list_remove(sched_state.tasks_ready, task);
-  task->state = BLOCKED;
-  mv_list_add_tail(sched_state.tasks_blocked, task);
+  NX_ASSERT(sched_state.task_current == READY);
+  mv_list_remove(sched_state.tasks_ready, sched_state.task_current);
+  sched_state.task_current->state = BLOCKED;
+  mv_list_add_tail(sched_state.tasks_blocked, sched_state.task_current);
   mv_scheduler_unlock();
 }
 
@@ -235,17 +235,17 @@ void mv__scheduler_task_unblock(mv_task_t *task) {
   mv_scheduler_unlock();
 }
 
-void mv__scheduler_task_suspend(mv_task_t *task, U32 time) {
+void mv__scheduler_task_suspend(U32 time) {
   struct mv_alarm_entry *a;
   mv_scheduler_lock();
-  NX_ASSERT(task->state == READY);
+  NX_ASSERT(sched_state.task_current->state == READY);
 
   /* Prepare the alarm descriptor. */
   a = nx_calloc(1, sizeof(*a));
   a->wakeup_time = nx_systick_get_ms() + time;
   a->task = task;
 
-  mv__scheduler_task_block(task);
+  mv__scheduler_task_block(sched_state.task_current);
 
   /* If the alarm list is empty, the initialization is
    * trivial. Otherwise, we need to locate the correct place in the list
