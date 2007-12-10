@@ -219,7 +219,7 @@ void mv__scheduler_run() {
 
 void mv__scheduler_task_block() {
   mv_scheduler_lock();
-  NX_ASSERT(sched_state.task_current == READY);
+  NX_ASSERT(sched_state.task_current->state == READY);
   mv_list_remove(sched_state.tasks_ready, sched_state.task_current);
   sched_state.task_current->state = BLOCKED;
   mv_list_add_tail(sched_state.tasks_blocked, sched_state.task_current);
@@ -243,7 +243,7 @@ void mv__scheduler_task_suspend(U32 time) {
   /* Prepare the alarm descriptor. */
   a = nx_calloc(1, sizeof(*a));
   a->wakeup_time = nx_systick_get_ms() + time;
-  a->task = task;
+  a->task = sched_state.task_current;
 
   mv__scheduler_task_block(sched_state.task_current);
 
@@ -274,10 +274,10 @@ void mv__scheduler_task_suspend(U32 time) {
     }
   }
 
-  /* The alarm is programmed, atomically unlock the scheduler and
-   * yield.
+  /* The alarm is programmed and the task configured to block. It will
+   * be preempted when the scheduler completely unlocks.
    */
-  mv_scheduler_yield(TRUE);
+  mv_scheduler_unlock();
 }
 
 void mv_scheduler_create_task(nx_closure_t func, U32 stack) {
@@ -307,6 +307,16 @@ void mv_scheduler_lock() {
 }
 
 void mv_scheduler_unlock() {
-  // TODO: Possibly make scheduling decisions before unlocking.
-  sched_lock--;
+  if (sched_lock == 1) {
+    U32 delta = nx_systick_get_ms() - sched_state.last_context_switch;
+    if (sched_state.task_current->state == BLOCKED ||
+        delta >= TASK_EXECUTION_QUANTUM) {
+      nx_systick_mask_scheduler();
+      task_command = CMD_YIELD;
+      sched_lock--;
+      nx_systick_call_scheduler();
+    }
+  } else {
+    sched_lock--;
+  }
 }

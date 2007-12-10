@@ -60,14 +60,9 @@ void mv_semaphore_dec(mv_sem_t *sem) {
     /* Mark the task as blocked and enqueue it in the semaphore info. */
     mv__scheduler_task_block();
     mv_list_add_tail(sem->blocked_tasks, h);
-
-    /* Finally, perform the elaborate dance required to yield to the
-     * scheduler.
-     */
-    mv_scheduler_yield(TRUE);
-  } else {
-    mv_scheduler_unlock();
   }
+
+  mv_scheduler_unlock();
 }
 
 bool mv_semaphore_try_dec(mv_sem_t *sem) {
