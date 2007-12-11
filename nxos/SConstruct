@@ -184,11 +184,13 @@ if not env.GetOption('clean'):
 env.Replace(CCFLAGS= ['-mcpu=arm7tdmi', '-Os', '-Wextra', '-Wall', '-Werror',
                       '-Wno-div-by-zero', '-Wfloat-equal', '-Wshadow',
                       '-Wpointer-arith', '-Wbad-function-cast',
-                      '-ffreestanding', '-fsigned-char', '-ffunction-sections',
+                      '-Wmissing-prototypes', '-ffreestanding',
+                      '-fsigned-char', '-ffunction-sections',
                       '-fdata-sections', '-fomit-frame-pointer',
                       '-msoft-float', '-mthumb-interwork', '-mthumb'],
             ASFLAGS = ['-Wall', '-Werror', '-Os',
                        '-Wa,-mcpu=arm7tdmi,-mfpu=softfpa,-mthumb-interwork'])
+
 # Build the baseplate, and all selected application kernels.
 if env.GetOption('clean'):
     appkernels = buildable_systems

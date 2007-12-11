@@ -41,29 +41,6 @@ static void goodbye(void) {
   nx_systick_wait_ms(900);
 }
 
-void beep_word(U32 value) {
-  U32 i=32;
-
-  hello();
-
-  while (i > 0 && !(value & 0x80000000)) {
-    value <<= 1;
-    i--;
-  }
-  while (i > 0) {
-    if (value & 0x80000000)
-      nx_sound_freq(2000, 300);
-    else
-      nx_sound_freq(1000, 300);
-    nx_systick_wait_ms(700);
-    value <<= 1;
-    i--;
-  }
-
-  goodbye();
-}
-
-
 void tests_display(void) {
   char buf[2] = { 0, 0 };
   int i;

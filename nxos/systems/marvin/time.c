@@ -10,6 +10,8 @@
 #include "base/assert.h"
 #include "marvin/_scheduler.h"
 
+#include "marvin/time.h"
+
 void mv_time_sleep(U32 ms) {
   /* TODO: Decide if this should be a graceful return. */
   NX_ASSERT(ms > 0);
