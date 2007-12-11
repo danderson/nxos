@@ -110,6 +110,8 @@ static void scheduler_cb(void) {
   if (sched_lock > 0)
     return;
 
+  sched_lock = 1;
+
   /* Process pending commands, if any */
   if (task_command != CMD_NONE) {
     switch (task_command) {
@@ -133,8 +135,9 @@ static void scheduler_cb(void) {
 
   /* Wake up tasks that have scheduled alarms. */
   while (!mv_list_is_empty(sched_state.alarms_pending) &&
-         mv_list_get_head(sched_state.alarms_pending)->wakeup_time <= time) {
-    struct mv_alarm_entry *a = mv_list_pop_head(sched_state.alarms_pending);
+         sched_state.alarms_pending->wakeup_time <= time) {
+    struct mv_alarm_entry *a = sched_state.alarms_pending;
+    mv_list_remove(sched_state.alarms_pending, sched_state.alarms_pending);
     mv__scheduler_task_unblock(a->task);
     nx_free(a);
   }
@@ -147,6 +150,8 @@ static void scheduler_cb(void) {
     mv__task_set_stack(sched_state.task_current->stack_current);
     sched_state.last_context_switch = nx_systick_get_ms();
   }
+
+  sched_lock = 0;
 }
 
 /* Task trailer stub. This is invoked when task functions return  */
@@ -253,25 +258,17 @@ void mv__scheduler_task_suspend(U32 time) {
    */
   if (mv_list_is_empty(sched_state.alarms_pending)) {
     mv_list_init_singleton(sched_state.alarms_pending, a);
+  } else if (a->wakeup_time <= sched_state.alarms_pending->wakeup_time) {
+    mv_list_add_head(sched_state.alarms_pending, a);
+  } else if (a->wakeup_time >= sched_state.alarms_pending->prev->wakeup_time) {
+    mv_list_add_tail(sched_state.alarms_pending, a);
   } else {
     struct mv_alarm_entry *ptr = sched_state.alarms_pending;
 
-    /* Locate the place for a sorted insertion. */
-    for (ptr = sched_state.alarms_pending;
-         (ptr->next != sched_state.alarms_pending &&
-          ptr->wakeup_time < a->wakeup_time);
-         ptr = ptr->next);
+    while(ptr->next->wakeup_time < a->wakeup_time)
+      ptr = ptr->next;
 
-    /* At this stage, ptr points to the right place for an
-     * insertion. But before or after ptr?
-     */
-    if (ptr->wakeup_time > a->wakeup_time) {
-      mv_list_insert_before(ptr, a);
-      if (ptr == sched_state.alarms_pending)
-        sched_state.alarms_pending = a;
-    } else {
-      mv_list_insert_after(ptr, a);
-    }
+    mv_list_insert_after(ptr, a);
   }
 
   /* The alarm is programmed and the task configured to block. It will
@@ -315,8 +312,10 @@ void mv_scheduler_unlock(void) {
       task_command = CMD_YIELD;
       sched_lock--;
       nx_systick_call_scheduler();
+      return;
     }
-  } else {
-    sched_lock--;
   }
+
+  /* The scheduler did not intervene, we just unlock and keep going. */
+  sched_lock--;
 }
