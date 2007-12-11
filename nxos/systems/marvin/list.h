@@ -51,6 +51,9 @@
 #define mv_list_is_empty(list) \
   ((list) == NULL)
 
+#define mv_list_is_singleton(list) \
+  (((list) == (list)->next) && ((list) == (list)->prev))
+
 /** Return the head of the given list, or NULL if the list is empty. */
 #define mv_list_get_head(list) \
   (list)
