@@ -16,13 +16,13 @@
 #include "marvin/scheduler.h"
 
 /** Initialize the scheduler. */
-void mv__scheduler_init();
+void mv__scheduler_init(void);
 
 /** Start running the scheduler.
  *
  * Returns when there are no more tasks to run.
  */
-void mv__scheduler_run();
+void mv__scheduler_run(void);
 
 /** Set the current task to the blocked state.
  *
@@ -30,7 +30,7 @@ void mv__scheduler_run();
  * the task. This is to allow further setup and twiddling by the caller
  * before the scheduler is unlocked.
  */
-void mv__scheduler_task_block();
+void mv__scheduler_task_block(void);
 
 /** Set @a task to the ready state.
  *

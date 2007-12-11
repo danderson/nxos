@@ -48,7 +48,7 @@ void mv_scheduler_yield(bool unlock);
  *
  * @return The mv_task_t handle of the current task.
  */
-mv_task_t *mv_scheduler_get_current_task();
+mv_task_t *mv_scheduler_get_current_task(void);
 
 /** Increment the scheduler lock.
  *
@@ -59,13 +59,13 @@ mv_task_t *mv_scheduler_get_current_task();
  * @note While the scheduler is locked, the currently running task
  * effectively cannot be preempted. Be sure to keep the locking short.
  */
-void mv_scheduler_lock();
+void mv_scheduler_lock(void);
 
 /** Decrement the scheduler lock.
  *
  * If the scheduler lock reaches zero, the scheduler state is unlocked
  * and the currently running task becomes preemptable again.
  */
-void mv_scheduler_unlock();
+void mv_scheduler_unlock(void);
 
 #endif /* __NXOS_MARVIN_SCHEDULER_H__ */

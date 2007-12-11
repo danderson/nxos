@@ -245,7 +245,7 @@ void mv__scheduler_task_suspend(U32 time) {
   a->wakeup_time = nx_systick_get_ms() + time;
   a->task = sched_state.task_current;
 
-  mv__scheduler_task_block(sched_state.task_current);
+  mv__scheduler_task_block();
 
   /* If the alarm list is empty, the initialization is
    * trivial. Otherwise, we need to locate the correct place in the list
