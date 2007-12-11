@@ -9,12 +9,12 @@
  * system timer and AVR link are working, pressing the Cancel button
  * should power off the brick.
  */
-void security_hook() {
+static void security_hook(void) {
   if (nx_avr_get_button() == BUTTON_CANCEL)
     nx_core_halt();
 }
 
-void main() {
+void main(void) {
   nx_systick_install_scheduler(security_hook);
 
   //tests_all();

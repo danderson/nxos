@@ -23,7 +23,7 @@
 
 static bool test_silent = FALSE;
 
-static void hello() {
+static void hello(void) {
   if (test_silent)
     return;
   nx_sound_freq(1000, 100);
@@ -32,7 +32,7 @@ static void hello() {
   nx_systick_wait_ms(900);
 }
 
-static void goodbye() {
+static void goodbye(void) {
   if (test_silent)
     return;
   nx_sound_freq(2000, 100);
@@ -64,7 +64,7 @@ void beep_word(U32 value) {
 }
 
 
-void tests_display() {
+void tests_display(void) {
   char buf[2] = { 0, 0 };
   int i;
 
@@ -87,7 +87,7 @@ void tests_display() {
 }
 
 
-void tests_sound() {
+void tests_sound(void) {
   enum {
     end = 0, sleep500 = 1, si = 990, dod = 1122,
     re = 1188, mi = 1320, fad = 1496, sol = 1584,
@@ -123,8 +123,7 @@ void tests_sound() {
 }
 
 
-void
-tests_motor() {
+void tests_motor(void) {
   hello();
 
   nx_display_clear();
@@ -148,7 +147,7 @@ tests_motor() {
 }
 
 
-void tests_tachy() {
+void tests_tachy(void) {
   int i;
   hello();
 
@@ -190,7 +189,7 @@ void tests_tachy() {
 }
 
 
-void tests_sensors() {
+void tests_sensors(void) {
   U32 i;
   const U32 display_seconds = 15;
   hello();
@@ -229,7 +228,7 @@ void tests_sensors() {
 }
 
 
-void tests_sysinfo() {
+void tests_sysinfo(void) {
   U32 i;
   U32 t = 0;
   const U32 display_seconds = 15;
@@ -279,7 +278,7 @@ void tests_sysinfo() {
 
 
 
-static void tests_bt_list_known_devices() {
+static void tests_bt_list_known_devices(void) {
   bt_device_t dev;
 
   /* Listing known devices */
@@ -302,7 +301,7 @@ static void tests_bt_list_known_devices() {
 }
 
 
-static void tests_bt_scan_and_add() {
+static void tests_bt_scan_and_add(void) {
   bt_device_t dev;
 
   nx_display_clear();
@@ -328,7 +327,7 @@ static void tests_bt_scan_and_add() {
 }
 
 
-static void tests_bt_scan_and_remove() {
+static void tests_bt_scan_and_remove(void) {
   bt_device_t dev;
 
   nx_display_clear();
@@ -353,7 +352,7 @@ static void tests_bt_scan_and_remove() {
 
 }
 
-void tests_bt2()
+void tests_bt2(void)
 {
   /*int i;
    */
@@ -415,6 +414,8 @@ void tests_bt2()
 
 /* returns 1 if they are identic
  * 0 else
+ *
+ * TODO: use base/util.h:strncmp instead.
  */
 static U8 compare_str(char *str_a, char *str_b, U32 max)
 {
@@ -519,7 +520,7 @@ static int tests_command(char *buffer, int lng)
 
 #define BT_PACKET_SIZE 128
 
-void tests_bt() {
+void tests_bt(void) {
   U16 i;
   U16 lng = 0;
   int port_handle = -1;
@@ -645,7 +646,7 @@ void tests_bt() {
   goodbye();
 }
 
-void tests_usb() {
+void tests_usb(void) {
   U16 i;
   U32 lng = 0;
 
@@ -711,7 +712,7 @@ void tests_usb() {
   goodbye();
 }
 
-void tests_usb_hardcore() {
+void tests_usb_hardcore(void) {
   int i, lng;
 
   char buffer[NX_USB_PACKET_SIZE];
@@ -737,7 +738,7 @@ void tests_usb_hardcore() {
   goodbye();
 }
 
-void tests_radar() {
+void tests_radar(void) {
   U32 sensor = 0;
   U8 interval, reading;
   S8 object;
@@ -789,7 +790,7 @@ void tests_radar() {
   goodbye();
 }
 
-void tests_all() {
+void tests_all(void) {
   test_silent = TRUE;
 
   tests_display();

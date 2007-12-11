@@ -76,7 +76,7 @@ static enum {
 } task_command = CMD_NONE;
 
 /* Decide on the next task to run. */
-static inline void reschedule() {
+static inline void reschedule(void) {
   if (mv_list_is_empty(sched_state.tasks_ready)) {
     sched_state.task_current = sched_state.task_idle;
   } else {
@@ -86,7 +86,7 @@ static inline void reschedule() {
 }
 
 /* Destroy the task that was just preempted. */
-static inline void destroy_running_task() {
+static inline void destroy_running_task(void) {
   mv_list_remove(sched_state.tasks_ready, sched_state.task_current);
   nx_free(sched_state.task_current->stack_base);
   nx_free(sched_state.task_current);
@@ -96,7 +96,7 @@ static inline void destroy_running_task() {
 /* This is where most of the magic happens. This function gets called
  * every millisecond to handle scheduling decisions.
  */
-static void scheduler_cb() {
+static void scheduler_cb(void) {
   U32 time = nx_systick_get_ms();
   bool need_reschedule = FALSE;
 
@@ -150,7 +150,7 @@ static void scheduler_cb() {
 }
 
 /* Task trailer stub. This is invoked when task functions return  */
-static void task_shutdown() {
+static void task_shutdown(void) {
   nx_systick_mask_scheduler();
   task_command = CMD_DIE;
   nx_systick_call_scheduler();
@@ -187,7 +187,7 @@ static mv_task_t *new_task(nx_closure_t func, U32 stack_size) {
  * handling disabled. So we reenable it before getting on with out
  * Important Work: doing nothing.
  */
-static void task_idle() {
+static void task_idle(void) {
   mv_scheduler_yield(FALSE);
   nx_interrupts_enable();
   while(1) {
@@ -201,7 +201,7 @@ static void task_idle() {
   }
 }
 
-void mv__scheduler_init() {
+void mv__scheduler_init(void) {
   sched_state.task_idle = new_task(task_idle, 128);
   /* The idle task doesn't start with a rolled up task state. Rewind its
    * current stack position.
@@ -210,14 +210,14 @@ void mv__scheduler_init() {
   sched_state.task_current = sched_state.task_idle;
 }
 
-void mv__scheduler_run() {
+void mv__scheduler_run(void) {
   sched_state.last_context_switch = nx_systick_get_ms();
   nx_interrupts_disable();
   nx_systick_install_scheduler(scheduler_cb);
   mv__task_run_first(task_idle, sched_state.task_idle->stack_current);
 }
 
-void mv__scheduler_task_block() {
+void mv__scheduler_task_block(void) {
   mv_scheduler_lock();
   NX_ASSERT(sched_state.task_current->state == READY);
   mv_list_remove(sched_state.tasks_ready, sched_state.task_current);
@@ -295,18 +295,18 @@ void mv_scheduler_yield(bool unlock) {
   nx_systick_call_scheduler();
 }
 
-mv_task_t *mv_scheduler_get_current_task() {
+mv_task_t *mv_scheduler_get_current_task(void) {
   return sched_state.task_current;
 }
 
-void mv_scheduler_lock() {
+void mv_scheduler_lock(void) {
   /* Because the lock prevents the scheduler from preempting the task,
    * there is no need for fancy atomic operations here.
    */
   sched_lock++;
 }
 
-void mv_scheduler_unlock() {
+void mv_scheduler_unlock(void) {
   if (sched_lock == 1) {
     U32 delta = nx_systick_get_ms() - sched_state.last_context_switch;
     if (sched_state.task_current->state == BLOCKED ||

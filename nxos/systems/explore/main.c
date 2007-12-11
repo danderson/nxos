@@ -45,12 +45,12 @@ static U32 start_tick;
 
 /** Security hook. A press on concel will inconditionally halt the brick.
  */
-void watchdog() {
+static void watchdog(void) {
  if (nx_avr_get_button() == BUTTON_CANCEL)
     nx_core_halt();
 }
 
-static void init() {
+static void init(void) {
   nx_systick_install_scheduler(watchdog);
   nx_radar_init(RADAR);
 
@@ -76,7 +76,7 @@ static void init() {
   nx_systick_wait_ms(500);
 }
 
-static void start() {
+static void start(void) {
   nx_display_clear();
   nx_display_cursor_set_pos(0, 0);
 
@@ -84,7 +84,7 @@ static void start() {
   state = ST_FORWARD;
 }
 
-static void live() {
+static void live(void) {
 	static U8 turn = 0;
   U32 obj;
   bool detect = FALSE;
@@ -157,7 +157,7 @@ static void live() {
   }
 }
 
-static void die() {
+static void die(void) {
   nx_display_clear();
   nx_display_cursor_set_pos(0, 0);
   nx_display_string("Going down...\n");
@@ -172,7 +172,7 @@ static void die() {
   nx_systick_wait_ms(1000);
 }
 
-void main() {
+void main(void) {
   init();
   start();
   

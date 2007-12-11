@@ -18,14 +18,14 @@
 
 mv_sem_t *beep_res;
 
-static void beep_consumer() {
+static void beep_consumer(void) {
   while(1) {
     mv_semaphore_dec(beep_res);
     nx_sound_freq(820, 500);
   }
 }
 
-static void beep_producer() {
+static void beep_producer(void) {
   while(1) {
     mv_time_sleep(2000);
     mv_semaphore_inc(beep_res);
@@ -34,7 +34,7 @@ static void beep_producer() {
 
 U32 sleep_iter = 0, sleep_time = 0, wakeup_time = 0;
 
-void test_display() {
+static void test_display(void) {
   U32 counter = 0;
   nx_display_clear();
   while(1) {
@@ -50,7 +50,7 @@ void test_display() {
   }
 }
 
-void test_sleep() {
+static void test_sleep(void) {
   while(1) {
     mv_time_sleep(100);
     sleep_time = nx_systick_get_ms();
@@ -60,7 +60,7 @@ void test_sleep() {
   }
 }
 
-void main() {
+void main(void) {
   nx_memalloc_init();
   mv__scheduler_init();
   beep_res = mv_semaphore_create(0);
