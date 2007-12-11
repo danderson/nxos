@@ -98,12 +98,12 @@
 
 /** Remove and return the head of @a list */
 #define mv_list_pop_head(list) ({ \
-  typeof(list) __ret_elt; \
+  typeof(list) __ret_elt_pop; \
   if (list) \
-    __ret_elt = mv_list_pop(list, list); \
+    __ret_elt_pop = mv_list_pop(list, list); \
   else \
-    __ret_elt = NULL; \
-  __ret_elt; \
+    __ret_elt_pop = NULL; \
+  __ret_elt_pop; \
 })
 
 /** Remove and return the tail of @a list */
