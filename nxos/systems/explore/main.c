@@ -106,7 +106,7 @@ static void live() {
       state = ST_DETECT;
       break;
 
-    case ST_DETECT:      
+    case ST_DETECT:
       for (obj = 0 ; obj < 8 ; obj++) {
         U8 reading = nx_radar_read_distance(RADAR, obj);
         nx_display_uint(obj);
@@ -146,7 +146,7 @@ static void live() {
       	nx_motors_rotate(M_B, SPEED);
 				turn = 0;
 			}
-			
+
       nx_systick_wait_ms(TURN_WAIT);
 
       state = ST_FORWARD;
@@ -167,7 +167,9 @@ static void die() {
 
   nx_systick_wait_ms(1000);
   nx_display_string("Motors stopped.\n");
-  
+
+  nx_radar_close(RADAR);
+
   nx_display_string("Bye!\n");
   nx_systick_wait_ms(1000);
 }
@@ -175,12 +177,11 @@ static void die() {
 void main() {
   init();
   start();
-  
+
   while (nx_systick_get_ms() < start_tick + RUNTIME * 1000) {
     live();
     nx_systick_wait_ms(SIMU_TICK);
   }
-  
-  die();  
-}
 
+  die();
+}
