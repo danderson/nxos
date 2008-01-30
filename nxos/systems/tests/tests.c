@@ -190,14 +190,13 @@ void tests_tachy() {
 
 
 void tests_sensors() {
-  U32 i;
+  U32 i, sensor;
   const U32 display_seconds = 15;
   hello();
 
-  nx_sensors_analog_enable(0);
-  nx_sensors_analog_enable(1);
-  nx_sensors_analog_enable(2);
-  nx_sensors_analog_enable(3);
+  for (sensor=0; sensor<NXT_N_SENSORS; sensor++) {
+    nx_sensors_analog_enable(sensor);
+  }
 
   for (i=0; i<(display_seconds*4); i++) {
     nx_display_clear();
@@ -205,23 +204,21 @@ void tests_sensors() {
     nx_display_string("- Sensor  info -\n"
 		      "----------------\n");
 
-    nx_display_string("Port 1: ");
-    nx_display_uint(nx_sensors_analog_get(0));
-    nx_display_end_line();
+    for (sensor=0; sensor<NXT_N_SENSORS; sensor++){
+      nx_display_string("Port ");
+      nx_display_uint(sensor);
+      nx_display_string(": ");
 
-    nx_display_string("Port 2: ");
-    nx_display_uint(nx_sensors_analog_get(1));
-    nx_display_end_line();
 
-    nx_display_string("Port 3: ");
-    nx_display_uint(nx_sensors_analog_get(2));
-    nx_display_end_line();
-
-    nx_display_string("Port 4: ");
-    nx_display_uint(nx_sensors_analog_get(3));
-    nx_display_end_line();
+      nx_display_uint(nx_sensors_analog_get(sensor));
+      nx_display_end_line();
+    }
 
     nx_systick_wait_ms(250);
+  }
+
+  for (sensor=0; sensor<NXT_N_SENSORS; sensor++) {
+    nx_sensors_analog_disable(sensor);
   }
 
   goodbye();
@@ -628,6 +625,7 @@ void tests_radar() {
     nx_systick_wait_ms((interval > 0) ? interval * 500 : 1000);
   }
 
+  nx_radar_close(sensor);
   goodbye();
 }
 
