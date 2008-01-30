@@ -122,6 +122,7 @@ def appkernel_tool(env):
                   romkernelsize=None, kernelisbuilt=False):
         romkernelsize = romkernelsize or kernelsize
         env = self.Copy()
+        env.Append(CPPPATH=['#systems'])
 
         # Build a .a with all the application kernel code.
         if kernelisbuilt:
@@ -180,8 +181,11 @@ if not env.GetOption('clean'):
     conf.CheckDoxygen()
     env = conf.Finish()
 
-env.Replace(CCFLAGS= ['-mcpu=arm7tdmi', '-Wall', '-Werror', '-Os',
-                      '-ffreestanding', '-fsigned-char', '-ffunction-sections',
+env.Replace(CCFLAGS= ['-mcpu=arm7tdmi', '-Os', '-Wextra', '-Wall', '-Werror',
+                      '-Wno-div-by-zero', '-Wfloat-equal', '-Wshadow',
+                      '-Wpointer-arith', '-Wbad-function-cast',
+                      '-Wmissing-prototypes', '-ffreestanding',
+                      '-fsigned-char', '-ffunction-sections',
                       '-fdata-sections', '-fomit-frame-pointer',
                       '-msoft-float', '-mthumb-interwork', '-mthumb'],
             ASFLAGS = ['-Wall', '-Werror', '-Os',

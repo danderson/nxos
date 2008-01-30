@@ -16,7 +16,7 @@
 #include "base/types.h"
 
 void mv__task_run_first(nx_closure_t func, U32 *stack);
-U32 *mv__task_get_stack();
+U32 *mv__task_get_stack(void);
 void mv__task_set_stack(U32 *stack);
 
 #endif /* __NXOS_MARVIN__TASK_H__ */

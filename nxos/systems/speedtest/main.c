@@ -8,13 +8,13 @@
 
 S32 A = 0;
 
-U32 prng_get() {
+static U32 prng_get(void) {
   static U32 val = 42;
   val = (val + 134289) % 1031;
   return val;
 }
 
-void main() {
+void main(void) {
   U32 start = nx_systick_get_ms();
   U32 end = start + 60000;
   U32 loopcount = 1;

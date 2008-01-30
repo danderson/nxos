@@ -4,6 +4,7 @@
 #include "base/interrupts.h"
 #include "base/display.h"
 #include "base/memmap.h"
+#include "base/util.h"
 #include "base/drivers/aic.h"
 #include "base/drivers/systick.h"
 /* TODO: evil, decide if necessary. */
@@ -18,11 +19,11 @@
 #include "base/drivers/bt.h"
 #include "base/drivers/_uart.h"
 
-#include "tests.h"
+#include "tests/tests.h"
 
 static bool test_silent = FALSE;
 
-static void hello() {
+static void hello(void) {
   if (test_silent)
     return;
   nx_sound_freq(1000, 100);
@@ -31,7 +32,7 @@ static void hello() {
   nx_systick_wait_ms(900);
 }
 
-static void goodbye() {
+static void goodbye(void) {
   if (test_silent)
     return;
   nx_sound_freq(2000, 100);
@@ -40,30 +41,7 @@ static void goodbye() {
   nx_systick_wait_ms(900);
 }
 
-void beep_word(U32 value) {
-  U32 i=32;
-
-  hello();
-
-  while (i > 0 && !(value & 0x80000000)) {
-    value <<= 1;
-    i--;
-  }
-  while (i > 0) {
-    if (value & 0x80000000)
-      nx_sound_freq(2000, 300);
-    else
-      nx_sound_freq(1000, 300);
-    nx_systick_wait_ms(700);
-    value <<= 1;
-    i--;
-  }
-
-  goodbye();
-}
-
-
-void tests_display() {
+void tests_display(void) {
   char buf[2] = { 0, 0 };
   int i;
 
@@ -86,7 +64,7 @@ void tests_display() {
 }
 
 
-void tests_sound() {
+void tests_sound(void) {
   enum {
     end = 0, sleep500 = 1, si = 990, dod = 1122,
     re = 1188, mi = 1320, fad = 1496, sol = 1584,
@@ -122,8 +100,7 @@ void tests_sound() {
 }
 
 
-void
-tests_motor() {
+void tests_motor(void) {
   hello();
 
   nx_display_clear();
@@ -147,7 +124,7 @@ tests_motor() {
 }
 
 
-void tests_tachy() {
+void tests_tachy(void) {
   int i;
   hello();
 
@@ -189,7 +166,7 @@ void tests_tachy() {
 }
 
 
-void tests_sensors() {
+void tests_sensors(void) {
   U32 i, sensor;
   const U32 display_seconds = 15;
   hello();
@@ -225,7 +202,7 @@ void tests_sensors() {
 }
 
 
-void tests_sysinfo() {
+void tests_sysinfo(void) {
   U32 i;
   U32 t = 0;
   const U32 display_seconds = 15;
@@ -275,7 +252,7 @@ void tests_sysinfo() {
 
 
 
-static void tests_bt_list_known_devices() {
+static void tests_bt_list_known_devices(void) {
   bt_device_t dev;
 
   /* Listing known devices */
@@ -298,7 +275,7 @@ static void tests_bt_list_known_devices() {
 }
 
 
-static void tests_bt_scan_and_add() {
+static void tests_bt_scan_and_add(void) {
   bt_device_t dev;
 
   nx_display_clear();
@@ -324,7 +301,7 @@ static void tests_bt_scan_and_add() {
 }
 
 
-static void tests_bt_scan_and_remove() {
+static void tests_bt_scan_and_remove(void) {
   bt_device_t dev;
 
   nx_display_clear();
@@ -349,9 +326,12 @@ static void tests_bt_scan_and_remove() {
 
 }
 
-void tests_bt()
+void tests_bt2(void)
 {
-  int i;
+  /*int i;
+   */
+
+  hello();
 
   /* Configuring the BT */
 
@@ -390,6 +370,8 @@ void tests_bt()
 
   tests_bt_list_known_devices();
 
+
+  /*
   for (i = 0 ; i < 10 ; i++)
     {
       nx_display_clear();
@@ -397,12 +379,17 @@ void tests_bt()
 
       nx_systick_wait_ms(1000);
     }
+  */
+
+  goodbye();
 }
 
 
 
 /* returns 1 if they are identic
  * 0 else
+ *
+ * TODO: use base/util.h:strncmp instead.
  */
 static U8 compare_str(char *str_a, char *str_b, U32 max)
 {
@@ -427,17 +414,214 @@ static U8 compare_str(char *str_a, char *str_b, U32 max)
 }
 
 
-#define USB_UNKNOWN    "Unknown"
-#define USB_OK         "Ok"
-#define USB_OVERLOADED "Ok but overloaded"
+#define CMD_UNKNOWN    "Unknown"
+#define CMD_OK         "Ok"
 
 void tests_all();
 
-#define MOVE_TIME 1000
+#define MOVE_TIME_AV 1000
+#define MOVE_TIME_AR 3000
 
-void tests_usb() {
-  U16 i;
+/**
+ * @return 0 if success ; 1 if unknown command ; 2 if halt
+ */
+static int tests_command(char *buffer, int lng)
+{
+  int i;
   S32 t;
+
+  /* Start interpreting */
+
+  i = 0;
+  if (compare_str(buffer, "motor", lng))
+    tests_motor();
+  else if (compare_str(buffer, "sound", lng))
+    tests_sound();
+  else if (compare_str(buffer, "display", lng))
+    tests_display();
+  else if (compare_str(buffer, "sysinfo", lng))
+    tests_sysinfo();
+  else if (compare_str(buffer, "sensors", lng))
+    tests_sensors();
+  else if (compare_str(buffer, "tachy", lng))
+    tests_tachy();
+  else if (compare_str(buffer, "radar", lng))
+    tests_radar();
+  else if (compare_str(buffer, "bt", lng))
+    tests_bt();
+  else if (compare_str(buffer, "bt2", lng))
+    tests_bt2();
+  else if (compare_str(buffer, "all", lng))
+    tests_all();
+  else if (compare_str(buffer, "halt", lng))
+    return 2;
+  else if (compare_str(buffer, "Al", lng))
+    nx_motors_rotate_angle(0, 90, 100, 1);
+  else if (compare_str(buffer, "Ar", lng))
+    nx_motors_rotate_angle(0, -90, 100, 1);
+  else if (compare_str(buffer, "Ac", lng)) {
+    nx_motors_rotate(0, 75);
+    while((t = nx_motors_get_tach_count(0)) != 0) {
+      if (t < 0) {
+        nx_motors_rotate(0, 75);
+      } else {
+        nx_motors_rotate(0, -75);
+      }
+      nx_display_cursor_set_pos(1, 1);
+      nx_display_hex(t);
+      nx_display_string("          ");
+    }
+    nx_motors_stop(0, 1);
+  } else if (compare_str(buffer, "BCf", lng)) {
+    nx_motors_rotate(1, -100);
+    nx_motors_rotate(2, -100);
+    nx_systick_wait_ms(MOVE_TIME_AV);
+    nx_motors_stop(1, 0);
+    nx_motors_stop(2, 0);
+  } else if (compare_str(buffer, "BCr", lng)) {
+    nx_motors_rotate(1, 80);
+    nx_motors_rotate(2, 80);
+    nx_systick_wait_ms(MOVE_TIME_AR);
+    nx_motors_stop(1, 0);
+    nx_motors_stop(2, 0);
+  }
+  else {
+    i = 1;
+  }
+
+  return i;
+}
+
+#define BT_PACKET_SIZE 128
+
+void tests_bt(void) {
+  U16 i;
+  U16 lng = 0;
+  int port_handle = -1;
+  int connection_handle = -1;
+  int bleh = -1;
+
+  char buffer[BT_PACKET_SIZE];
+
+  for (i = 0 ; i < BT_PACKET_SIZE ; i++)
+    buffer[i] = 0;
+  lng = 0;
+
+  nx_bt_init();
+
+  hello();
+
+  nx_display_cursor_set_pos(0, 0);
+  nx_display_string("Setting discoverable ...");
+  nx_bt_set_friendly_name("Tulipe");
+  nx_bt_set_discoverable(TRUE);
+
+  port_handle = nx_bt_open_port();
+
+  nx_display_clear();
+  nx_display_cursor_set_pos(0, 0);
+  nx_display_string("Waiting connection ...");
+
+  while(TRUE) {
+
+    for (i = 0 ;
+         i < 800 && (!nx_bt_stream_opened() || nx_bt_stream_data_read() < 2);
+         i++)
+      {
+        if (connection_handle >= 0) {
+
+          nx_display_cursor_set_pos(0, 2);
+          nx_display_string("Waiting command ...");
+
+        }
+
+        if (nx_bt_has_dev_waiting_for_pin()) {
+
+          nx_bt_send_pin("1234");
+
+        } else if (nx_bt_connection_pending()) {
+
+          nx_bt_accept_connection(TRUE);
+
+          while ( (bleh = nx_bt_connection_established()) < 0)
+            nx_systick_wait_ms(100);
+
+          connection_handle = bleh;
+
+          nx_bt_debug();
+
+          nx_bt_stream_open(connection_handle);
+
+          nx_bt_debug();
+
+          nx_bt_stream_read((U8 *)&buffer, 2); /* we read the packet size first */
+
+          nx_display_cursor_set_pos(0, 4);
+
+        }
+
+        nx_bt_debug();
+        nx_systick_wait_ms(100);
+      }
+
+    if (!nx_bt_stream_opened() || i >= 800)
+      break;
+
+    lng = buffer[0] + (buffer[1] << 8);
+
+    nx_display_clear();
+    nx_display_cursor_set_pos(0, 0);
+    nx_display_string("Reading ...");
+    nx_display_cursor_set_pos(0, 1);
+    nx_display_uint(lng);
+
+    nx_bt_stream_read((U8 *)&buffer, lng);
+
+    for(i = 0;
+        nx_bt_stream_opened() && nx_bt_stream_data_read() < lng && i < 100;
+        i++)
+      nx_systick_wait_ms(100);
+
+    if (!nx_bt_stream_opened() || i >= 100)
+      break;
+
+    /* Start interpreting */
+
+    i = tests_command(buffer, lng);
+
+    nx_bt_stream_read((U8 *)&buffer, 2);
+
+    if (i == 2) {
+      break;
+    }
+
+    /*
+    if (i == 1) {
+      nx_bt_stream_write((U8 *)CMD_UNKNOWN, sizeof(CMD_UNKNOWN)-1);
+    }
+
+    if (i == 0) {
+      nx_bt_stream_write((U8 *)CMD_OK, sizeof(CMD_OK)-1);
+    }
+    */
+
+    nx_systick_wait_ms(100);
+    nx_display_clear();
+
+  }
+
+  if (nx_bt_stream_opened())
+    nx_bt_stream_close();
+
+  nx_systick_wait_ms(1000);
+
+  nx_bt_debug();
+
+  goodbye();
+}
+
+void tests_usb(void) {
+  U16 i;
   U32 lng = 0;
 
   char buffer[NX_USB_PACKET_SIZE];
@@ -475,71 +659,23 @@ void tests_usb() {
     nx_display_string(buffer);
 
     nx_display_cursor_set_pos(0, 2);
-    nx_display_hex((U32)(USB_UNKNOWN));
+    nx_display_hex((U32)(CMD_UNKNOWN));
 
     /* Start interpreting */
 
-    i = 0;
-    if (compare_str(buffer, "motor", lng))
-      tests_motor();
-    else if (compare_str(buffer, "sound", lng))
-      tests_sound();
-    else if (compare_str(buffer, "display", lng))
-      tests_display();
-    else if (compare_str(buffer, "sysinfo", lng))
-      tests_sysinfo();
-    else if (compare_str(buffer, "sensors", lng))
-      tests_sensors();
-    else if (compare_str(buffer, "tachy", lng))
-      tests_tachy();
-    else if (compare_str(buffer, "radar", lng))
-      tests_radar();
-    else if (compare_str(buffer, "bt", lng))
-      tests_bt();
-    else if (compare_str(buffer, "all", lng))
-      tests_all();
-    else if (compare_str(buffer, "halt", lng))
+    i = tests_command(buffer, lng);
+
+    if (i == 2) {
       break;
-    else if (compare_str(buffer, "Al", lng))
-      nx_motors_rotate_angle(0, 70, 100, 1);
-    else if (compare_str(buffer, "Ar", lng))
-      nx_motors_rotate_angle(0, -70, 100, 1);
-    else if (compare_str(buffer, "Ac", lng)) {
-      nx_motors_rotate(0, 75);
-      while((t = nx_motors_get_tach_count(0)) != 0) {
-	if (t < 0) {
-	  nx_motors_rotate(0, 75);
-	} else {
-	  nx_motors_rotate(0, -75);
-	}
-	nx_display_cursor_set_pos(1, 1);
-	nx_display_hex(t);
-	nx_display_string("          ");
-      }
-      nx_motors_stop(0, 1);
-    } else if (compare_str(buffer, "BCf", lng)) {
-      nx_motors_rotate(1, -100);
-      nx_motors_rotate(2, -100);
-      nx_systick_wait_ms(MOVE_TIME);
-      nx_motors_stop(1, 0);
-      nx_motors_stop(2, 0);
-    } else if (compare_str(buffer, "BCr", lng)) {
-      nx_motors_rotate(1, 80);
-      nx_motors_rotate(2, 80);
-      nx_systick_wait_ms(MOVE_TIME);
-      nx_motors_stop(1, 0);
-      nx_motors_stop(2, 0);
     }
-    else {
-      i = 1;
-      nx_usb_write((U8 *)USB_UNKNOWN, sizeof(USB_UNKNOWN)-1);
+
+    if (i == 1) {
+      nx_usb_write((U8 *)CMD_UNKNOWN, sizeof(CMD_UNKNOWN)-1);
     }
 
     if (i == 0) {
-      nx_usb_write((U8 *)USB_OK, sizeof(USB_OK)-1);
+      nx_usb_write((U8 *)CMD_OK, sizeof(CMD_OK)-1);
     }
-
-    /* Stop interpreting */
 
     nx_systick_wait_ms(500);
 
@@ -550,7 +686,7 @@ void tests_usb() {
   goodbye();
 }
 
-void tests_usb_hardcore() {
+void tests_usb_hardcore(void) {
   int i, lng;
 
   char buffer[NX_USB_PACKET_SIZE];
@@ -576,7 +712,7 @@ void tests_usb_hardcore() {
   goodbye();
 }
 
-void tests_radar() {
+void tests_radar(void) {
   U32 sensor = 0;
   U8 interval, reading;
   S8 object;
@@ -629,7 +765,7 @@ void tests_radar() {
   goodbye();
 }
 
-void tests_all() {
+void tests_all(void) {
   test_silent = TRUE;
 
   tests_display();
