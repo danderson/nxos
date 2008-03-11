@@ -14,18 +14,18 @@
 #define ROUTE_FILE "tag_route.data"
 
 void main(void) {
-  U32 fd;
+  fs_fd_t store;
 
   nx_display_clear();
   nx_fs_init();
 
-  if (nx_fs_open(ROUTE_FILE, &fd) != FS_ERR_NO_ERROR) {
+  if (nx_fs_open(ROUTE_FILE, &store) != FS_ERR_NO_ERROR) {
     nx_display_string("Error opening data file!");
     return;
   }
   
   nx_display_string("File opened (fd:");
-  nx_display_uint(fd);
-  nx_display_end_line();
+  nx_display_uint(store);
+  nx_display_string(")\n");
 }
 
