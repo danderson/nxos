@@ -11,29 +11,36 @@
 #include "base/lib/gui/gui.h"
 
 void main(void) {
-  char *entries[3] = {"Browse", "Sysinfo", "Halt"};
+  char *entries[] = {"Browse", "Sysinfo", "Settings", "Halt", NULL};
   gui_text_menu_t menu;
   U8 res;
 
   menu.entries = entries;
   menu.title = "Home menu";
-  menu.active_mark = ">";
-  menu.count = 3;
+  menu.active_mark = "->";
 
-  res = nx_gui_text_menu(menu);
-  nx_display_end_line();
+  while (TRUE) {
+    res = nx_gui_text_menu(menu);
+    nx_display_end_line();
 
-  switch (res) {
-    case 2:
-      nx_display_string("Halting...");
-      nx_systick_wait_ms(1000);
-      return;
-      break;
-    default:
-      nx_display_string(entries[res]);
-      break;
+    switch (res) {
+      case 3:
+        nx_display_string("Halting...");
+        nx_systick_wait_ms(1000);
+        return;
+        break;
+      default:
+        nx_display_clear();
+        
+        nx_display_string("You pressed:\n");
+        nx_display_string(entries[res]);
+        nx_display_end_line();
+
+        nx_display_string("\nOk to go back");
+        while (nx_avr_get_button() != BUTTON_OK);
+
+        break;
+    }
   }
-
-  while (nx_avr_get_button() != BUTTON_CANCEL);
 }
 
