@@ -15,45 +15,77 @@
 #include "base/drivers/_efc.h"
 
 #define ROUTE_FILE "tag_route.data"
+#define MARKER 42
 
-void main(void) {
-  U32 data[EFC_PAGE_WORDS] = {0}, num = 128;
-  U32 t = (EFC_WRITE_KEY << 24) + ((num & 0x000003FF) << 8) + EFC_CMD_WP;
+void test_prog_u32(U32 page, U32 value);
+void test_read_all(void);
 
-  nx__efc_init();
+void test_prog_u32(U32 page, U32 value) {
+  U32 data[EFC_PAGE_WORDS];
+  data[0] = value;
 
   nx_display_clear();
 
   nx_display_string("Progr. page #");
-  nx_display_uint(num);
+  nx_display_uint(page);
   nx_display_end_line();
 
   nx_display_string("<< ");
-  nx_display_uint(FLASH_BASE_PTR[num*EFC_PAGE_WORDS]);
+  nx_display_uint(FLASH_BASE_PTR[page*EFC_PAGE_WORDS]);
   nx_display_end_line();
 
-  data[0] = FLASH_BASE_PTR[num*EFC_PAGE_WORDS]+1;
-  nx_display_string("data[0] = ");
-  nx_display_uint(data[0]);
+  nx_display_string("|= ");
+  nx_display_uint(value);
   nx_display_end_line();
 
-  nx_display_string("CMD: ");
-  nx_display_hex(t);
-  nx_display_end_line();
-  
-  if (!nx__efc_write_page(data, num)) {
+  if (!nx__efc_write_page(data, page)) {
     nx_display_string("Failed!\nPress CANCEL to halt");
     while (nx_avr_get_button() != BUTTON_CANCEL);
     return;
   }
 
-  nx_display_string("Press OK to read.\n");
-
-  while (nx_avr_get_button() != BUTTON_OK);
-
   nx_display_string(">> ");
-  nx_display_uint(FLASH_BASE_PTR[num*EFC_PAGE_WORDS]);
+  nx_display_uint(FLASH_BASE_PTR[page*EFC_PAGE_WORDS]);
   nx_display_end_line();
+  
+  nx_display_string("Press >>");
+  while (nx_avr_get_button() != BUTTON_RIGHT);
+  nx_systick_wait_ms(500);
+}
+
+void test_read_all(void) {
+  U32 page, marker;
+  U32 start;
+
+  nx_display_clear();
+  nx_display_string("Searching...\n");
+
+  start = nx_systick_get_ms();
+  
+  for (page=0; page<EFC_PAGES; page++) {
+    marker = FLASH_BASE_PTR[page*EFC_PAGE_WORDS];
+    if (marker == MARKER) {
+      nx_display_string("-> ");
+      nx_display_uint(page);
+      nx_display_end_line();
+    }
+  }
+
+  nx_display_uint(nx_systick_get_ms() - start);
+  nx_display_string(" ms.\n");
+}
+
+void main(void) {
+  nx__efc_init();
+
+  /*
+  test_prog_u32(128, MARKER);
+  test_prog_u32(200, MARKER);
+  test_prog_u32(841, MARKER);
+  test_prog_u32(1020, MARKER);
+  */
+  
+  test_read_all();
 
   while (nx_avr_get_button() != BUTTON_CANCEL);
 }
