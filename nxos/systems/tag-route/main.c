@@ -16,6 +16,7 @@
 
 #define ROUTE_FILE "tag_route.data"
 #define MARKER 0x42
+#define BLEH "test"
 
 void test_prog_u32(U32 page, U32 value);
 void test_read_all(void);
