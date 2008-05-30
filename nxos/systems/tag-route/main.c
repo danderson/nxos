@@ -16,7 +16,7 @@
 
 #define ROUTE_FILE "tag.data"
 
-#define TEST_DATA "print hello\nprint world\nplay 4000 1000"
+#define TEST_DATA "print hello\nprint world\nplay 6000 500"
 #define DATA_SIZE strlen(TEST_DATA)
 
 void record(char *filename);
@@ -71,13 +71,7 @@ void record(char *filename) {
 
 void replay(char *filename) {
   nx_display_clear();
-  nx_display_string("Opening file.\n");
-
-  if (!nx_rcmd_parse(filename)) {
-    nx_display_string("Meuh.");
-  } else {
-    nx_display_string("Done.");
-  }
+  nx_rcmd_parse(filename);
 }
 
 void main(void) {
