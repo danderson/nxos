@@ -12,11 +12,12 @@
 #include "base/drivers/systick.h"
 #include "base/drivers/motors.h"
 #include "base/lib/gui/gui.h"
+#include "base/lib/rcmd/rcmd.h"
 
-#define ROUTE_FILE "tag_route.data"
+#define ROUTE_FILE "tag.data"
 
-#define TEST_DATA "Bonjour!"
-#define DATA_SIZE 300 
+#define TEST_DATA "print hello\nprint world\nplay 4000 1000"
+#define DATA_SIZE strlen(TEST_DATA)
 
 void record(char *filename);
 void replay(char *filename);
@@ -54,7 +55,7 @@ void record(char *filename) {
   nx_display_string("Writing...\n");
 
   for (i=0; i<DATA_SIZE; i++) {
-    err = nx_fs_write(fd, (U8)'e');
+    err = nx_fs_write(fd, (U8)TEST_DATA[i]);
 
     if (err != FS_ERR_NO_ERROR) {
       nx_display_string("Err: ");
@@ -69,35 +70,14 @@ void record(char *filename) {
 }
 
 void replay(char *filename) {
-  fs_fd_t fd;
-  fs_err_t err;
-  U8 c[DATA_SIZE+1] = {0};
-  size_t i=0;
-
   nx_display_clear();
   nx_display_string("Opening file.\n");
 
-  err = nx_fs_open(filename, FS_FILE_MODE_OPEN, &fd);
-  if (err == FS_ERR_FILE_NOT_FOUND) {
-    nx_display_string("File not found.\n");
-    return;
-  } else if (err != FS_ERR_NO_ERROR) {
-    nx_display_string("Can't open file!\n");
-    return;
+  if (!nx_rcmd_parse(filename)) {
+    nx_display_string("Meuh.");
+  } else {
+    nx_display_string("Done.");
   }
-  
-  nx_display_string("File opened.\n\n");
-  nx_display_uint(nx_fs_get_filesize(fd));
-  nx_display_string(" bytes.\n");
-
-  while (i <= DATA_SIZE &&
-    nx_fs_read(fd, &(c[i++])) == FS_ERR_NO_ERROR);
-
-  nx_display_string("...");
-  nx_display_string((char *)(c+DATA_SIZE-5));
-  nx_display_string("\nDone.");
-
-  nx_fs_close(fd);
 }
 
 void main(void) {
