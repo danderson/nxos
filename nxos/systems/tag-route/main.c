@@ -103,12 +103,12 @@ void main(void) {
         continue;
         break;
     }
-    
+
     nx_display_string("\nOk to go back");
     while (nx_avr_get_button() != BUTTON_OK);
     nx_systick_wait_ms(500);
   }
-  
+
   nx_display_string(">> Halting...");
   nx_systick_wait_ms(1000);
 }

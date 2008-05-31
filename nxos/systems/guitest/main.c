@@ -32,7 +32,7 @@ void main(void) {
         break;
       default:
         nx_display_clear();
-        
+
         nx_display_string("You pressed:\n");
         nx_display_string(entries[res]);
         nx_display_end_line();
