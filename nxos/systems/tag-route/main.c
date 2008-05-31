@@ -16,7 +16,7 @@
 
 #define ROUTE_FILE "tag.data"
 
-#define TEST_DATA "print hello\nprint world\nplay 6000 500"
+#define TEST_DATA "print hello world\nmove A,B -90 500\nwait 2000\nplay 1500 1000 sync\nprint done"
 #define DATA_SIZE strlen(TEST_DATA)
 
 void record(char *filename);
@@ -65,6 +65,8 @@ void record(char *filename) {
   }
 
   nx_display_uint(nx_fs_get_filesize(fd));
+  nx_display_string("/");
+  nx_display_uint(DATA_SIZE);
   nx_display_string("B written.\n");
   nx_fs_close(fd);
 }
@@ -75,7 +77,7 @@ void replay(char *filename) {
 }
 
 void main(void) {
-  char *entries[] = {"Record", "Replay", "--", "Halt", NULL};
+  char *entries[] = {"Replay", "Record", "--", "Halt", NULL};
   gui_text_menu_t menu;
   U8 res;
 
@@ -92,10 +94,10 @@ void main(void) {
   while ((res = nx_gui_text_menu(menu)) != 3) {
     switch (res) {
       case 0:
-        record(ROUTE_FILE);
+        replay(ROUTE_FILE);
         break;
       case 1:
-        replay(ROUTE_FILE);
+        record(ROUTE_FILE);
         break;
       default:
         continue;
