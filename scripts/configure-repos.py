@@ -40,6 +40,7 @@ def main():
              'hg export tip | ./scripts/trailing_whitespace_report.py')
     conf.set('hooks', 'pretxncommit.copyright',
              'hg export tip | ./scripts/copyright_report.py')
+    conf.set('hooks', 'pretxncommit.metadata', './scripts/metadata_report.sh')
 
     conf.write(open('.hg/hgrc', 'w'))
 
