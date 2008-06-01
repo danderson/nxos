@@ -80,8 +80,16 @@ def check_file(filepath):
 ok = True
 
 for line in sys.stdin:
-    if line.startswith('+++'):
-        filepath = line.split()[1][2:]
+    if line.startswith('+++ '):
+        filepath = line.split()[1]
+
+        # Skip deletions
+        if filepath == '/dev/null':
+            continue
+
+        if filepath[:2] in ('a/', 'b/'):
+            filepath = filepath[2:]
+
         if not check_file(filepath):
             ok = False
 
