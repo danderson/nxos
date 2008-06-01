@@ -19,3 +19,6 @@
 ^nxos/.sconsign.dblite$
 ^nxos/.sconf_temp
 ^nxos/build_flags.py$
+
+# Precommit hooks drop a commit.msg file if they fail.
+^commit.msg$

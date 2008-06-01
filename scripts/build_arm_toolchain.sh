@@ -1,4 +1,14 @@
 #!/bin/sh
+#
+# Copyright (c) 2008 the NxOS developers
+#
+# See AUTHORS for a full list of the developers.
+#
+# Redistribution of this file is permitted under
+# the terms of the GNU Public License (GPL) version 2.
+#
+# Build an ARM cross-compiler toolchain (including binutils, gcc and
+# newlib) on autopilot.
 
 ROOT=`pwd`
 SRCDIR=$ROOT/src
@@ -72,10 +82,34 @@ unpack_source $(basename $BINUTILS_URL)
 unpack_source $(basename $NEWLIB_URL)
 )
 
+# Set the PATH to include the binaries we're going to build.
+OLD_PATH=$PATH
+export PATH=$PREFIX/bin:$PATH
+
 #
 # Stage 1: Build binutils
 #
 (
+(
+# First we need to patch binutils, because makeinfo 4.11 fails the
+# autoconf check.
+cd $SRCDIR/$BINUTILS_DIR
+patch -p0 <<"EOF"
+--- configure~ 2007-10-10 22:14:56.000000000 +1300
++++ configure 2007-10-10 22:14:56.000000000 +1300
+@@ -3680,7 +3680,7 @@
+     # For an installed makeinfo, we require it to be from texinfo 4.4 or
+     # higher, else we use the "missing" dummy.
+     if ${MAKEINFO} --version \
+-       | egrep 'texinfo[^0-9]*([1-3][0-9]|4\.[4-9]|[5-9])' >/dev/null 2>&1; then
++       | egrep 'texinfo[^0-9]*([1-3][0-9]|4\.([4-9]|[1-9][0-9])|[5-9])' >/dev/null 2>&1; then
+       :
+     else
+       MAKEINFO="$MISSING makeinfo"
+EOF
+) || exit 1
+
+# Now, build it.
 mkdir -p $BUILDDIR/$BINUTILS_DIR
 cd $BUILDDIR/$BINUTILS_DIR
 
@@ -83,10 +117,6 @@ $SRCDIR/$BINUTILS_DIR/configure --target=arm-elf --prefix=$PREFIX \
     --enable-interwork --enable-multilib --with-float=soft \
     && make all install
 ) || exit 1
-
-# Set the PATH to include the newly built binutils
-OLD_PATH=$PATH
-export PATH=$PREFIX/bin:$PATH
 
 #
 # Stage 2: Patch the GCC multilib rules, then build the gcc compiler only
@@ -115,6 +145,25 @@ $SRCDIR/$GCC_DIR/configure --target=arm-elf --prefix=$PREFIX \
 # Stage 3: Build and install newlib
 #
 (
+(
+# Same issue, we have to patch to support makeinfo >= 4.11.
+cd $SRCDIR/$NEWLIB_DIR
+patch -p0 <<"EOF"
+--- configure~ 2007-10-10 22:14:56.000000000 +1300
++++ configure 2007-10-10 22:14:56.000000000 +1300
+@@ -3680,7 +3680,7 @@
+     # For an installed makeinfo, we require it to be from texinfo 4.4 or
+     # higher, else we use the "missing" dummy.
+     if ${MAKEINFO} --version \
+-       | egrep 'texinfo[^0-9]*([1-3][0-9]|4\.[4-9]|[5-9])' >/dev/null 2>&1; then
++       | egrep 'texinfo[^0-9]*([1-3][0-9]|4\.([4-9]|[1-9][0-9])|[5-9])' >/dev/null 2>&1; then
+       :
+     else
+       MAKEINFO="$MISSING makeinfo"
+EOF
+) || exit 1
+
+# And now we can build it.
 mkdir -p $BUILDDIR/$NEWLIB_DIR
 cd $BUILDDIR/$NEWLIB_DIR
 

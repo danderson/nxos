@@ -12,11 +12,12 @@
 #include "base/drivers/systick.h"
 #include "base/drivers/motors.h"
 #include "base/lib/gui/gui.h"
+#include "base/lib/rcmd/rcmd.h"
 
-#define ROUTE_FILE "tag_route.data"
+#define ROUTE_FILE "tag.data"
 
-#define TEST_DATA "Bonjour!"
-#define DATA_SIZE 300 
+#define TEST_DATA "print hello world\nmove A,B -90 500\nwait 2000\nplay 1500 1000 sync\nprint done"
+#define DATA_SIZE strlen(TEST_DATA)
 
 void record(char *filename);
 void replay(char *filename);
@@ -54,7 +55,7 @@ void record(char *filename) {
   nx_display_string("Writing...\n");
 
   for (i=0; i<DATA_SIZE; i++) {
-    err = nx_fs_write(fd, (U8)'e');
+    err = nx_fs_write(fd, (U8)TEST_DATA[i]);
 
     if (err != FS_ERR_NO_ERROR) {
       nx_display_string("Err: ");
@@ -64,44 +65,19 @@ void record(char *filename) {
   }
 
   nx_display_uint(nx_fs_get_filesize(fd));
+  nx_display_string("/");
+  nx_display_uint(DATA_SIZE);
   nx_display_string("B written.\n");
   nx_fs_close(fd);
 }
 
 void replay(char *filename) {
-  fs_fd_t fd;
-  fs_err_t err;
-  U8 c[DATA_SIZE+1] = {0};
-  size_t i=0;
-
   nx_display_clear();
-  nx_display_string("Opening file.\n");
-
-  err = nx_fs_open(filename, FS_FILE_MODE_OPEN, &fd);
-  if (err == FS_ERR_FILE_NOT_FOUND) {
-    nx_display_string("File not found.\n");
-    return;
-  } else if (err != FS_ERR_NO_ERROR) {
-    nx_display_string("Can't open file!\n");
-    return;
-  }
-  
-  nx_display_string("File opened.\n\n");
-  nx_display_uint(nx_fs_get_filesize(fd));
-  nx_display_string(" bytes.\n");
-
-  while (i <= DATA_SIZE &&
-    nx_fs_read(fd, &(c[i++])) == FS_ERR_NO_ERROR);
-
-  nx_display_string("...");
-  nx_display_string((char *)(c+DATA_SIZE-5));
-  nx_display_string("\nDone.");
-
-  nx_fs_close(fd);
+  nx_rcmd_parse(filename);
 }
 
 void main(void) {
-  char *entries[] = {"Record", "Replay", "--", "Halt", NULL};
+  char *entries[] = {"Replay", "Record", "--", "Halt", NULL};
   gui_text_menu_t menu;
   U8 res;
 
@@ -118,21 +94,21 @@ void main(void) {
   while ((res = nx_gui_text_menu(menu)) != 3) {
     switch (res) {
       case 0:
-        record(ROUTE_FILE);
+        replay(ROUTE_FILE);
         break;
       case 1:
-        replay(ROUTE_FILE);
+        record(ROUTE_FILE);
         break;
       default:
         continue;
         break;
     }
-    
+
     nx_display_string("\nOk to go back");
     while (nx_avr_get_button() != BUTTON_OK);
     nx_systick_wait_ms(500);
   }
-  
+
   nx_display_string(">> Halting...");
   nx_systick_wait_ms(1000);
 }
