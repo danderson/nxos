@@ -3,6 +3,7 @@
 #include "base/types.h"
 #include "base/interrupts.h"
 #include "base/display.h"
+#include "base/assert.h"
 #include "base/memmap.h"
 #include "base/util.h"
 #include "base/drivers/aic.h"
@@ -40,6 +41,65 @@ static void goodbye(void) {
   nx_sound_freq(1000, 100);
   nx_systick_wait_ms(900);
 }
+
+
+void tests_util(void) {
+  hello();
+
+  /* Simple equality. */
+  NX_ASSERT(streq("foo", "foo"));
+
+  /* Simple inequality. */
+  NX_ASSERT(!streq("foo", "bar"));
+  NX_ASSERT(!streq("bar", "foo"));
+
+  /* Inequality towards the end of the string. */
+  NX_ASSERT(!streq("foo", "fob"));
+  NX_ASSERT(!streq("fob", "foo"));
+
+  /* Inequality of different length strings. */
+  NX_ASSERT(!streq("foo", "foobar"));
+  NX_ASSERT(!streq("foobar", "foo"));
+
+  /* Inequality vs. the empty string. */
+  NX_ASSERT(!streq("foo", ""));
+  NX_ASSERT(!streq("", "foo"));
+
+  /* The border case of the empty string. */
+  NX_ASSERT(streq("", ""));
+
+
+  /* Simple equality. */
+  NX_ASSERT(streqn("foo", "foo", 3));
+
+  /* Simple inequality. */
+  NX_ASSERT(!streqn("foo", "bar", 3));
+  NX_ASSERT(!streqn("bar", "foo", 3));
+
+  /* Inequality towards the end of the string. */
+  NX_ASSERT(!streqn("foo", "fob", 3));
+  NX_ASSERT(!streqn("fob", "foo", 3));
+
+  /* Inequality of different length strings. */
+  NX_ASSERT(!streqn("foo", "foobar", 6));
+  NX_ASSERT(!streqn("foobar", "foo", 6));
+
+  /* Inequality vs. the empty string. */
+  NX_ASSERT(!streqn("foo", "", 3));
+  NX_ASSERT(!streqn("", "foo", 3));
+
+  /* Equality of the empty string, no matter the given length. */
+  NX_ASSERT(streqn("", "", 42));
+
+  /* Equality of unequal strings if length == 0 */
+  NX_ASSERT(streqn("bleh", "foo", 0));
+
+  /* Prefix equality of unequal strings */
+  NX_ASSERT(streqn("feh", "foo", 1));
+
+  goodbye();
+}
+
 
 void tests_display(void) {
   char buf[2] = { 0, 0 };
@@ -326,8 +386,7 @@ static void tests_bt_scan_and_remove(void) {
 
 }
 
-void tests_bt2(void)
-{
+void tests_bt2(void) {
   /*int i;
    */
 
@@ -386,34 +445,6 @@ void tests_bt2(void)
 
 
 
-/* returns 1 if they are identic
- * 0 else
- *
- * TODO: use base/util.h:strncmp instead.
- */
-static U8 compare_str(char *str_a, char *str_b, U32 max)
-{
-
-  while (*str_a != '\0'
-	 && *str_b != '\0'
-	 && max > 0)
-    {
-      if (*str_a != *str_b) {
-	return 0;
-      }
-      str_a++;
-      str_b++;
-      max--;
-    }
-
-  if (*str_a != *str_b && max > 0) {
-    return 0;
-  }
-
-  return 1;
-}
-
-
 #define CMD_UNKNOWN    "Unknown"
 #define CMD_OK         "Ok"
 
@@ -425,41 +456,42 @@ void tests_all();
 /**
  * @return 0 if success ; 1 if unknown command ; 2 if halt
  */
-static int tests_command(char *buffer, int lng)
-{
+static int tests_command(char *buffer) {
   int i;
   S32 t;
 
   /* Start interpreting */
 
   i = 0;
-  if (compare_str(buffer, "motor", lng))
+  if (streq(buffer, "motor"))
     tests_motor();
-  else if (compare_str(buffer, "sound", lng))
+  else if (streq(buffer, "sound"))
     tests_sound();
-  else if (compare_str(buffer, "display", lng))
+  else if (streq(buffer, "util"))
+    tests_util();
+  else if (streq(buffer, "display"))
     tests_display();
-  else if (compare_str(buffer, "sysinfo", lng))
+  else if (streq(buffer, "sysinfo"))
     tests_sysinfo();
-  else if (compare_str(buffer, "sensors", lng))
+  else if (streq(buffer, "sensors"))
     tests_sensors();
-  else if (compare_str(buffer, "tachy", lng))
+  else if (streq(buffer, "tachy"))
     tests_tachy();
-  else if (compare_str(buffer, "radar", lng))
+  else if (streq(buffer, "radar"))
     tests_radar();
-  else if (compare_str(buffer, "bt", lng))
+  else if (streq(buffer, "bt"))
     tests_bt();
-  else if (compare_str(buffer, "bt2", lng))
+  else if (streq(buffer, "bt2"))
     tests_bt2();
-  else if (compare_str(buffer, "all", lng))
+  else if (streq(buffer, "all"))
     tests_all();
-  else if (compare_str(buffer, "halt", lng))
+  else if (streq(buffer, "halt"))
     return 2;
-  else if (compare_str(buffer, "Al", lng))
+  else if (streq(buffer, "Al"))
     nx_motors_rotate_angle(0, 90, 100, 1);
-  else if (compare_str(buffer, "Ar", lng))
+  else if (streq(buffer, "Ar"))
     nx_motors_rotate_angle(0, -90, 100, 1);
-  else if (compare_str(buffer, "Ac", lng)) {
+  else if (streq(buffer, "Ac")) {
     nx_motors_rotate(0, 75);
     while((t = nx_motors_get_tach_count(0)) != 0) {
       if (t < 0) {
@@ -472,13 +504,13 @@ static int tests_command(char *buffer, int lng)
       nx_display_string("          ");
     }
     nx_motors_stop(0, 1);
-  } else if (compare_str(buffer, "BCf", lng)) {
+  } else if (streq(buffer, "BCf")) {
     nx_motors_rotate(1, -100);
     nx_motors_rotate(2, -100);
     nx_systick_wait_ms(MOVE_TIME_AV);
     nx_motors_stop(1, 0);
     nx_motors_stop(2, 0);
-  } else if (compare_str(buffer, "BCr", lng)) {
+  } else if (streq(buffer, "BCr")) {
     nx_motors_rotate(1, 80);
     nx_motors_rotate(2, 80);
     nx_systick_wait_ms(MOVE_TIME_AR);
@@ -587,7 +619,7 @@ void tests_bt(void) {
 
     /* Start interpreting */
 
-    i = tests_command(buffer, lng);
+    i = tests_command(buffer);
 
     nx_bt_stream_read((U8 *)&buffer, 2);
 
@@ -663,7 +695,7 @@ void tests_usb(void) {
 
     /* Start interpreting */
 
-    i = tests_command(buffer, lng);
+    i = tests_command(buffer);
 
     if (i == 2) {
       break;
@@ -700,7 +732,7 @@ void tests_usb_hardcore(void) {
   for (i = 0 ; i < 1800 ; i++) {
 
     if ( (lng = nx_usb_data_read()) > 0) {
-      if (compare_str(buffer, "halt", lng)) {
+      if (streq(buffer, "halt")) {
 	break;
       }
       nx_usb_read((U8 *)(&buffer), NX_USB_PACKET_SIZE);
@@ -768,6 +800,7 @@ void tests_radar(void) {
 void tests_all(void) {
   test_silent = TRUE;
 
+  tests_util();
   tests_display();
   tests_sound();
   tests_motor();

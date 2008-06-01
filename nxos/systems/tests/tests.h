@@ -1,6 +1,7 @@
 #ifndef __NXOS_TESTS_H__
 #define __NXOS_TESTS_H__
 
+void tests_util(void);
 void tests_motor(void);
 void tests_sound(void);
 void tests_display(void);
