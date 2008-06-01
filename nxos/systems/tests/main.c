@@ -22,4 +22,5 @@ void main(void) {
   //tests_bt();
   //tests_usb_hardcore();
   //tests_radar();
+  tests_util();
 }

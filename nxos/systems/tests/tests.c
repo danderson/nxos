@@ -10,8 +10,6 @@
 #include "base/drivers/systick.h"
 /* TODO: evil, decide if necessary. */
 #include "base/drivers/_avr.h"
-//#include "base/drivers/twi.h"
-//#include "base/drivers/lcd.h"
 #include "base/drivers/sound.h"
 #include "base/drivers/sensors.h"
 #include "base/drivers/motors.h"
@@ -44,7 +42,13 @@ static void goodbye(void) {
 
 
 void tests_util(void) {
+  U32 u = 0;
+  S32 s = 0;
   hello();
+
+  /*
+   * streq() tests.
+   */
 
   /* Simple equality. */
   NX_ASSERT(streq("foo", "foo"));
@@ -68,6 +72,9 @@ void tests_util(void) {
   /* The border case of the empty string. */
   NX_ASSERT(streq("", ""));
 
+  /*
+   * streqn() tests.
+   */
 
   /* Simple equality. */
   NX_ASSERT(streqn("foo", "foo", 3));
@@ -96,6 +103,49 @@ void tests_util(void) {
 
   /* Prefix equality of unequal strings */
   NX_ASSERT(streqn("feh", "foo", 1));
+
+  /*
+   * atou32() tests.
+   */
+
+  NX_ASSERT(atou32("42", &u) && u == 42);
+  NX_ASSERT(atou32("0", &u) && u == 0);
+  NX_ASSERT(atou32("00000000000000", &u) && u == 0);
+  NX_ASSERT(atou32("0042", &u) && u == 42);
+  NX_ASSERT(!atou32("arthur", &u));
+  /* 4294967295 is 2^32-1, aka U32_MAX */
+  NX_ASSERT(atou32("4294967295", &u) && u == 4294967295U);
+  NX_ASSERT(!atou32("4294967296", &u));
+  /* TODO: massive overflows don't get caught because of our naive
+   * checking logic. Need to fix.
+   */
+  NX_ASSERT(atou32("9999999999", &u));
+
+  /*
+   * atos32() tests.
+   */
+
+  NX_ASSERT(atos32("42", &s) && s == 42);
+  NX_ASSERT(atos32("-42", &s) && s == -42);
+  NX_ASSERT(atos32("0", &s) && s == 0);
+  NX_ASSERT(atos32("-0", &s) && s == 0);
+  NX_ASSERT(atos32("00000000000000", &s) && s == 0);
+  NX_ASSERT(atos32("0042", &s) && s == 42);
+  NX_ASSERT(atos32("-0042", &s) && s == -42);
+  NX_ASSERT(!atos32("arthur", &s));
+  /* 2147483647 is 2^32-1, aka S32_MAX */
+  NX_ASSERT(atos32("2147483647", &s) && s == 2147483647);
+  NX_ASSERT(atos32("-2147483647", &s) && s == -2147483647);
+  NX_ASSERT(!atos32("2147483648", &s));
+  /* TODO: We should be able to represent -2^31, but our conversion logic
+   * considers it an error. Fix it if one day we actually need -2^31.
+   */
+  NX_ASSERT(!atos32("-2147483648", &s));
+  /* TODO: massive overflows and underflows don't get caught because
+   * of our naive checking logic. Need to fix.
+   */
+  NX_ASSERT(atos32("9999999999", &s));
+  NX_ASSERT(atos32("-9999999999", &s));
 
   goodbye();
 }
