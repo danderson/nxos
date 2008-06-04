@@ -1,4 +1,4 @@
-/* Copyright (C) 2007 the NxOS developers
+/* Copyright (c) 2007,2008 the NxOS developers
  *
  * See AUTHORS for a full list of the developers.
  *
@@ -8,7 +8,7 @@
 
 #include "base/types.h"
 #include "base/display.h"
-#include "base/memalloc.h"
+#include "base/lib/memalloc/memalloc.h"
 #include "base/drivers/systick.h"
 #include "base/drivers/sound.h"
 
