@@ -1,7 +1,12 @@
-/** Tag-route follower.
+/* Copyright (c) 2007-2008 the NxOS developers
  *
- * Replays a recorded tag route.
+ * See AUTHORS for a full list of the developers.
+ *
+ * Redistribution of this file is permitted under
+ * the terms of the GNU Public License (GPL) version 2.
  */
+
+/** Tag-route follower. Replays a recorded tag route. */
 
 #include "base/types.h"
 #include "base/core.h"
@@ -16,7 +21,7 @@
 
 #define ROUTE_FILE "tag.data"
 
-#define TEST_DATA "print hello world\nmove A,B -90 500\nwait 2000\nplay 1500 1000 sync\nprint done"
+#define TEST_DATA "print hello world\nmove A,B 100 1500\nwait 2000\nplay 1500 1000 sync\nprint done"
 #define DATA_SIZE strlen(TEST_DATA)
 
 void record(char *filename);
