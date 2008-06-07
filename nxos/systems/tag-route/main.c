@@ -1,3 +1,11 @@
+/* Copyright (c) 2008 the NxOS developers
+ *
+ * See AUTHORS for a full list of the developers.
+ *
+ * Redistribution of this file is permitted under
+ * the terms of the GNU Public License (GPL) version 2.
+ */
+
 /** Tag-route follower.
  *
  * Replays a recorded tag route.
@@ -6,11 +14,11 @@
 #include "base/types.h"
 #include "base/core.h"
 #include "base/display.h"
-#include "base/fs.h"
 #include "base/util.h"
 #include "base/drivers/avr.h"
 #include "base/drivers/systick.h"
 #include "base/drivers/motors.h"
+#include "base/lib/fs/fs.h"
 #include "base/lib/gui/gui.h"
 #include "base/lib/rcmd/rcmd.h"
 
