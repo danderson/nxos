@@ -1,4 +1,4 @@
-/* Copyright (C) 2007 the NxOS developers
+/* Copyright (c) 2007,2008 the NxOS developers
  *
  * See AUTHORS for a full list of the developers.
  *
@@ -7,12 +7,12 @@
  */
 
 #include "base/core.h"
-#include "base/memalloc.h"
 #include "base/assert.h"
 #include "base/interrupts.h"
 #include "base/display.h"
 #include "base/drivers/systick.h"
 #include "base/drivers/avr.h"
+#include "base/lib/memalloc/memalloc.h"
 
 #include "marvin/_task.h"
 #include "marvin/list.h"
