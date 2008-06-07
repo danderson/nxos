@@ -1,3 +1,11 @@
+/* Copyright (c) 2007,2008 the NxOS developers
+ *
+ * See AUTHORS for a full list of the developers.
+ *
+ * Redistribution of this file is permitted under
+ * the terms of the GNU Public License (GPL) version 2.
+ */
+
 /* NXT linker script source.
  *
  *  This file must be run through a sed script to generate an ldscript
@@ -123,7 +131,8 @@ SECTIONS {
   ROM_ONLY > rom
   SAMBA_ONLY > ram
 
-  ROM_ONLY __rom_end__ = ADDR(.text) + SIZEOF(.text) ;
+  ROM_ONLY __rom_userspace_start__ = ADDR(.text) + SIZEOF(.text);
+  SAMBA_ONLY __rom_userspace_start__ = 0;
 
   __text_start__ = ADDR(.text);
   __text_end__ = ADDR(.text) + SIZEOF(.text);

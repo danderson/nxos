@@ -1,4 +1,4 @@
-/* Copyright (c) 2007-2008 the NxOS developers
+/* Copyright (c) 2008 the NxOS developers
  *
  * See AUTHORS for a full list of the developers.
  *
@@ -11,11 +11,11 @@
 #include "base/types.h"
 #include "base/core.h"
 #include "base/display.h"
-#include "base/fs.h"
 #include "base/util.h"
 #include "base/drivers/avr.h"
 #include "base/drivers/systick.h"
 #include "base/drivers/motors.h"
+#include "base/lib/fs/fs.h"
 #include "base/lib/gui/gui.h"
 #include "base/lib/rcmd/rcmd.h"
 

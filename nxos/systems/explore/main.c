@@ -1,3 +1,11 @@
+/* Copyright (c) 2007,2008 the NxOS developers
+ *
+ * See AUTHORS for a full list of the developers.
+ *
+ * Redistribution of this file is permitted under
+ * the terms of the GNU Public License (GPL) version 2.
+ */
+
 /** Exploring bot.
  *
  * The NXT brick/rover will go forward until it detects an
@@ -8,7 +16,6 @@
 #include "base/types.h"
 #include "base/core.h"
 #include "base/display.h"
-#include "base/dump.h"
 #include "base/drivers/avr.h"
 #include "base/drivers/systick.h"
 #include "base/drivers/sound.h"
