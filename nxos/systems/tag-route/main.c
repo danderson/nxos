@@ -27,6 +27,7 @@
 void record(char *filename);
 void replay(char *filename);
 void defrag(void);
+void stats(void);
 
 void record(char *filename) {
   fs_fd_t fd;
