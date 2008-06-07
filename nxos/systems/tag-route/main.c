@@ -26,6 +26,7 @@
 
 void record(char *filename);
 void replay(char *filename);
+void defrag(void);
 
 void record(char *filename) {
   fs_fd_t fd;
@@ -81,8 +82,36 @@ void replay(char *filename) {
   nx_rcmd_parse(filename);
 }
 
+void defrag(void) {
+  nx_display_clear();
+  nx_display_string("- Defrag -\n\n");
+  nx_fs_defrag_best_overall();
+  nx_display_string("Done.\n");
+}
+
+void stats(void) {
+  U32 files = 0, used = 0, free_pages = 0, wasted = 0;
+
+  nx_display_clear();
+  nx_display_string("- FS stats -\n\n");
+
+  nx_fs_get_occupation(&files, &used, &free_pages, &wasted);
+
+  nx_display_uint(files);
+  nx_display_string(" file(s).\n");
+
+  nx_display_uint(used);
+  nx_display_string("B used.\n");
+
+  nx_display_uint(free_pages);
+  nx_display_string(" free page(s).\n");
+
+  nx_display_uint(wasted);
+  nx_display_string("B wasted.\n");
+}
+
 void main(void) {
-  char *entries[] = {"Replay", "Record", "--", "Halt", NULL};
+  char *entries[] = {"Replay", "Record", "Stats", "Defrag", "Halt", NULL};
   gui_text_menu_t menu;
   U8 res;
 
@@ -103,6 +132,12 @@ void main(void) {
         break;
       case 1:
         record(ROUTE_FILE);
+        break;
+      case 2:
+        stats();
+        break;
+      case 3:
+        defrag();
         break;
       default:
         continue;
