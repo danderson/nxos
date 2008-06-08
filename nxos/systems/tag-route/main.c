@@ -88,6 +88,8 @@ void defrag(void) {
   nx_display_string("- Defrag -\n\n");
   nx_fs_defrag_best_overall();
   nx_display_string("Done.\n");
+
+	while (nx_avr_get_button() != BUTTON_CANCEL);
 }
 
 void stats(void) {
@@ -126,7 +128,7 @@ void main(void) {
   menu.title = "Tag route";
   menu.active_mark = GUI_DEFAULT_TEXT_MARK;
 
-  while ((res = nx_gui_text_menu(menu)) != 3) {
+  while ((res = nx_gui_text_menu(menu)) != 4) {
     switch (res) {
       case 0:
         replay(ROUTE_FILE);
