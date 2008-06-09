@@ -1,3 +1,11 @@
+/* Copyright (c) 2007,2008 the NxOS developers
+ *
+ * See AUTHORS for a full list of the developers.
+ *
+ * Redistribution of this file is permitted under
+ * the terms of the GNU Public License (GPL) version 2.
+ */
+
 /* Various test routines for components of the NXT. */
 
 #include "base/types.h"
@@ -19,10 +27,11 @@
 #include "base/drivers/_uart.h"
 
 #include "tests/tests.h"
+#include "tests/fs.h"
 
 static bool test_silent = FALSE;
 
-static void hello(void) {
+void hello(void) {
   if (test_silent)
     return;
   nx_sound_freq(1000, 100);
@@ -31,7 +40,7 @@ static void hello(void) {
   nx_systick_wait_ms(900);
 }
 
-static void goodbye(void) {
+void goodbye(void) {
   if (test_silent)
     return;
   nx_sound_freq(2000, 100);
@@ -847,6 +856,18 @@ void tests_radar(void) {
   goodbye();
 }
 
+void tests_fs(void) {
+  hello();
+  fs_test_infos();
+  goodbye();
+}
+
+void tests_defrag(void) {
+  hello();
+  fs_test_defrag_simple();
+  goodbye();
+}
+
 void tests_all(void) {
   test_silent = TRUE;
 
@@ -858,6 +879,7 @@ void tests_all(void) {
   tests_sensors();
   tests_sysinfo();
   tests_radar();
+  tests_fs();
 
   test_silent = FALSE;
   goodbye();
