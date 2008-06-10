@@ -41,7 +41,7 @@ fetcher/builder :
 
   % mkdir -p ~/arm-gcc/
   % cd $_
-  % ~/where/is/nxos/nxos/scripts/build-arm-toolchain.sh
+  % ~/where/is/nxos/scripts/build-arm-toolchain.sh
   [...]
 
 Don't forget to add ~/arm-gcc/install/bin to your PATH environment variable.
