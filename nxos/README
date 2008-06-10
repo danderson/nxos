@@ -1,15 +1,77 @@
-Procedure pour compiler NxOS
-============================
+NxOS - an open source alternative operating system for the Lego Mindstorms NXT
+==============================================================================
 
-Utilisez le script scripts/build-arm-toolchain.sh pour construire une 
-chaine de compilation croisee pour ARM7.
+Summary:
 
-Une fois cette chaine compilee, recopiez environment.mak.tmpl en 
-environment.mak, et editez les chemins definis dedans pour pointer vers 
-la chaine de compilation croisee.
+ 1. Introduction
+ 2. Requirements
+ 3. Building and testing
+ 4. Notes and FAQ
 
-Assurez vous d'avoir un interpreteur Python disponible (necessaire pour 
-la generation des polices de caracteres), puis executez 'make'.
 
-NxOS devrait alors compiler, et produire deux binaires, 'nxos_rom.bin' 
-et 'nxos_samba.bin'.
+1. Introduction
+^^^^^^^^^^^^^^^
+
+NxOS is an open source operating system that runs on the Lego Mindstorms NXT
+platform. It aims at providing a comprehensive base system that provides
+easy-to-use APIs to the NXT's hardware, including sensors, display and motors.
+
+It also contains some libraries that developers of /application kernels/ may find
+of some interest, such as a file system or a GUI builder.
+
+NxOS is written in C, and must be cross-compiled to the ARM platform. See section 2
+below for the building requirements.
+
+
+2. Requirements
+^^^^^^^^^^^^^^^
+
+Building and testing NxOS requires a few softwares and libraries. Since most of
+the external utilities are written in Python, you will need a working installation
+of Python (www.python.org). You will also need libusb and the python-pyusb packages,
+needed by PyNXT to upload an NxOS kernel to the brick.
+
+  * Python >= 2.4
+  * libusb
+  * python-pyusb
+
+You will also need a working ARM cross-compilation chain. To ease
+the process, you will find in the scripts/ directory an automatic
+fetcher/builder :
+
+  % mkdir -p ~/arm-gcc/
+  % cd $_
+  % ~/where/is/nxos/nxos/scripts/build-arm-toolchain.sh
+  [...]
+
+Don't forget to add ~/arm-gcc/install/bin to your PATH environment variable.
+
+For MacOS X (>= 10.5.x) users, don't forget to install the Lego
+driver Leopard update from the Lego software updates page, or you
+won't be able to communicate with the brick via USB.
+
+3. Building and testing
+^^^^^^^^^^^^^^^^^^^^^^^
+
+To build NxOS, simply go inside the nxos/ subdirectory (the one
+that contains base/, systems/, ...) and type:
+
+  % scons appkernels=tests
+
+Finally, connect the brick to your computer with the USB cable, and do:
+
+  % ./boot_firmware tests samba
+
+The script will then ask you confirmation, and then upload the firmware
+to the brick's RAM (for ROM flashing mode, change 'samba' for 'rom').
+
+To build and try another kernel, simply replace 'tests' by the name
+of the application kernel you want to build. The available kernels
+are the directory in systems/. You can also build several appkernels at
+once by using a comma-separated list.
+
+4. Notes and FAQ
+^^^^^^^^^^^^^^^^
+
+Anything?
+
