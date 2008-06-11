@@ -14,13 +14,9 @@
 
 #include "main.h"
 
-#define TEST_DATA "print hello world\nmove A,B 100 1500\nwait 2000\nplay 1500 1000 sync\nprint done"
-#define DATA_SIZE strlen(TEST_DATA)
-
 void record(char *filename) {
   fs_fd_t fd;
   fs_err_t err;
-  size_t i;
 
   nx_display_clear();
   nx_display_string("Creating file...\n");
@@ -46,22 +42,11 @@ void record(char *filename) {
     }
   }
 
-  nx_display_string("File opened.\n\n");
-  nx_display_string("Writing...\n");
-
-  for (i=0; i<DATA_SIZE; i++) {
-    err = nx_fs_write(fd, (U8)TEST_DATA[i]);
-
-    if (err != FS_ERR_NO_ERROR) {
-      nx_display_string("Err: ");
-      nx_display_uint(err);
-      nx_display_end_line();
-    }
-  }
+  nx_display_string("File opened.\n");
+  nx_display_string("Waiting...\n");
+  usb_recv_to(fd);
 
   nx_display_uint(nx_fs_get_filesize(fd));
-  nx_display_string("/");
-  nx_display_uint(DATA_SIZE);
   nx_display_string("B written.\n");
   nx_fs_close(fd);
 }
