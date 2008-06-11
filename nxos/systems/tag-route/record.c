@@ -44,7 +44,12 @@ void record(char *filename) {
 
   nx_display_string("File opened.\n");
   nx_display_string("Waiting...\n");
-  usb_recv_to(fd);
+
+  if (usb_recv_to(fd) != FS_ERR_NO_ERROR) {
+    nx_display_string("Error!\n");
+    nx_fs_close(fd);
+    return;
+  }
 
   nx_display_uint(nx_fs_get_filesize(fd));
   nx_display_string("B written.\n");

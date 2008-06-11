@@ -60,8 +60,9 @@ void usb_recv(void) {
   } while (!streq((char *)buf, "end"));
 }
 
-void usb_recv_to(fs_fd_t fd) {
+fs_err_t usb_recv_to(fs_fd_t fd) {
   U8 buf[RCMD_BUF_LEN];
+  fs_err_t err;
   size_t i;
 
   do {
@@ -73,13 +74,22 @@ void usb_recv_to(fs_fd_t fd) {
     }
 
     for (i=0; i<strlen((char *)buf); i++) {
-      nx_fs_write(fd, buf[i]);
+      err = nx_fs_write(fd, buf[i]);
+      if (err != FS_ERR_NO_ERROR) {
+        return err;
+      }
     }
-    nx_fs_write(fd, (U8)'\n');
+
+    err = nx_fs_write(fd, (U8)'\n');
+    if (err != FS_ERR_NO_ERROR) {
+      return err;
+    }
 
     nx_rcmd_do((char *)buf);
     nx_systick_wait_ms(50);
   } while (!streq((char *)buf, "end"));
+
+  return FS_ERR_NO_ERROR;
 }
 
 

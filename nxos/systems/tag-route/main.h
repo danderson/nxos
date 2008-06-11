@@ -17,7 +17,7 @@
 void record(char *filename);
 void replay(char *filename);
 void usb_recv(void);
-void usb_recv_to(fs_fd_t fd);
+fs_err_t usb_recv_to(fs_fd_t fd);
 
 #endif /* __NXOS_TAG_ROUTE_MAIN_H__ */
 
