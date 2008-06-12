@@ -7,6 +7,7 @@
  */
 
 #include "base/display.h"
+#include "base/drivers/avr.h"
 #include "base/drivers/_efc.h"
 #include "base/drivers/systick.h"
 #include "base/lib/fs/fs.h"
@@ -14,10 +15,6 @@
 
 #define TEST_ZONE_START 128
 #define TEST_ZONE_END 256
-
-static void setup(void) {
-  /* Nothing to do ? */
-}
 
 static bool spawn_file(char *filename, size_t bytes) {
   fs_err_t err;
@@ -48,13 +45,34 @@ static bool remove_file(char *filename) {
   return FALSE;
 }
 
-static void destroy(void) {
+static void cleanup(void) {
   U32 nulldata[EFC_PAGE_WORDS] = {0};
   int i;
 
   for (i=TEST_ZONE_START; i<TEST_ZONE_END; i++) {
     nx__efc_write_page(nulldata, i);
   }
+}
+
+static void setup(void) {
+  cleanup();
+}
+
+static void destroy(void) {
+  cleanup();
+}
+
+
+void fs_test_dump(void) {
+  destroy();
+  setup();
+  spawn_file("test1", 10);
+  spawn_file("test2", 400);
+  spawn_file("test3", 200);
+
+  nx_fs_dump();
+  while (nx_avr_get_button() != BUTTON_OK);
+  destroy();
 }
 
 void fs_test_infos(void) {
@@ -78,15 +96,53 @@ void fs_test_infos(void) {
   nx_display_string("B wasted.\n");
 }
 
+void fs_test_defrag_empty(void) {
+  setup();
+
+  nx_display_clear();
+  nx_display_string("Starting...\n");
+
+  nx_display_string("Defrag: ");
+  nx_fs_defrag_simple();
+  nx_display_string("done.\n");
+
+  nx_fs_dump();
+  while (nx_avr_get_button() != BUTTON_OK);
+  nx_systick_wait_ms(500);
+
+  destroy();
+}
+
 void fs_test_defrag_simple(void) {
   setup();
 
-  spawn_file("test1", 10);
-  spawn_file("test2", 400);
-  spawn_file("test3", 200);
-  remove_file("test2");
+  nx_display_clear();
+  nx_display_string("Starting...\n");
 
-  nx_display_string("Files created.");
+  spawn_file("test1", 10);   // 128:test1 (1 page)
+  spawn_file("test2", 400);  // 129:test2 (2 pages - removed)
+  spawn_file("test3", 200);  // 131:test3 (1 pages)
+  spawn_file("test4", 10);   // 133:test4 (1 page - removed)
+  spawn_file("test5", 600);  // 134:test5 (3 pages)
+  remove_file("test2");
+  remove_file("test4");
+
+  nx_fs_dump();
+  while (nx_avr_get_button() != BUTTON_OK);
+  nx_systick_wait_ms(500);
+
+  nx_display_clear();
+  nx_display_string("Defrag: ");
+  nx_fs_defrag_simple();
+  nx_display_string("done.\n");
+  while (nx_avr_get_button() != BUTTON_OK);
+  nx_systick_wait_ms(500);
+
+  nx_display_clear();
+  nx_fs_dump();
+  while (nx_avr_get_button() != BUTTON_OK);
+  nx_systick_wait_ms(500);
+
 
   destroy();
 }

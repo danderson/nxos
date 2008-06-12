@@ -859,12 +859,15 @@ void tests_radar(void) {
 void tests_fs(void) {
   hello();
   fs_test_infos();
+  nx_systick_wait_ms(2000);
+  fs_test_dump();
   goodbye();
 }
 
 void tests_defrag(void) {
   hello();
   fs_test_defrag_simple();
+  //fs_test_defrag_empty();
   goodbye();
 }
 
