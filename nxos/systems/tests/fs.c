@@ -7,6 +7,7 @@
  */
 
 #include "base/display.h"
+#include "base/util.h"
 #include "base/drivers/avr.h"
 #include "base/drivers/_efc.h"
 #include "base/drivers/systick.h"
@@ -15,6 +16,11 @@
 
 #define TEST_ZONE_START 128
 #define TEST_ZONE_END 256
+
+union U32tochar {
+  U32 integers[8];
+  char chars[32];
+};
 
 static bool spawn_file(char *filename, size_t bytes) {
   fs_err_t err;
@@ -46,12 +52,7 @@ static bool remove_file(char *filename) {
 }
 
 static void cleanup(void) {
-  U32 nulldata[EFC_PAGE_WORDS] = {0};
-  int i;
-
-  for (i=TEST_ZONE_START; i<TEST_ZONE_END; i++) {
-    nx__efc_write_page(nulldata, i);
-  }
+  nx_fs_soft_format();
 }
 
 static void setup(void) {
@@ -143,6 +144,42 @@ void fs_test_defrag_simple(void) {
   while (nx_avr_get_button() != BUTTON_OK);
   nx_systick_wait_ms(500);
 
+  destroy();
+}
+
+void fs_test_defrag_best_overall(void) {
+  U32 data[256] = {0};
+  union U32tochar nameconv;
+
+  setup();
+
+  nx_display_string("Starting...\n");
+
+  data[0] = (0x42 << 24);
+  memcpy(nameconv.chars, (void *)"test42", 6);
+  memcpy(data+2, nameconv.integers, 32);
+
+  spawn_file("test1", 300);
+  spawn_file("test2", 350);
+  spawn_file("test3", 10);
+  spawn_file("test4", 10);
+  remove_file("test3");
+
+  nx_fs_dump();
+  while (nx_avr_get_button() != BUTTON_OK);
+  nx_systick_wait_ms(500);
+
+  nx_display_clear();
+  nx_display_string("Defrag: ");
+  nx_display_uint(nx_fs_defrag_best_overall());
+  nx_display_string(" done.\n");
+  while (nx_avr_get_button() != BUTTON_OK);
+  nx_systick_wait_ms(500);
+
+  nx_display_clear();
+  nx_fs_dump();
+  while (nx_avr_get_button() != BUTTON_OK);
+  nx_systick_wait_ms(500);
 
   destroy();
 }

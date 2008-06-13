@@ -13,6 +13,7 @@ void fs_test_dump(void);
 void fs_test_infos(void);
 void fs_test_defrag_empty(void);
 void fs_test_defrag_simple(void);
+void fs_test_defrag_best_overall(void);
 
 #endif /* __NXOS_TESTS_FS_H__ */
 
