@@ -160,10 +160,12 @@ void fs_test_defrag_best_overall(void) {
   memcpy(data+2, nameconv.integers, 32);
 
   spawn_file("test1", 300);
-  spawn_file("test2", 350);
-  spawn_file("test3", 10);
-  spawn_file("test4", 10);
-  remove_file("test3");
+  spawn_file("test2", 300);
+  spawn_file("test3", 102360);
+  spawn_file("test4", 30);
+  spawn_file("test5", 102560);
+  remove_file("test2");
+  remove_file("test4");
 
   nx_fs_dump();
   while (nx_avr_get_button() != BUTTON_OK);
