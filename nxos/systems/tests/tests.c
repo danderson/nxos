@@ -868,7 +868,8 @@ void tests_defrag(void) {
   hello();
   //fs_test_defrag_simple();
   //fs_test_defrag_empty();
-  fs_test_defrag_best_overall();
+  fs_test_defrag_for_file();
+  //fs_test_defrag_best_overall();
   goodbye();
 }
 

@@ -6,6 +6,8 @@
  * the terms of the GNU Public License (GPL) version 2.
  */
 
+#include "base/types.h"
+#include "base/at91sam7s256.h"
 #include "base/display.h"
 #include "base/util.h"
 #include "base/drivers/avr.h"
@@ -147,25 +149,52 @@ void fs_test_defrag_simple(void) {
   destroy();
 }
 
-void fs_test_defrag_best_overall(void) {
-  U32 data[256] = {0};
+void fs_test_defrag_for_file(void) {
+  U32 metadata[4*EFC_PAGE_WORDS] = {0};
   union U32tochar nameconv;
 
   setup();
 
+  metadata[0] = (0x42 << 24);
+  memcpy(nameconv.chars, (void *)"test42", 6);
+  memcpy(metadata+2, nameconv.integers, 32);
+
   nx_display_string("Starting...\n");
 
-  data[0] = (0x42 << 24);
-  memcpy(nameconv.chars, (void *)"test42", 6);
-  memcpy(data+2, nameconv.integers, 32);
+  spawn_file("test1", 3000);
+  //spawn_file("test2", 30000);
+  //spawn_file("test3", 3000);
+  //remove_file("test2");
+  nx__efc_write_page(metadata, 1020);
 
-  spawn_file("test1", 300);
-  spawn_file("test2", 300);
-  spawn_file("test3", 102360);
-  spawn_file("test4", 30);
-  spawn_file("test5", 102560);
+  nx_fs_dump();
+  while (nx_avr_get_button() != BUTTON_OK);
+  nx_systick_wait_ms(500);
+
+  nx_display_clear();
+  nx_display_string("Defrag: ");
+  nx_display_uint(nx_fs_defrag_for_file_by_name("test1"));
+  nx_display_string(" done.\n");
+  while (nx_avr_get_button() != BUTTON_OK);
+  nx_systick_wait_ms(500);
+
+  nx_display_clear();
+  nx_fs_dump();
+  while (nx_avr_get_button() != BUTTON_OK);
+  nx_systick_wait_ms(500);
+
+  destroy();
+}
+
+void fs_test_defrag_best_overall(void) {
+  setup();
+
+  nx_display_string("Starting...\n");
+
+  spawn_file("test1", 106968);
+  spawn_file("test2", 12750);
+  spawn_file("test3", 106968);
   remove_file("test2");
-  remove_file("test4");
 
   nx_fs_dump();
   while (nx_avr_get_button() != BUTTON_OK);
