@@ -8,6 +8,7 @@
 
 #include "base/types.h"
 #include "base/at91sam7s256.h"
+#include "base/assert.h"
 #include "base/display.h"
 #include "base/util.h"
 #include "base/drivers/avr.h"
@@ -149,23 +150,32 @@ void fs_test_defrag_simple(void) {
   destroy();
 }
 
-void fs_test_defrag_for_file(void) {
-  U32 metadata[4*EFC_PAGE_WORDS] = {0};
+static void spawn_file_at(char *name, U32 origin, size_t size) {
+  U32 data[1000], metadata[EFC_PAGE_WORDS];
   union U32tochar nameconv;
 
-  setup();
+  memset(metadata, 0, EFC_PAGE_BYTES);
+  memset(data, 0, EFC_PAGE_BYTES);
 
-  metadata[0] = (0x42 << 24);
-  memcpy(nameconv.chars, (void *)"test42", 6);
+  metadata[0] = (0x42 << 24) + (size & 0x000FFFFF);
+  memset(nameconv.chars, 0, 32);
+  memcpy(nameconv.chars, name, MIN(strlen(name), 31));
   memcpy(metadata+2, nameconv.integers, 32);
 
+  nx__efc_write_page(metadata, origin);
+}
+
+void fs_test_defrag_for_file(void) {
+  setup();
+
+  nx_display_clear();
   nx_display_string("Starting...\n");
 
   spawn_file("test1", 3000);
   //spawn_file("test2", 30000);
   //spawn_file("test3", 3000);
   //remove_file("test2");
-  nx__efc_write_page(metadata, 1020);
+  spawn_file_at("test42", 1020, 42);
 
   nx_fs_dump();
   while (nx_avr_get_button() != BUTTON_OK);
