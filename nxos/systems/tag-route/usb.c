@@ -51,8 +51,9 @@ void usb_recv(void) {
       continue;
     }
 
-    nx_display_string((char *)buf);
-    nx_display_end_line();
+    // Disable local echo
+    //  nx_display_string((char *)buf);
+    //  nx_display_end_line();
 
     nx_rcmd_do((char *)buf);
     nx_systick_wait_ms(50);
