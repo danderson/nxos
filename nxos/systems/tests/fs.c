@@ -201,10 +201,12 @@ void fs_test_defrag_best_overall(void) {
 
   nx_display_string("Starting...\n");
 
-  spawn_file("test1", 106968);
-  spawn_file("test2", 12750);
-  spawn_file("test3", 106968);
-  remove_file("test2");
+  spawn_file("test1", 4000);
+  spawn_file("test2", 7000);
+  spawn_file("test3", 8000);
+  spawn_file("test4", 300);
+  spawn_file("test5", 4000);
+  remove_file("test4");
 
   nx_fs_dump();
   while (nx_avr_get_button() != BUTTON_OK);
@@ -212,8 +214,13 @@ void fs_test_defrag_best_overall(void) {
 
   nx_display_clear();
   nx_display_string("Defrag: ");
-  nx_display_uint(nx_fs_defrag_best_overall());
-  nx_display_string(" done.\n");
+  if (nx_fs_defrag_best_overall() != FS_ERR_NO_ERROR) {
+    nx_display_string("Error!");
+  } else {
+    nx_display_string("Done.");
+  }
+  nx_display_end_line();
+
   while (nx_avr_get_button() != BUTTON_OK);
   nx_systick_wait_ms(500);
 
