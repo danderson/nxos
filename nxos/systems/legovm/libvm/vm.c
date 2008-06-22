@@ -18,8 +18,9 @@
 static const U8 magic[14] = "MindstormsNXT";
 static const U16 version = 0x500;
 
-/* Partial array that maps from the enum above to sizes in
- * bytes. Doesn't include sizes for CLUSTER or MUTEX.
+/* Mapping from data types to size in bytes. VOID, CLUSTER and MUTEX
+ * are listed as size 0 because they are irrelevant for this
+ * mapping.
  */
 const U8 data_type_size[NUM_DATA_TYPES] = {
   0, /* VOID */
