@@ -109,8 +109,8 @@ typedef struct {
  */
 typedef struct {
   U32 fire_count;
-  const U8 *start_pc;
-  const U8 *current_pc;
+  const U16 *start_pc;
+  const U16 *current_pc;
   const U8 *dependents_start;
 } clump;
 
@@ -132,6 +132,29 @@ typedef struct {
   const clump_record *clump_records;
   /* Runtime clump data in RAM. */
   clump *runtime_clumps;
+
+  /* Instruction scratch buffer for the instruction currently being
+   * processed.
+   */
+  struct {
+    U8 opcode;
+
+    U8 num_operands;
+
+    /* The first two arguments of instructions are special, since
+     * depending on the instruction form they may have to be
+     * synthetically constructed.
+     */
+    U16 arg1;
+    U16 arg2;
+
+    /* For opcodes with more than 2 arguments, the remaining arguments
+     * are arranged in an array of length num_operands - 2.
+     */
+    const U16 *other_args;
+
+    U8 comparison_code;
+  } instruction;
 } vm_state;
 
 extern vm_state vm;

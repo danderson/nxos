@@ -164,7 +164,8 @@ static void init_clumps(void) {
        i < vm.header->clump_count;
        i++, rec++, rt_clump++) {
     rt_clump->fire_count = rec->fire_count;
-    rt_clump->start_pc = rt_clump->current_pc = codespace + rec->code_offset;
+    rt_clump->start_pc = (U16*)(codespace + rec->code_offset);
+    rt_clump->current_pc = rt_clump->start_pc;
     rt_clump->dependents_start = dependencies;
     dependencies += rec->dependent_count;
   }

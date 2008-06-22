@@ -14,6 +14,7 @@
 #define __NXOS_SYSTEMS_LEGOVM_LIBVM_LOCAL_BASE_TYPES_H__
 
 typedef unsigned char U8;
+typedef signed char S8;
 typedef unsigned short U16;
 typedef unsigned long U32;
 typedef U8 bool;
