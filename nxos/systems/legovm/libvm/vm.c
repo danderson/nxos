@@ -126,6 +126,50 @@ static void init_dataspace(void) {
   }
 }
 
+static void init_clumps(void) {
+  const dstoc_record *end = vm.dstoc + vm.header->dstoc_entry_count;
+  const U8 *clumps_ptr = (U8*)end + vm.header->defaults_block_size;
+
+  /* The clump segment is 16 bit aligned, so we potentially need to
+   * adjust the offset.
+   */
+  if ((U32) clumps_ptr & 0x1)
+    clumps_ptr++;
+
+  vm.clump_records = (clump_record*)clumps_ptr;
+  vm.runtime_clumps = nx_calloc(vm.header->clump_count, sizeof(clump));
+
+  const U8 *dependencies = (U8*)(vm.clump_records + vm.header->clump_count);
+  const U8 *codespace = dependencies;
+
+  /* Iterate once through all clumps, just to determine where the heck
+   * codespace is.
+   */
+  int i;
+  const clump_record *rec;
+  for (i = 0, rec = vm.clump_records;
+       i < vm.header->clump_count;
+       i++, rec++)
+    codespace += rec->dependent_count;
+
+  /* Same 16-bit alignment trick as above. */
+  if ((U32) codespace & 0x1)
+    codespace++;
+
+  /* Now, go through the clumps for serious, initializing the runtime
+   * clump data.
+   */
+  clump *rt_clump;
+  for (i = 0, rec = vm.clump_records, rt_clump = vm.runtime_clumps;
+       i < vm.header->clump_count;
+       i++, rec++, rt_clump++) {
+    rt_clump->fire_count = rec->fire_count;
+    rt_clump->start_pc = rt_clump->current_pc = codespace + rec->code_offset;
+    rt_clump->dependents_start = dependencies;
+    dependencies += rec->dependent_count;
+  }
+}
+
 bool lego_vm_init(const U8 *program) {
   const U8 magic[14] = "MindstormsNXT";
   const U16 version = 0x500;
@@ -139,5 +183,7 @@ bool lego_vm_init(const U8 *program) {
   vm.ds_static = nx_malloc(vm.header->ds_initial_static_size);
 
   init_dataspace();
+  init_clumps();
+
   return TRUE;
 }

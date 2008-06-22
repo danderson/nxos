@@ -91,12 +91,28 @@ typedef struct __attribute__ ((__packed__)) {
   U16 _unused2;
 } dopevector;
 
+typedef struct __attribute__ ((__packed__)) {
+  U8 fire_count;
+  U8 dependent_count;
+  U16 code_offset;
+} clump_record;
+
 /* This simplified vector definition is what we actually use. */
 typedef struct {
   U16 element_size; /* Size of each element. */
   U16 element_count; /* Number of elements. */
   U8 *data; /* Pointer to the array data. */
 } vector;
+
+/* This is an expanded clump definition that goes into RAM and is used
+ * for scheduling.
+ */
+typedef struct {
+  U32 fire_count;
+  const U8 *start_pc;
+  const U8 *current_pc;
+  const U8 *dependents_start;
+} clump;
 
 typedef struct {
   /* These pointers are just handy handles to pieces of the RXE
@@ -111,6 +127,11 @@ typedef struct {
   /* Dynamic vectors initialized in RAM. */
   U32 num_arrays;
   vector *arrays;
+
+  /* Initial/reference clump data in the RXE. */
+  const clump_record *clump_records;
+  /* Runtime clump data in RAM. */
+  clump *runtime_clumps;
 } vm_state;
 
 extern vm_state vm;
