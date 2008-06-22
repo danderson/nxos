@@ -12,6 +12,8 @@
 #include "vm_opcodes.h"
 #include "vm_header.h"
 
+#include "vm_op_flowcontrol.h"
+
 const opcode_func opcode_handlers[NUM_OPCODES] = {
   NULL, /* OP_ADD */
   NULL, /* OP_SUB */
@@ -63,8 +65,8 @@ const opcode_func opcode_handlers[NUM_OPCODES] = {
   NULL, /* OP_SYSCALL */
 
   NULL, /* OP_STOP */
-  NULL, /* OP_FINCLUMP */
-  NULL, /* OP_FINCLUMPIMMED */
+  lego_vm_op_finclump, /* OP_FINCLUMP */
+  lego_vm_op_finclumpimmed, /* OP_FINCLUMPIMMED */
   NULL, /* OP_ACQUIRE */
   NULL, /* OP_RELEASE */
   NULL, /* OP_SUBCALL */
