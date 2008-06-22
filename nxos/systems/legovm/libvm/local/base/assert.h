@@ -13,8 +13,16 @@
 #ifndef __NXOS_SYSTEMS_LEGOVM_LIBVM_LOCAL_BASE_ASSERT_H__
 #define __NXOS_SYSTEMS_LEGOVM_LIBVM_LOCAL_BASE_ASSERT_H__
 
+#include <stdio.h>
+#include <stdlib.h>
 #include <assert.h>
 
 #define NX_ASSERT assert
+
+static inline void NX_FAIL(const char *msg) {
+  printf(msg);
+  printf("\n");
+  abort();
+}
 
 #endif /* __NXOS_SYSTEMS_LEGOVM_LIBVM_LOCAL_BASE_ASSERT_H__ */
