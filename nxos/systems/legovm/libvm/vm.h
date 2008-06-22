@@ -17,4 +17,6 @@
 
 bool lego_vm_init(const U8 *program);
 
+void lego_vm_destroy(void);
+
 #endif /* __NXOS_SYSTEMS_LEGOVM_VM_H__ */

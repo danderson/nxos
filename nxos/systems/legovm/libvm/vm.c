@@ -187,3 +187,17 @@ bool lego_vm_init(const U8 *program) {
 
   return TRUE;
 }
+
+void lego_vm_destroy(void) {
+  if (vm.ds_static != NULL)
+    nx_free(vm.ds_static);
+
+  if (vm.num_arrays > 0)
+    /* TODO(dave): Free sub-arrays properly. */
+    nx_free(vm.arrays);
+
+  if (vm.runtime_clumps != NULL)
+    nx_free(vm.runtime_clumps);
+
+  memset(&vm, 0, sizeof(vm));
+}
