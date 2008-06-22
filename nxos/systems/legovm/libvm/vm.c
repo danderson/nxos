@@ -99,7 +99,7 @@ bool lego_vm_init(const U8 *program) {
 }
 
 void lego_vm_run(void) {
-  for (U32 i = vm.header->clump_count; i > 0; i--) {
+  for (U32 i = 0; i < vm.header->clump_count; i++) {
     clump *cl = &vm.runtime_clumps[i];
     if (cl->fire_count == 0) {
       cl->current_pc = lego_vm_decode_instruction(cl->current_pc);
