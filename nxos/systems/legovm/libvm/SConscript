@@ -1,0 +1,6 @@
+from glob import glob
+
+Import('env')
+sources = glob('vm*.c')
+libvm = env.StaticLibrary('vm', sources)
+Return('libvm')

@@ -1,0 +1,20 @@
+from glob import glob
+
+# C environment for the VM library
+env = Environment(tools = ['gcc', 'gnulink', 'ar'],
+                  CPPPATH = ['#', '#/local'],
+                  CCFLAGS=['-Wextra', '-Wall', '-Werror', '-Wno-div-by-zero',
+                           '-Wfloat-equal', '-Wshadow', '-Wpointer-arith',
+                           '-Wbad-function-cast', '-Wmissing-prototypes',
+                           '-fomit-frame-pointer', '-std=c99', '-O0', '-g'])
+conf = Configure(env)
+if not (conf.CheckTypeSize('short', expect=2) and
+        conf.CheckTypeSize('long', expect=4)):
+    print 'Sorry, right now this only builds on 32-bit architectures. Yes, it sucks.'
+    Exit(1)
+env = conf.Finish()
+
+libvm = SConscript('SConscript', exports='env')
+
+env.Program('run_tests', glob('test_*.c'), LIBS=[libvm, 'check'])
+env.Program('run_program', 'run_program.c', LIBS=[libvm])
