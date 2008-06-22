@@ -55,21 +55,7 @@ enum data_type {
   NUM_DATA_TYPES
 };
 
-/* Mapping from data types to size in bytes. VOID and CLUSTER are
- * listed as size 0 because they are irrelevant for this mapping.
- */
-const U8 data_type_size[NUM_DATA_TYPES] = {
-  0, /* VOID */
-  1, /* UBYTE */
-  1, /* SBYTE */
-  2, /* UWORD */
-  2, /* SWORD */
-  4, /* ULONG */
-  4, /* SLONG */
-  2, /* ARRAY */
-  0, /* CLUSTER */
-  4  /* MUTEX */
-};
+extern const U8 data_type_size[NUM_DATA_TYPES];
 
 /* DSTOC records describe variables in the executable. */
 typedef struct __attribute__ ((__packed__)) {
