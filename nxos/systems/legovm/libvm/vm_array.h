@@ -24,10 +24,9 @@
  * @param dva_offset The dataspace offset to the dope vector array
  * describing the array layout.
  */
-void lego_vm_array_init(const U8 *dynamic_defaults, const U32 base_offset,
-                        const U32 dva_offset);
+void lego_vm_array_init(void);
 
 /** Delete an initialized array set. */
-void lego_vm_array_destroy();
+void lego_vm_array_destroy(void);
 
 #endif /* __NXOS_SYSTEMS_LEGOVM_LIBVM_ARRAY_H__ */

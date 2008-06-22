@@ -14,24 +14,25 @@
 #include "vm_header.h"
 #include "vm_array.h"
 
-
 /* Return a pointer to data in the dynamic default stream, given its
  * theoretical position in RAM if it were copied there.
  */
 static inline const U8 *real_offset(const U8 *dynamic_defaults,
-                                    U32 base_offset, U32 offset) {
-  return dynamic_defaults + (offset - base_offset);
+                                    U32 offset) {
+  return dynamic_defaults + (offset - vm.header->ds_initial_static_size);
 }
 
-void lego_vm_array_init(const U8 *dynamic_defaults,
-                        const U32 base_offset,
-                        const U32 dva_offset) {
+void lego_vm_array_init(void) {
+  const U8 *dynamic_defaults =
+    (U8*)(vm.dstoc + vm.header->dstoc_entry_count) +
+    vm.header->defaults_dynamic_offset;
+
   const dstoc_record *rec = vm.dstoc;
   const dstoc_record *end = vm.dstoc + vm.header->dstoc_entry_count;
 
   const dopevector *dva =
     (const dopevector*)real_offset(dynamic_defaults,
-                                   base_offset, dva_offset);
+                                   vm.header->dope_vector_offset);
 
   /* Construct the vector array from the DVA root entry. We're
    * potentially overestimating the number of arrays here, but we'll
@@ -63,8 +64,7 @@ void lego_vm_array_init(const U8 *dynamic_defaults,
       if (vec->element_count > 0) {
         NX_ASSERT(rec[1].type != ARRAY);
         vec->data = nx_malloc(vec->element_size * vec->element_count);
-        memcpy(vec->data, real_offset(dynamic_defaults, base_offset,
-                                      dv->offset),
+        memcpy(vec->data, real_offset(dynamic_defaults, dv->offset),
                vec->element_size * vec->element_count);
       }
 

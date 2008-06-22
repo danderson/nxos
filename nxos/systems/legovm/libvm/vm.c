@@ -100,10 +100,6 @@ bool lego_vm_init(const U8 *program) {
   vm.ds_static = nx_malloc(vm.header->ds_initial_static_size);
 
   init_static_dataspace();
-
-  lego_vm_array_init((U8*)(vm.dstoc + vm.header->dstoc_entry_count) +
-                     vm.header->defaults_dynamic_offset,
-                     vm.header->ds_initial_static_size,
-                     vm.header->dope_vector_offset);
+  lego_vm_array_init();
   return TRUE;
 }
