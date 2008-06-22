@@ -126,6 +126,10 @@ typedef struct {
   const clump_record *clump_records;
   /* Runtime clump data in RAM. */
   clump *runtime_clumps;
+  /* Currently executing clump. */
+  clump *current_clump;
+  /* Number of active clumps. */
+  U32 num_active_clumps;
 
   /* Instruction scratch buffer for the instruction currently being
    * processed.

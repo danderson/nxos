@@ -74,7 +74,9 @@ static void init_clumps(void) {
        i < vm.header->clump_count;
        i++, rec++, rt_clump++) {
     rt_clump->fire_count = rec->fire_count;
-    rt_clump->start_pc = (U16*)(codespace + rec->code_offset);
+    if (rec->fire_count == 0)
+      vm.num_active_clumps++;
+    rt_clump->start_pc = (U16*)(codespace + rec->code_offset * 2);
     rt_clump->current_pc = rt_clump->start_pc;
     rt_clump->dependents_start = dependencies;
     dependencies += rec->dependent_count;
@@ -101,18 +103,24 @@ bool lego_vm_init(const U8 *program) {
   return TRUE;
 }
 
-void lego_vm_run(void) {
+bool lego_vm_run(void) {
   vm.state = RUNNING;
 
   while (vm.state == RUNNING) {
-    for (U32 i = 0; i < vm.header->clump_count; i++) {
-      clump *cl = &vm.runtime_clumps[i];
-      if (cl->fire_count == 0) {
-        cl->current_pc = lego_vm_decode_instruction(cl->current_pc);
+    for (int i = 0; i < vm.header->clump_count; i++) {
+      vm.current_clump = &vm.runtime_clumps[i];
+      if (vm.current_clump->fire_count == 0) {
+        vm.current_clump->current_pc =
+          lego_vm_decode_instruction(vm.current_clump->current_pc);
         lego_vm_exec_opcode();
       }
     }
+
+    if (vm.num_active_clumps == 0)
+      vm.state = FINISHED;
   }
+
+  return vm.state == FINISHED ? TRUE : FALSE;
 }
 
 void lego_vm_destroy(void) {

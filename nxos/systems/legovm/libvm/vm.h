@@ -17,7 +17,7 @@
 
 bool lego_vm_init(const U8 *program);
 
-void lego_vm_run(void);
+bool lego_vm_run(void);
 
 void lego_vm_destroy(void);
 
