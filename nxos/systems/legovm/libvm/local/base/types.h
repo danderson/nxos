@@ -13,6 +13,8 @@
 #ifndef __NXOS_SYSTEMS_LEGOVM_LIBVM_LOCAL_BASE_TYPES_H__
 #define __NXOS_SYSTEMS_LEGOVM_LIBVM_LOCAL_BASE_TYPES_H__
 
+#include <stdlib.h>
+
 typedef unsigned char U8;
 typedef signed char S8;
 typedef unsigned short U16;
