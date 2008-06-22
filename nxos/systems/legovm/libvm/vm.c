@@ -98,6 +98,20 @@ bool lego_vm_init(const U8 *program) {
   return TRUE;
 }
 
+void lego_vm_run(void) {
+  for (U32 i = vm.header->clump_count; i > 0; i--) {
+    clump *cl = &vm.runtime_clumps[i];
+    if (cl->fire_count == 0) {
+      cl->current_pc = lego_vm_decode_instruction(cl->current_pc);
+
+      switch (vm.instruction.opcode) {
+      default:
+        NX_FAIL("Unimplemented opcode");
+      }
+    }
+  }
+}
+
 void lego_vm_destroy(void) {
   if (vm.ds_static != NULL)
     nx_free(vm.ds_static);

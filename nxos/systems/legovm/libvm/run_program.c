@@ -30,6 +30,7 @@ int main(int argc, char *argv[]) {
   }
   if (load_program(argv[1]) &&
       lego_vm_init(program)) {
+    lego_vm_run();
     lego_vm_destroy();
     return 0;
   } else {
