@@ -17,9 +17,8 @@
 static const U8 magic[14] = "MindstormsNXT";
 static const U16 version = 0x500;
 
-/* Mapping from data types to size in bytes. VOID, CLUSTER and MUTEX
- * are listed as size 0 because they are irrelevant for this
- * mapping.
+/* Mapping from data types to size in bytes. VOID and CLUSTER are
+ * listed as size 0 because they are irrelevant for this mapping.
  */
 const U8 data_type_size[NUM_DATA_TYPES] = {
   0, /* VOID */
@@ -31,7 +30,7 @@ const U8 data_type_size[NUM_DATA_TYPES] = {
   4, /* SLONG */
   2, /* ARRAY */
   0, /* CLUSTER */
-  0  /* MUTEX */
+  4  /* MUTEX */
 };
 
 /* The actual VM state. */
@@ -113,12 +112,6 @@ static void init_static_dataspace() {
     switch (rec->type) {
     case VOID:
     case CLUSTER:
-      rec++;
-      break;
-
-    case MUTEX:
-      *((U32*)&vm.ds_static[rec->data]) = 0xFFFFFFFF;
-      static_defaults += 4;
       rec++;
       break;
 
