@@ -18,14 +18,14 @@ typedef struct __attribute__ ((__packed__)) {
     S8 offset;
   } opcode_or_arg_or_offset;
 
-  /* Total opcode size in bytes. */
-  U32 size :4;
+  /* Flags in long form, opcode in short form. */
+  U32 flags_or_opcode :3;
 
   /* Should be 0 in long form, 1 in short form. */
   U32 is_short :1;
 
-  /* Flags in long form, opcode in short form. */
-  U32 flags_or_opcode :3;
+  /* Total opcode size in bytes. */
+  U32 size :4;
 } opcode;
 
 const U16 *lego_vm_decode_instruction(const U16* pc) {
