@@ -15,6 +15,7 @@
 #include "vm_header.h"
 #include "vm_opdecoder.h"
 #include "vm_dataspace.h"
+#include "vm_opcodes.h"
 
 /* Mapping from data types to size in bytes. VOID and CLUSTER are
  * listed as size 0 because they are irrelevant for this mapping.
@@ -103,11 +104,7 @@ void lego_vm_run(void) {
     clump *cl = &vm.runtime_clumps[i];
     if (cl->fire_count == 0) {
       cl->current_pc = lego_vm_decode_instruction(cl->current_pc);
-
-      switch (vm.instruction.opcode) {
-      default:
-        NX_FAIL("Unimplemented opcode");
-      }
+      lego_vm_exec_opcode();
     }
   }
 }
