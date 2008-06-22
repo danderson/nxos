@@ -84,7 +84,11 @@ void lego_vm_exec_opcode(void) {
   NX_ASSERT(vm.instruction.opcode < NUM_OPCODES);
 
   const opcode_func handler = opcode_handlers[vm.instruction.opcode];
-  NX_ASSERT(handler != NULL);
+
+  if (handler == NULL) {
+    vm.state = CRASHED;
+    return;
+  }
 
   handler();
 }

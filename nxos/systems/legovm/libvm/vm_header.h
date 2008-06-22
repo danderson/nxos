@@ -101,6 +101,14 @@ typedef struct {
 } clump;
 
 typedef struct {
+  enum {
+    NONE = 0,
+    READY,
+    RUNNING,
+    FINISHED,
+    CRASHED
+  } state;
+
   /* These pointers are just handy handles to pieces of the RXE
    * header.
    */

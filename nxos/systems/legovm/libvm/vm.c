@@ -82,10 +82,11 @@ static void init_clumps(void) {
 }
 
 bool lego_vm_init(const U8 *program) {
+  vm.header = (const rxe_header*) program;
+
   const U8 magic[14] = "MindstormsNXT";
   const U16 version = 0x500;
 
-  vm.header = (const rxe_header*) program;
   if (!streq((char*) vm.header->magic, (char*) magic) ||
       vm.header->version != version)
     return FALSE;
@@ -96,15 +97,20 @@ bool lego_vm_init(const U8 *program) {
   lego_vm_init_dataspace();
   init_clumps();
 
+  vm.state = READY;
   return TRUE;
 }
 
 void lego_vm_run(void) {
-  for (U32 i = 0; i < vm.header->clump_count; i++) {
-    clump *cl = &vm.runtime_clumps[i];
-    if (cl->fire_count == 0) {
-      cl->current_pc = lego_vm_decode_instruction(cl->current_pc);
-      lego_vm_exec_opcode();
+  vm.state = RUNNING;
+
+  while (vm.state == RUNNING) {
+    for (U32 i = 0; i < vm.header->clump_count; i++) {
+      clump *cl = &vm.runtime_clumps[i];
+      if (cl->fire_count == 0) {
+        cl->current_pc = lego_vm_decode_instruction(cl->current_pc);
+        lego_vm_exec_opcode();
+      }
     }
   }
 }
