@@ -72,7 +72,7 @@ static const dstoc_record *init_array(const dstoc_record *rec,
   return rec;
 }
 
-static void init_dataspace() {
+static void init_dataspace(void) {
   const dstoc_record *rec = vm.dstoc;
   const dstoc_record *end = vm.dstoc + vm.header->dstoc_entry_count;
   const U8 *static_defaults = (U8*) end;
