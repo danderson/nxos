@@ -66,18 +66,22 @@ typedef struct __attribute__ ((__packed__)) {
 
 /* This is the dopevector type that the RXE defines. */
 typedef struct __attribute__ ((__packed__)) {
-  U16 offset;
-  U16 element_size;
-  U16 element_count;
+  U16 offset; /* Offset in the dataspace to the array data. */
+  U16 element_size; /* Size of each element. */
+  U16 element_count; /* Number of elements. */
+
+  /* The two following are things we don't care about in NxOS, but
+   * that are present in the RXE.
+   */
   U16 _unused;
-  U16 link_index;
+  U16 _unused2;
 } dopevector;
 
 /* This simplified vector definition is what we actually use. */
 typedef struct {
-  U16 element_size;
-  U16 element_count;
-  U8 *data;
+  U16 element_size; /* Size of each element. */
+  U16 element_count; /* Number of elements. */
+  U8 *data; /* Pointer to the array data. */
 } vector;
 
 typedef struct {
