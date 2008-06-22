@@ -83,7 +83,10 @@ static void init_dataspace(void) {
 
   /* Construct the vector array from the DVA root entry. */
   vm.num_arrays = dva->element_count - 1;
-  vm.arrays = nx_calloc(vm.num_arrays, sizeof(vector));
+  if (vm.num_arrays > 0)
+    vm.arrays = nx_calloc(vm.num_arrays, sizeof(vector));
+  else
+    vm.arrays = NULL;
 
   vector *vec = vm.arrays;
 
