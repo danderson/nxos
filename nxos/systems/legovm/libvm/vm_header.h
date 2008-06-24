@@ -40,23 +40,6 @@ typedef struct __attribute__ ((__packed__)) {
   U16 instruction_count; /* Number of instructions in the program. */
 } rxe_header;
 
-enum data_type {
-  VOID = 0,
-  UBYTE,
-  SBYTE,
-  UWORD,
-  SWORD,
-  ULONG,
-  SLONG,
-  ARRAY,
-  CLUSTER,
-  MUTEX,
-
-  NUM_DATA_TYPES
-};
-
-extern const U8 data_type_size[NUM_DATA_TYPES];
-
 /* DSTOC records describe variables in the executable. */
 typedef struct __attribute__ ((__packed__)) {
   U8 type; /* A value from enum data_type */

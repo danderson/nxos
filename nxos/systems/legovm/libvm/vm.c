@@ -16,6 +16,7 @@
 #include "vm_opdecoder.h"
 #include "vm_dataspace.h"
 #include "vm_opcodes.h"
+#include "vm_types.h"
 
 /* Mapping from data types to size in bytes. VOID and CLUSTER are
  * listed as size 0 because they are irrelevant for this mapping.

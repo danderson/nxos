@@ -13,6 +13,7 @@
 
 #include "vm_header.h"
 #include "vm_dataspace.h"
+#include "vm_types.h"
 
 static inline const U8 *get_dynamic_offset(const U8 *defaults,
                                            const U16 offset) {
