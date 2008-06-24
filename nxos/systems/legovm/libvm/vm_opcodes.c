@@ -12,15 +12,16 @@
 #include "vm_opcodes.h"
 #include "vm_header.h"
 
+#include "vm_op_arithmetic.h"
 #include "vm_op_flowcontrol.h"
 
 const opcode_func opcode_handlers[NUM_OPCODES] = {
-  NULL, /* OP_ADD */
-  NULL, /* OP_SUB */
-  NULL, /* OP_NEG */
-  NULL, /* OP_MUL */
-  NULL, /* OP_DIV */
-  NULL, /* OP_MOD */
+  lego_vm_op_add, /* OP_ADD */
+  lego_vm_op_sub, /* OP_SUB */
+  lego_vm_op_neg, /* OP_NEG */
+  lego_vm_op_mul, /* OP_MUL */
+  lego_vm_op_div, /* OP_DIV */
+  lego_vm_op_mod, /* OP_MOD */
 
   NULL, /* OP_AND */
   NULL, /* OP_OR  */
