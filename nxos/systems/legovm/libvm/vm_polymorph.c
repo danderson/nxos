@@ -77,7 +77,12 @@ void lego_vm_u32_to_scalar(U32 idx, U32 value) {
   }
 }
 
-void lego_vm_polymorphic_op(U32 in1, U32 in2, U32 out, operation_func op) {
-  in1 = in2 = out = (U32)op;
+void lego_vm_polymorphic_1op(lego_vm_operation_1op_func op
+                             __attribute__ ((unused))) {
+  NX_FAIL("Not implemented");
+}
+
+void lego_vm_polymorphic_2op(lego_vm_operation_2op_func op
+                             __attribute__ ((unused))) {
   NX_FAIL("Not implemented");
 }

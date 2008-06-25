@@ -12,8 +12,7 @@
 #include "vm_opcodes.h"
 #include "vm_header.h"
 
-#include "vm_op_arithmetic.h"
-#include "vm_op_logic.h"
+#include "vm_op_arithmetic_logic.h"
 #include "vm_op_flowcontrol.h"
 
 const opcode_func opcode_handlers[NUM_OPCODES] = {

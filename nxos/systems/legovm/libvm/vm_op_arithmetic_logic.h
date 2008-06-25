@@ -1,5 +1,5 @@
-/** @file vm_op_arithmetic.h
- *  @brief Implementation of arithmetic operations.
+/** @file vm_op_arithmetic_logic.h
+ *  @brief Implementation of arithmetic and logic operations.
  */
 
 /* Copyright (c) 2008 the NxOS developers
@@ -10,8 +10,8 @@
  * the terms of the GNU Public License (GPL) version 2.
  */
 
-#ifndef __NXOS_SYSTEMS_LEGOVM_VM_OP_ARITHMETIC_H__
-#define __NXOS_SYSTEMS_LEGOVM_VM_OP_ARITHMETIC_H__
+#ifndef __NXOS_SYSTEMS_LEGOVM_VM_OP_ARITHMETIC_LOGIC_H__
+#define __NXOS_SYSTEMS_LEGOVM_VM_OP_ARITHMETIC_LOGIC_H__
 
 #include "base/types.h"
 
@@ -22,4 +22,9 @@ void lego_vm_op_mul(void);
 void lego_vm_op_div(void);
 void lego_vm_op_mod(void);
 
-#endif /* __NXOS_SYSTEMS_LEGOVM_VM_OP_ARITHMETIC_H__ */
+void lego_vm_op_and(void);
+void lego_vm_op_or(void);
+void lego_vm_op_xor(void);
+void lego_vm_op_not(void);
+
+#endif /* __NXOS_SYSTEMS_LEGOVM_VM_OP_ARITHMETIC_LOGIC_H__ */

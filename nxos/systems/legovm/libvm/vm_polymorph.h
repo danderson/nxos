@@ -35,11 +35,16 @@ U32 lego_vm_scalar_to_u32(U32 idx);
 void lego_vm_u32_to_scalar(U32 idx, U32 value);
 
 /* Type for an operation function. */
-typedef U32 (*operation_func)(enum data_type, U32, enum data_type, U32);
+typedef U32 (*lego_vm_operation_1op_func)(enum data_type, U32);
+
+typedef U32 (*lego_vm_operation_2op_func)(enum data_type, U32,
+                                          enum data_type, U32);
+
 
 /* Apply an operation function over complex aggregate imputs, storing
  * the result as appropriate depending on the output type.
  */
-void lego_vm_polymorphic_op(U32 in1, U32 in2, U32 out, operation_func op);
+void lego_vm_polymorphic_1op(lego_vm_operation_1op_func op);
+void lego_vm_polymorphic_2op(lego_vm_operation_2op_func op);
 
 #endif /* __NXOS_SYSTEMS_LEGOVM_VM_POLYMORPH_H__ */
