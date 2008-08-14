@@ -182,6 +182,10 @@ fs_err_t nx_fs_set_perms(fs_fd_t fd, fs_perm_t perms);
  */
 fs_err_t nx_fs_unlink(fs_fd_t fd);
 
+/** Soft format the flash by wiping all present files.
+ */
+fs_err_t nx_fs_soft_format(void);
+
 /** Seek to a given position in a file.
  *
  * @param fd The file descpriptor.
@@ -201,6 +205,19 @@ fs_err_t nx_fs_seek(fs_fd_t fd, size_t position);
 void nx_fs_get_occupation(U32 *files, U32 *used, U32 *free_pages,
                           U32 *wasted);
 
+/** Dumps the index of the filesystem as <page>:<filename>.
+ */
+void nx_fs_dump(void);
+
+/** Perform a simple defragmentation of the flash filesystem on the
+ * given zone of the flash.
+ *
+ * @param zone_start Beginning of the zone to defragment.
+ * @param zone_end End of the zone.
+ * @return A @a fs_err_t describing the outcome of the operation.
+ */
+fs_err_t nx_fs_defrag_simple_zone(U32 zone_start, U32 zone_end);
+
 /** Perform a simple defragmentation of the flash filesystem.
  *
  * This type of defragmentation only tries to collate files towards
@@ -209,7 +226,7 @@ void nx_fs_get_occupation(U32 *files, U32 *used, U32 *free_pages,
  *
  * @return A @a fs_err_t describing the outcome of the operation.
  */
-fs_err_t nx_fs_defrag_simple(void);
+inline fs_err_t nx_fs_defrag_simple(void);
 
 /** Perform a simple, file oriented defragmentation of the flash.
  *
