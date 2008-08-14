@@ -12,7 +12,7 @@
 #  - Commit message is way too short.
 
 AUTHOR=`hg tip --template {author}`
-AUTHOR_VALID=`echo $AUTHOR | egrep -i '[a-z ]+ (\[[a-z0-9 ]\] )?<[a-z.+@]+>'`
+AUTHOR_VALID=`echo $AUTHOR | egrep -i '[a-z ]+ (\[[a-z0-9 ]+\] )?<[a-z.+@]+>'`
 
 if [ "x$AUTHOR_VALID" = "x" ]; then
   echo "Changeset author does not conform to the pattern Firstname Lastname <email>"
