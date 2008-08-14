@@ -155,8 +155,32 @@ buildable_systems = [os.path.split(os.path.dirname(x))[1]
 
 opts = Options('build_flags.py')
 opts.Add(ListOption('appkernels',
-                    'List of application kernels to build', 'tests',
+                    'List of application kernels to build '
+                    '(by default, only the tests kernel is compiled', 'tests',
                     buildable_systems))
+
+Help('''
+Type: 'scons appkernels=...' to build kernels.
+
+The application kernel names are the directory names in the systems/
+subdirectory. You can specify several application kernels, separated
+by commas.  If you specify no app kernel, only the tests kernel is
+built.
+
+Examples
+
+ - Build the Marvin application kernel:
+     scons appkernels=marvin
+
+ - Build both Marvin and the tests kernel:
+     scons appkernels=tests,marvin
+
+ - Build all available systems (may require extra external dependencies):
+     scons appkernels=all
+
+ - Build only the baseplate code:
+     scons appkernels=none
+''')
 
 ###############################################################
 # Construct and configure a cross-compiler environment
