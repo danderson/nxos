@@ -13,6 +13,7 @@
 #include "base/drivers/systick.h"
 #include "base/drivers/avr.h"
 #include "base/lib/memalloc/memalloc.h"
+#include "base/asm_decls.h"
 
 #include "marvin/_task.h"
 #include "marvin/list.h"
@@ -172,11 +173,11 @@ static mv_task_t *new_task(nx_closure_t func, U32 stack_size) {
 
   t = nx_calloc(1, sizeof(*t));
   t->stack_base = nx_calloc(1, stack_size);
-  t->stack_current = t->stack_base + (stack_size >> 2) - sizeof(*s);
+  t->stack_current = (U32*) ((U32)t->stack_base + stack_size - sizeof(*s));
   s = (nx_task_stack_t*)t->stack_current;
   s->pc = (U32) func;
   s->lr = (U32) task_shutdown;
-  s->cpsr = 0x1F; /* TODO: Nice define. */
+  s->cpsr = MODE_SYS;
   if (s->pc & 0x1) {
     s->pc &= 0xFFFFFFFE;
     s->cpsr |= 0x20;
