@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #
-# Copyright (c) 2008 the NxOS developers
+# Copyright (c) 2008,2009 the NxOS developers
 #
 # See AUTHORS for a full list of the developers.
 #
@@ -14,12 +14,17 @@
 
 import time
 import os
+import subprocess
 import sys
 import re
 
 COPYRIGHT_RE = re.compile(r'Copyright \(([cC])\) ([0-9\-,]+) the NxOS developers')
 
 current_year = time.gmtime()[0]
+
+def git(*args):
+    command = ['git'] + list(args)
+    return subprocess.Popen(command, stdout=subprocess.PIPE).communicate()[0]
 
 def years_in_group(group):
     if '-' in group:
@@ -43,18 +48,18 @@ def parse_years(years_str):
             return False
     return years
 
-def check_file(filepath):
+def check_file(file_path, file_sha):
     requires_copyright = False
 
-    basename = os.path.basename(filepath)
-    if '.' in basename:
-        extension = basename.rsplit('.', 1)[1]
+    if '.' in file_path:
+        extension = file_path.rsplit('.', 1)[1]
         if extension in ('h', 'c', 'S', 'py', 'sh'):
             requires_copyright = True
 
-    contents = file(filepath).read()
+    contents = git('cat-file', 'blob', file_sha)
+
     if requires_copyright and 'Copyright' not in contents:
-        print 'No copyright notice found in %s' % filepath
+        print 'No copyright notice found in %s' % file_path
         return False
 
     m = COPYRIGHT_RE.search(contents)
@@ -62,7 +67,7 @@ def check_file(filepath):
         return True
 
     if m.group(1) == 'C':
-        print 'Copyright notice in %s uses "(C)"' % filepath
+        print 'Copyright notice in %s uses "(C)"' % file_path
         print 'Correct notation is "(c)"'
         print m.group(0)
         return False
@@ -72,30 +77,32 @@ def check_file(filepath):
         return False
     if current_year not in years:
         print '%d not present in copyright notice of %s:' % \
-              (current_year, filepath)
+              (current_year, file_path)
         print m.group(0)
         return False
     return True
 
-ok = True
+def main():
+    ok = True
 
-for line in sys.stdin:
-    if line.startswith('+++ '):
-        filepath = line.split()[1]
+    changed_files = git('diff-index', '--cached', '-z', '-M', 'HEAD')
 
-        # Skip deletions
-        if filepath == '/dev/null':
+    for changed in changed_files.splitlines():
+        changed = changed.split('\0')
+
+        file_sha, file_status = changed[0].split()[3:5]
+        file_path = changed[-2]
+
+        if file_status not in ('M', 'C', 'R', 'A'):
             continue
 
-        if filepath[:2] in ('a/', 'b/'):
-            filepath = filepath[2:]
-
-        if not check_file(filepath):
+        if not check_file(file_path, file_sha):
             ok = False
 
-if ok:
-    sys.exit(0)
-else:
-    os.system('hg tip --template {desc} >commit.msg')
-    print 'Commit message saved in commit.msg'
-    sys.exit(1)
+    if ok:
+        return 0
+    else:
+        return 1
+
+if __name__ == '__main__':
+    sys.exit(main())
