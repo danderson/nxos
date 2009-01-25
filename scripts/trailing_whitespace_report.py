@@ -1,28 +1,33 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 #
-# Copyright (c) 2008 the NxOS developers
+# Copyright (c) 2008,2009 the NxOS developers
 #
 # See AUTHORS for a full list of the developers.
 #
 # Redistribution of this file is permitted under
 # the terms of the GNU Public License (GPL) version 2.
 #
-# Receives a unified diff on standard input. Looks for adds that
-# insert trailing whitespace, and reports them along with
-# file/line/function info. If any added trailing whitespace is found,
-# exits in error. Also reports win32 EOLs.
+# Looks at the git cache diff for changes that insert trailing
+# whitespace, and reports them along with file/line/function info. If
+# any added trailing whitespace is found, exits in error. Also reports
+# win32 EOLs.
 
 import os
+import subprocess
 import sys
 
 file = '<file unknown>'
 function = '<function unknown>'
 ok = True
 
-for line in sys.stdin:
+def git(*args):
+    command = ['git'] + list(args)
+    return subprocess.Popen(command, stdout=subprocess.PIPE).communicate()[0]
+
+for line in git('diff-index', '--no-prefix', '-p', '-M', 'HEAD').splitlines():
     if line.startswith('+++'):
-        file = line.split()[1][2:]
+        file = line.split()[1]
         function = '<function unknown>'
         continue
     elif line.startswith('@@'):
@@ -42,6 +47,4 @@ for line in sys.stdin:
 if ok:
     sys.exit(0)
 else:
-    os.system('hg tip --template {desc} >commit.msg')
-    print 'Commit message saved in commit.msg'
     sys.exit(1)
