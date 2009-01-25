@@ -27,22 +27,24 @@ static void security_hook(void) {
 static U8 out_buffer[] = "hello world";
 static volatile int lock;
 
-static void send_callback(void) {
+static void send_callback(nx_rs485_error_t err) {
   static U8 flag = 1;
 
-  nx_display_clear();
-  nx_display_cursor_set_pos(0,6);
-  nx_display_string(flag ? "T\n" : " \n");
+  if (err == RS485_SUCCESS) {
+    nx_display_clear();
+    nx_display_cursor_set_pos(0,6);
+    nx_display_string(flag ? "T\n" : " \n");
 
-  out_buffer[5] = (flag ? 0 : ' ');
-  nx_display_string((const char *)out_buffer);
-  flag = (flag+1) % 2;
-  lock = 0;
+    out_buffer[5] = (flag ? 0 : ' ');
+    nx_display_string((const char *)out_buffer);
+    flag = (flag+1) % 2;
+    lock = 0;
+  }
 }
 
 void main (void) {
   nx_systick_install_scheduler(security_hook);
-  nx_rs485_init();
+  nx_rs485_init(RS485_BR_9600, 0, 0, FALSE);
 
   while (1) {
     lock = 1;
