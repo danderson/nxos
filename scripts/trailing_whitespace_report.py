@@ -25,7 +25,8 @@ def git(*args):
     command = ['git'] + list(args)
     return subprocess.Popen(command, stdout=subprocess.PIPE).communicate()[0]
 
-for line in git('diff-index', '--no-prefix', '-p', '-M', 'HEAD').splitlines():
+for line in git('diff-index', '--cached', '--no-prefix',
+                '-p', '-M', 'HEAD').splitlines():
     if line.startswith('+++'):
         file = line.split()[1]
         function = '<function unknown>'
