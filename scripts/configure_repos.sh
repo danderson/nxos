@@ -18,11 +18,7 @@ if [ ! -f "scripts/configure_repos.sh" ]; then
   exit 1
 fi
 
-git remote add devel $REPOS_URL/devel
-
-for name in ayolo dave jflesch sam; do
-    git remote add $name $REPOS_URL/crew/$name
-done
+git remote add mainline git://github.com/danderson/nxos.git
 
 cat <<EOF >.git/hooks/pre-commit
 #!/bin/bash
