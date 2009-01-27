@@ -1,0 +1,2 @@
+recursive-include flash_write *
+include flash_driver.bin

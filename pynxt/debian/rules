@@ -1,0 +1,128 @@
+#!/usr/bin/make -f
+
+# Uncomment this to turn on verbose mode.
+#export DH_VERBOSE=1
+
+
+PKGNAME := python-pynxt
+PYVERS := $(shell pyversions -r)
+
+# Setting the rebuild_flash_driver option will do a complete rebuild of
+# the flash driver blob, which includes building the appropriate
+# cross-compiler.
+ifneq (,$(findstring rebuild_flash_driver,$(DEB_BUILD_OPTIONS)))
+
+#first find our build dependencies:
+GCC_SOURCE = $(shell dpkg -L gcc-4.2-source | grep "/usr/src/gcc-4.2/gcc-4.2.*.tar.bz2")
+GCC_DIR = $(shell tar tfj $(GCC_SOURCE) | head -1 | sed 's,/.*,,')
+MULTILIB_CONFIG=$(CURDIR)/$(GCC_DIR)/gcc/config/arm/t-arm-elf
+
+BINUTILS_SOURCE = $(shell dpkg -L binutils-source | grep "/usr/src/binutils/binutils-.*.tar.bz2")
+BINUTILS_DIR = $(shell tar tfj $(BINUTILS_SOURCE) | head -1 | sed 's,/.*,,')
+
+TOOLCHAIN_DIR=$(CURDIR)/toolchain
+
+flash_driver.bin: build-toolchain
+	export PATH=$(TOOLCHAIN_DIR)/bin:$$PATH ;\
+	    cd flash_write; $(MAKE)
+
+build-toolchain: build-binutils-stamp build-gcc-stamp
+
+build-binutils-stamp:
+	dh_testdir
+	mkdir -p $(TOOLCHAIN_DIR)
+	tar xfj $(BINUTILS_SOURCE)
+	cd $(BINUTILS_DIR) ;\
+	    ./configure --target=arm-elf --prefix=$(TOOLCHAIN_DIR) \
+	                --enable-interwork --enable-multilib \
+	                --with-float=soft ;\
+	    $(MAKE) all install
+	touch $@
+
+build-gcc-stamp:
+	dh_testdir
+	tar xfj $(GCC_SOURCE)
+	echo "MULTILIB_OPTIONS += mno-thumb-interwork/mthumb-interwork" >> $(MULTILIB_CONFIG)
+	echo "MULTILIB_DIRNAMES += normal interwork" >> $(MULTILIB_CONFIG)
+	cd $(GCC_DIR) ;\
+	    export PATH=$(TOOLCHAIN_DIR)/bin:$$PATH ;\
+	    ./configure --target=arm-elf --prefix=$(TOOLCHAIN_DIR) \
+	                --enable-interwork --enable-multilib --with-float=soft \
+	                --enable-languages="c" ;\
+	    $(MAKE) all-gcc install-gcc
+	touch $@
+
+clean_flash_driver.bin:
+	rm -f flash_driver.bin
+
+else
+
+flash_driver.bin:
+# Nothing to do here.
+
+clean_flash_driver.bin:
+# Nothing to do here.
+endif
+
+build: build-stamp
+build-stamp: clean_flash_driver.bin flash_driver.bin
+	dh_testdir
+
+	set -e; \
+	for py in $(PYVERS); do  \
+	    $$py setup.py build; \
+	done
+
+	touch $@
+
+ifneq (,$(findstring rebuild_flash_driver,$(DEB_BUILD_OPTIONS)))
+clean_toolchain:
+	for dir in $(TOOLCHAIN_DIR) $(GCC_DIR) $(BINUTILS_DIR); do \
+	    [ ! -d "$$dir" ] || rm -rf $$dir ;\
+	done
+.PHONY: clean_toolchain
+clean: clean_flash_driver.bin clean_toolchain
+else
+clean:
+endif
+	dh_testdir
+	dh_testroot
+	-for py in $(PYVERS); do  \
+	    $$py setup.py clean; \
+	done
+	find . -name \*.pyc | xargs rm -f
+	rm -rf build
+	rm -f install-stamp build-stamp
+	dh_clean
+
+install: install-stamp
+install-stamp:
+	dh_testdir
+	dh_testroot
+	dh_clean -k
+	dh_installdirs
+	set -e; \
+	for py in $(PYVERS); do  \
+	    $$py setup.py install --root=debian/$(PKGNAME); \
+	done
+	touch install-stamp
+
+binary-arch: build install
+# We have nothing to do by default.
+
+binary-indep: build install
+	dh_testdir
+	dh_testroot
+	dh_installman
+	dh_installdocs
+	dh_installchangelogs
+	dh_compress -X.py
+	dh_fixperms
+	dh_pysupport
+	dh_installdeb
+	dh_gencontrol
+	dh_md5sums
+	dh_builddeb
+
+binary: binary-indep binary-arch
+.PHONY: build clean binary-indep binary-arch binary install clean_flash_driver.bin 

@@ -1,0 +1,64 @@
+.\" Hey, emacs: -*- nroff -*-
+.\" First parameter, NAME, should be all caps
+.\" Second parameter, SECTION, should be 1-8, maybe w/ subsection
+.\" other parameters are allowed: see man(7), man(1)
+.TH "fwexec" 1 "September 28, 2007"
+.\" Please adjust this date whenever revising the manpage.
+.SH NAME
+fwflash \- Execute a Lego Mindstorms NXT firmware from RAM
+.SH SYNOPSIS
+.B fwexec
+.I file "load-address"
+.BR
+.SH DESCRIPTION
+.B fwexec
+is a program that takes a firmware image for the Lego Mindstorms NXT,
+uploads it to the RAM of a brick connected to the computer by its USB
+cable, and executes it directly from RAM. This is meant for use by
+developers of firmwares, so that they can test their code without
+causing wear and tear to the flash chip (and especially the region lock
+bits, which have a very limited lifespan).
+.PP
+The Lego Mindstorms NXT brick should be put into reset mode (also known
+as "clicking brick" mode) by pressing the button hidden in the top-left
+whole of its underside.
+.PP
+Note that
+.B fwexec
+does not validate the contents of the firmware image (how could it?). It
+only checks that the firmware image is smaller than 56kB, ensuring that
+it can fit into the NXT's RAM without clobbering the area reserved by
+the bootloader.
+.PP
+Further note that firmwares passed to
+.I fwflash
+cannot be passed to
+.I fwexec
+unmodified. To be executable in-place without being written to flash
+memory, a firmware needs to be compiled in a different way. Check the
+Lejos or NxOS projects for examples of how to compile a firmware for
+in-place execution.
+.PP
+Finally, note that since nothing is written to non-volatile memory by
+.I fwexec
+, the brick will reboot into the SAM-BA bootloader if you power down the
+brick. If you want to write your firmware to non-volatile memory, you
+should use
+.I fwflash
+instead.
+.SH OPTIONS
+This program follows the usual GNU command line syntax, with long
+options starting with two dashes (`-').
+A summary of options is included below.
+For a complete description, see the Info files.
+.TP
+.B \-h, \-\-help
+Show summary of options.
+.TP
+.B \-v, \-\-version
+Show version of program.
+.SH SEE ALSO
+.BR fwexec (1).
+.SH AUTHOR
+This manual page was written by David Anderson <dave@natulte.net>.
+Send bug reports or comments to the above address.
