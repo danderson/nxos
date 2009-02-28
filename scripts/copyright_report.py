@@ -82,17 +82,18 @@ def check_file(file_path, file_sha):
         return False
     return True
 
+def changed_paths(git_out):
+    l = git_out.split('\0')
+    for sha_and_status,path in zip(l[::2], l[1::2]):
+        sha, status = sha_and_status.split()[3:5]
+        yield sha,status,path
+
 def main():
     ok = True
 
-    changed_files = git('diff-index', '--cached', '-z', '-M', 'HEAD')
+    changed = git('diff-index', '--cached', '-z', '-M', 'HEAD')
 
-    for changed in changed_files.splitlines():
-        changed = changed.split('\0')
-
-        file_sha, file_status = changed[0].split()[3:5]
-        file_path = changed[-2]
-
+    for file_sha,file_status,file_path in changed_paths(changed):
         if file_status not in ('M', 'C', 'R', 'A'):
             continue
 
