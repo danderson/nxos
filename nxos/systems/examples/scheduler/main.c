@@ -29,7 +29,7 @@
 
 /* Let's have a global counter. "scheduling" in our system simply
  * means incrementing this counter's value. Think of it as a less
- * precise alter ego of the systick driver.
+ * precise alter ego of the systick driver's system clock.
  */
 static volatile U32 counter = 0;
 
