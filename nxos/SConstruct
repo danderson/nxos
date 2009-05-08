@@ -152,8 +152,10 @@ def appkernel_tool(env):
 ###############################################################
 # Options that can be provided on the commandline
 ###############################################################
-buildable_systems = [os.path.split(os.path.dirname(x))[1]
-                     for x in glob('systems/*/SConscript')]
+buildable_systems = []
+for root, dirs, files in os.walk('systems'):
+    if 'SConscript' in files:
+        buildable_systems.append(root.split('/', 1)[1])
 
 opts = Options('build_flags.py')
 opts.Add(ListOption('appkernels',
