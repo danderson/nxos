@@ -1,0 +1,6 @@
+# -*- mode: python -*-
+
+from glob import glob
+
+Import('env')
+env.AppKernel('timer', glob('*.[cS]'), kernelsize='20k')
