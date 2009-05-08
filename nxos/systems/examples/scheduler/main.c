@@ -50,6 +50,7 @@ static void schedule() {
 static void show_counter() {
   nx_display_clear();
   nx_display_uint(counter);
+  nx_systick_wait_ms(1000);
 }
 
 void main() {
@@ -63,9 +64,7 @@ void main() {
    */
   show_counter();
 
-  nx_systick_wait_ms(1000);
-
-  /* Now it should have advanced a lot. The scheduler gets called
+  /* Now it should have advanced more. The scheduler gets called
    * approximately 1000 times per second.
    */
   show_counter();
@@ -86,7 +85,6 @@ void main() {
 
   /* Just to show that the counter is no longer incrementing. */
   show_counter();
-  nx_systick_wait_ms(1000);
   show_counter();
 
   /* And of course, when you're ready, the scheduler can be
@@ -95,7 +93,7 @@ void main() {
   nx_systick_unmask_scheduler();
 
   /* Just to show that the counter is once again incrementing. */
-  nx_systick_wait_ms(1000);
+  show_counter();
   show_counter();
 
   /* Short wait to let you see the counter, before the brick shuts
