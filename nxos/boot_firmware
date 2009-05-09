@@ -22,92 +22,126 @@ Examples:
         %(n)s tests rom
 '''.strip()
 
-STATUS_REPORT = '''
-Kernel %s:
- * In-RAM size: %s
- * In-ROM size: %s
- * Wasted RAM: %s
- * Load address: 0x%x
- * Boot method: %s
-'''.strip()
 
-def kernel_path_from_name(name, variant):
-    return 'systems/%s/%s_%s.bin' % (name, name, variant)
+class Error(Exception):
+    """Exception base class for this program."""
 
-def get_kernel():
-    if len(sys.argv) not in (2,3):
-        print USAGE % {'n': sys.argv[0]}
-        return (None, None, None)
-    if len(sys.argv) == 3:
-        kernel_file = kernel_path_from_name(sys.argv[1], sys.argv[2])
-    else:
-        kernel_file = sys.argv[1]
 
-    if not os.path.isfile(kernel_file):
-        print 'Kernel image %s not found.' % kernel_file
-        return (None, None, None)
+class FileNotFound(Error):
+    """File not found"""
 
-    # Load the firmware image, and separate the header from the actual
-    # image.
-    f = open(kernel_file)
-    fw_and_header = f.read()
-    f.close()
-    header = fw_and_header[-21:]
-    fw = fw_and_header[:-21]
 
-    header = struct.unpack('<5LB', header)
-    if header[0] != 0xDEADBEEF:
-        print 'Invalid magic on kernel image, cannot process.'
-        return (None, None, None)
-    return (kernel_file, header, fw)
+class FileTooSmall(Error):
+    """File is too small to be a firmware"""
 
-def format_number(size):
-    if size < 1024:
-        return '%dB' % size
-    else:
-        return '%.2fkB' % (size/1024)
 
-def main():
-    filename, header, fw = get_kernel()
-    if fw is None:
-        return 1
-    (_, ramsize, ramwaste, romsize, loadaddr, samba) = header
-    print STATUS_REPORT % (filename, format_number(ramsize),
-                           format_number(romsize), format_number(ramwaste),
-                           loadaddr, {0:'Flash Boot', 1:'SAM-BA Boot'}[samba])
-    print
-    a = raw_input('Boot? [Y/n] ').lower()
-    while a not in ('', 'y', 'n', 'yes', 'no'):
-        a = raw_input('Boot? [Y/n] ').lower()
-    if a in ('no', 'n'):
-        return 0
+class InvalidHeader(Error):
+    """Firmware has invalid header"""
 
+
+class BrickNotFound(Error):
+    """NXT was not found"""
+
+
+class Firmware(object):
+    HEADER_DEF = '<5LB'
+    HEADER_SIZE = struct.calcsize(HEADER_DEF)
+
+    def __init__(self, file):
+        self.path = file
+
+        if not os.path.isfile(file):
+            raise FileNotFound('No file named "%s" was found.' % file)
+
+        f = open(file)
+        fw_and_header = f.read()
+        f.close()
+
+        header = fw_and_header[-self.HEADER_SIZE:]
+        self.firmware = fw_and_header[:-self.HEADER_SIZE]
+
+        (magic, self.ramsize, self.ramwaste, self.romsize,
+         self.loadaddr, self.samba) = struct.unpack(self.HEADER_DEF, header)
+        self.samba = bool(self.samba)
+        if magic != 0xDEADBEEF:
+            raise InvalidHeader('Bad magic on header')
+
+
+def upload_and_boot(firmware):
     s = nxt.samba.SambaBrick()
     try:
-        print 'Looking for the NXT in SAM-BA mode...'
         s.open(timeout=60)
-        print 'Brick found!'
     except nxt.samba.SambaOpenError, e:
-        print 'Error: %s.' % str(e)
-        return 1
-    except KeyboardInterrupt:
-        print 'Cancelled.'
-        return 0
+        raise BrickNotFound()
 
-    if samba:
-        print 'Uploading firmware...',
-        s.write_buffer(loadaddr, fw)
-        print 'Ok'
+    if firmware.samba:
+        s.write_buffer(firmware.loadaddr, firmware.firmware)
     else:
-        print 'Flashing firmware...',
         f = nxt.flash.FlashController(s)
-        f.flash(fw)
-        print 'Ok'
+        f.flash(firmware.firmware)
 
-    print 'Jumping to 0x%x...' % loadaddr,
-    s.jump(loadaddr)
-    print 'Ok'
+    s.jump(firmware.loadaddr)
     s.close()
+
+
+def find_all_firmwares(root):
+    firmwares = []
+    for root, dirs, files in os.walk(root):
+        for f in files:
+            if f.endswith('.bin'):
+                try:
+                    firmware = Firmware(os.path.join(root, f))
+                except Error:
+                    pass
+                else:
+                    firmwares.append(firmware)
+    firmwares.sort(key=lambda f: f.path)
+    return firmwares
+
+
+def display_firmwares(firmwares):
+    def find_divergence_idx(a, b):
+        prefix = os.path.commonprefix([a, b]).rfind('/')
+        return max(prefix, 0)
+
+    previous = ''
+    print 'Available firmwares:'
+    print
+    for i, firmware in enumerate(firmwares):
+        idx = find_divergence_idx(previous, firmware.path)
+        print ' %2d. %s%s' % (i+1, ' '*idx, firmware.path[idx:])
+        previous = firmware.path
+    print
+
+
+def ask_number(prompt, limit):
+    while True:
+        answer = raw_input(prompt)
+        try:
+            answer = int(answer)
+        except ValueError:
+            print 'Please enter a number.'
+            continue
+
+        if answer <= 0 or answer > limit:
+            print 'Please enter a number between 1 and %d' % limit
+            continue
+
+        return answer
+
+
+def main():
+    firmwares = find_all_firmwares('systems')
+    if not firmwares:
+        print 'No firmwares compiled, nothing to boot.'
+        return 1
+
+    display_firmwares(firmwares)
+    choice = ask_number('Select firmware to boot: ', len(firmwares)) - 1
+
+    print 'Uploading and booting...'
+    upload_and_boot(firmwares[choice])
+
     return 0
 
 if __name__ == '__main__':
