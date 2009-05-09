@@ -131,16 +131,24 @@ def ask_number(prompt, limit):
 
 
 def main():
-    firmwares = find_all_firmwares('systems')
-    if not firmwares:
-        print 'No firmwares compiled, nothing to boot.'
-        return 1
+    if len(sys.argv) > 2:
+        print USAGE % sys.argv[0]
+        return 2
 
-    display_firmwares(firmwares)
-    choice = ask_number('Select firmware to boot: ', len(firmwares)) - 1
+    if len(sys.argv) == 2:
+        f = Firmware(sys.argv[1])
+    else:
+        firmwares = find_all_firmwares('systems')
+        if not firmwares:
+            print 'No firmwares compiled, nothing to boot.'
+            return 1
+
+        display_firmwares(firmwares)
+        choice = ask_number('Select firmware to boot: ', len(firmwares)) - 1
+        f = firmwares[choice]
 
     print 'Uploading and booting...'
-    upload_and_boot(firmwares[choice])
+    upload_and_boot(f)
 
     return 0
 
