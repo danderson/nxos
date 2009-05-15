@@ -60,17 +60,6 @@ SECTIONS {
 
 
   /*
-   * The base bootstrapping code for the NXT.
-   */
-  .init : {
-    base/init.o (*.text *.text.*)
-    . = ALIGN(16);
-  }
-  ROM_ONLY > rom
-  SAM_ONLY > ram
-
-
-  /*
    * This section contains code that is relocated to RAM before
    * execution.
    *
@@ -167,9 +156,8 @@ SECTIONS {
   __stack_start__ = ADDR(.stack);
   __stack_end__ = (ADDR(.stack) + SIZEOF(.stack));
 
-  SAM_ONLY __kernel_ram_load_size__ = SIZEOF(.vectors) + SIZEOF(.init) +
-  SAM_ONLY                            SIZEOF(.ram_text) + SIZEOF(.text) +
-  SAM_ONLY                            SIZEOF(.data);
+  SAM_ONLY __kernel_ram_load_size__ = SIZEOF(.vectors) + SIZEOF(.ram_text) +
+  SAM_ONLY                            SIZEOF(.text) +  SIZEOF(.data);
 
   /* SAMBA stage 0.5 */
   SAM_ONLY .samba_boot ADDR(.bss) : {
@@ -195,16 +183,15 @@ SECTIONS {
     /* Magic identifier */
     LONG(0xDEADBEEF);
     /* Kernel in-ram size */
-    __kernel_in_ram_size__ =  SIZEOF(.vectors) + SIZEOF(.init) +
-      SIZEOF(.ram_text) + SIZEOF(.data) +
-      SIZEOF(.bss) + SIZEOF(.stack)
-      SAM_ONLY + SIZEOF(.text)
+    __kernel_in_ram_size__ =  SIZEOF(.vectors) + SIZEOF(.ram_text) +
+                              SIZEOF(.data) + SIZEOF(.bss) + SIZEOF(.stack)
+      SAM_ONLY                + SIZEOF(.text)
       ;
     LONG(__kernel_in_ram_size__);
     /* Kernel in-rom size */
     SAM_ONLY LONG(0);
-    ROM_ONLY   LONG(SIZEOF(.vectors) + SIZEOF(.init) +
-    ROM_ONLY        SIZEOF(.ram_text) + SIZEOF(.data) + SIZEOF(.text));
+    ROM_ONLY LONG(SIZEOF(.vectors) + SIZEOF(.ram_text) +
+    ROM_ONLY      SIZEOF(.data) + SIZEOF(.text));
     /* Write address */
     SAM_ONLY LONG(RAM_BASE + SAMBA_RESERVED_SIZE);
     ROM_ONLY LONG(ROM_BASE);
