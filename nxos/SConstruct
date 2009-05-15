@@ -111,7 +111,7 @@ def appkernel_tool(env):
         variant_kernel_elf = env.Command(
             kvariant + '.elf',
             [env['NXOS_BASEPLATE'], app_kernel, env['NXOS_LIBGCC']],
-            '$LINK -o $TARGET -T %s -Os --gc-sections '
+            '$LINK -o $TARGET -T %s -Os --gc-sections --no-check-sections '
             '$SOURCES' % variant_lds[0].path)
         env.Depends(variant_kernel_elf, variant_lds)
 

@@ -75,7 +75,7 @@ def upload_and_boot(firmware):
         raise BrickNotFound()
 
     if firmware.samba:
-        s.write_buffer(firmware.loadaddr, firmware.firmware)
+        s.write_buffer(0x202000, firmware.firmware)
     else:
         f = nxt.flash.FlashController(s)
         f.flash(firmware.firmware)

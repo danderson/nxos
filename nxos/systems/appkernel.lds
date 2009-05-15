@@ -37,12 +37,9 @@ ROM_ONLY ROM_BASE = 1M;
 ROM_ONLY ROM_SIZE = 256k;
 RAM_BASE = 2M;
 RAM_SIZE = 64k;
+SAMBA_RESERVED_SIZE = 8k;
 
 SECTIONS {
-  SAM_ONLY .reserved : {
-  SAM_ONLY   . = 8k - 64;
-  SAM_ONLY } > ram
-
   SAM_ONLY __boot_from_samba__ = 1;
   ROM_ONLY __boot_from_samba__ = 0;
 
@@ -55,7 +52,6 @@ SECTIONS {
     . = ALIGN(16);
   } > vector_ram
   ROM_ONLY AT> rom
-  SAM_ONLY AT> ram
 
   __vectors_ram_start__  = ADDR(.vectors);
   __vectors_ram_end__    = (ADDR(.vectors) + SIZEOF(.vectors));
@@ -177,7 +173,7 @@ SECTIONS {
 
   /* SAMBA stage 0.5 */
   SAM_ONLY .samba_boot ADDR(.bss) : {
-  SAM_ONLY   base/samba_init.o(.samba_init);
+  SAM_ONLY   KEEP(base/samba_init.o(.samba_init));
   SAM_ONLY }
 
   /*
@@ -194,7 +190,8 @@ SECTIONS {
   /*
    * The magic metadata struct is tacked onto the start of the kernel binary.
    */
-  .magic : {
+  SAM_ONLY .magic ADDR(.samba_boot) + SIZEOF(.samba_boot) : {
+  ROM_ONLY .magic : {
     /* Magic identifier */
     LONG(0xDEADBEEF);
     /* Kernel in-ram size */
@@ -212,7 +209,7 @@ SECTIONS {
     ROM_ONLY   LONG(SIZEOF(.vectors) + SIZEOF(.init) +
     ROM_ONLY        SIZEOF(.ram_text) + SIZEOF(.data) + SIZEOF(.text));
     /* Bootup address */
-    SAM_ONLY LONG(0x202000);
+    SAM_ONLY LONG(ADDR(.samba_boot) + SAMBA_RESERVED_SIZE);
     ROM_ONLY LONG(0x100000);
     /* SAM-BA kernel? */
     SAM_ONLY BYTE(1);
@@ -220,4 +217,9 @@ SECTIONS {
   }
   SAM_ONLY > ram
   ROM_ONLY > rom
+
+  /* Discard anything not mapped at this point. */
+  /DISCARD/ : {
+    * (*);
+  }
 }
