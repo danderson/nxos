@@ -49,7 +49,6 @@ SECTIONS {
    */
   .vectors : {
     KEEP(base/vectors.o (*.text *.text.*))
-    . = ALIGN(16);
   } > vector_ram
   ROM_ONLY AT> rom
 
@@ -67,10 +66,10 @@ SECTIONS {
    * function correctly (like flash writing code)
    */
   .ram_text : {
-    . = ALIGN(16);
+    . = ALIGN(4);
     *.oram(*.text *.text.* *.glue*) /* TODO: align? */
+    . = ALIGN(4);
     *.oram(*.rodata *.rodata.*)
-    . = ALIGN(16);
   } > ram
   ROM_ONLY AT> rom
 
@@ -85,8 +84,8 @@ SECTIONS {
    * from ROM if booting from flash.
    */
   .data : {
+    . = ALIGN(4);
     * (*.data *.data.*)
-    . = ALIGN(16);
   } > ram
   ROM_ONLY AT> rom
 
@@ -101,11 +100,10 @@ SECTIONS {
    * data. If possible, this goes into flash, to free up more RAM.
    */
   .text : {
-    . = ALIGN(16);
+    . = ALIGN(4);
     * (*.text *.text.* *.glue*)
-    . = ALIGN(16);
+    . = ALIGN(4);
     * (*.rodata *.rodata.*)
-    . = ALIGN(16);
   }
   ROM_ONLY > rom
   SAM_ONLY > ram
@@ -124,7 +122,7 @@ SECTIONS {
    */
   .bss : {
     * (*.bss *.bss.*)
-    . = ALIGN(16);
+    . = ALIGN(4);
     __bss_end__ = . ;
   } > ram
 
@@ -140,7 +138,7 @@ SECTIONS {
    */
   .stack  : {
     /* irq stack */
-    . = ALIGN(16);
+    . = ALIGN(8);
     . += 0x60; /* 96b, which is 3*8*4, the maximum irq stack size. */
     . = ALIGN(8);
     __irq_stack__ = .;
@@ -148,7 +146,7 @@ SECTIONS {
     /* supervisor stack */
     __supervisor_stack_bottom__ = . ;
     . += 0x400; /* 1k supervisor stack. */
-    . = ALIGN(16);
+    . = ALIGN(8);
     __supervisor_stack__ = .;
     __supervisor_stack_top__ = . ;
   } > ram
