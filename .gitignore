@@ -4,11 +4,15 @@
 *.bin
 *.elf
 *.map
+*.lds
 *.orig
 *.log
 *~
 \#*\#
 .\#*
+
+# The base appkernel linker script shouldn't be ignored.
+!nxos/systems/appkernel.lds
 
 # Python distutils creates this when building.
 pynxt/build/
