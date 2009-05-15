@@ -171,6 +171,15 @@ SECTIONS {
   __stack_start__ = ADDR(.stack);
   __stack_end__ = (ADDR(.stack) + SIZEOF(.stack));
 
+  SAM_ONLY __kernel_ram_load_size__ = SIZEOF(.vectors) + SIZEOF(.init) +
+  SAM_ONLY                            SIZEOF(.ram_text) + SIZEOF(.text) +
+  SAM_ONLY                            SIZEOF(.data);
+
+  /* SAMBA stage 0.5 */
+  SAM_ONLY .samba_boot ADDR(.bss) : {
+  SAM_ONLY   base/samba_init.o(.samba_init);
+  SAM_ONLY }
+
   /*
    * Variables defined to inform the kernel of how much RAM remains
    * behind the loaded kernel.
