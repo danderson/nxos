@@ -170,9 +170,6 @@ SECTIONS {
   __userspace_start__ = __stack_end__;
   __userspace_end__   = (RAM_BASE + RAM_SIZE);
 
-  __free_ram_start__ = __stack_end__ ;
-  __free_ram_end__ = (RAM_BASE + RAM_SIZE);
-
   /*
    * The magic metadata struct is tacked onto the start of the kernel binary.
    */
