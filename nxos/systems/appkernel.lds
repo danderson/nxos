@@ -12,7 +12,7 @@
  *  suitable for either a SAM-BA or rom image.
  *
  *  The sed script achieves this by selectively copying the lines with
- *  ROM_ONLY and SAMBA_ONLY.
+ *  ROM_ONLY and SAM_ONLY.
  *
  *  Notes on alignment:
  *  1) Sections should be 4-byte aligned otherwise ARM fetches will be
@@ -39,11 +39,11 @@ RAM_BASE = 2M;
 RAM_SIZE = 64k;
 
 SECTIONS {
-  SAMBA_ONLY .reserved : {
-  SAMBA_ONLY   . = 8k - 64;
-  SAMBA_ONLY } > ram
+  SAM_ONLY .reserved : {
+  SAM_ONLY   . = 8k - 64;
+  SAM_ONLY } > ram
 
-  SAMBA_ONLY __boot_from_samba__ = 1;
+  SAM_ONLY __boot_from_samba__ = 1;
   ROM_ONLY __boot_from_samba__ = 0;
 
   /*
@@ -55,7 +55,7 @@ SECTIONS {
     . = ALIGN(16);
   } > vector_ram
   ROM_ONLY AT> rom
-  SAMBA_ONLY AT> ram
+  SAM_ONLY AT> ram
 
   __vectors_ram_start__  = ADDR(.vectors);
   __vectors_ram_end__    = (ADDR(.vectors) + SIZEOF(.vectors));
@@ -71,7 +71,7 @@ SECTIONS {
     . = ALIGN(16);
   }
   ROM_ONLY > rom
-  SAMBA_ONLY > ram
+  SAM_ONLY > ram
 
 
   /*
@@ -123,10 +123,10 @@ SECTIONS {
     . = ALIGN(16);
   }
   ROM_ONLY > rom
-  SAMBA_ONLY > ram
+  SAM_ONLY > ram
 
   ROM_ONLY __rom_userspace_start__ = ADDR(.text) + SIZEOF(.text);
-  SAMBA_ONLY __rom_userspace_start__ = 0;
+  SAM_ONLY __rom_userspace_start__ = 0;
 
   __text_start__ = ADDR(.text);
   __text_end__ = ADDR(.text) + SIZEOF(.text);
@@ -192,23 +192,23 @@ SECTIONS {
     __kernel_in_ram_size__ =  SIZEOF(.vectors) + SIZEOF(.init) +
       SIZEOF(.ram_text) + SIZEOF(.data) +
       SIZEOF(.bss) + SIZEOF(.stack)
-      SAMBA_ONLY + SIZEOF(.text)
+      SAM_ONLY + SIZEOF(.text)
       ;
     LONG(__kernel_in_ram_size__);
     /* Wasted ram space (after the kernel). TODO: remove */
-    SAMBA_ONLY LONG(0);
+    SAM_ONLY LONG(0);
     ROM_ONLY LONG(0);
     /* Kernel in-rom size */
-    SAMBA_ONLY LONG(0);
+    SAM_ONLY LONG(0);
     ROM_ONLY   LONG(SIZEOF(.vectors) + SIZEOF(.init) +
     ROM_ONLY        SIZEOF(.ram_text) + SIZEOF(.data) + SIZEOF(.text));
     /* Bootup address */
-    SAMBA_ONLY LONG(0x202000);
+    SAM_ONLY LONG(0x202000);
     ROM_ONLY LONG(0x100000);
     /* SAM-BA kernel? */
-    SAMBA_ONLY BYTE(1);
+    SAM_ONLY BYTE(1);
     ROM_ONLY BYTE(0);
   }
-  SAMBA_ONLY > ram
+  SAM_ONLY > ram
   ROM_ONLY > rom
 }

@@ -143,9 +143,9 @@ def appkernel_tool(env):
 
         # Build the SAM-BA and ROM kernel variants.
         AppKernelVariant(env, kernel_name, 'samba', app_kernel, app_kernel_lds,
-                         ['SAMBA_ONLY'], ['ROM_ONLY'])
+                         ['SAM_ONLY'], ['ROM_ONLY'])
         AppKernelVariant(env, kernel_name, 'rom', app_kernel, app_kernel_lds,
-                         ['ROM_ONLY'], ['SAMBA_ONLY'])
+                         ['ROM_ONLY'], ['SAM_ONLY'])
     appkernel_func = new.instancemethod(AppKernel, env, env.__class__)
     env.AppKernel = appkernel_func
 
