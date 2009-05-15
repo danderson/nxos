@@ -201,13 +201,13 @@ SECTIONS {
       SAM_ONLY + SIZEOF(.text)
       ;
     LONG(__kernel_in_ram_size__);
-    /* Wasted ram space (after the kernel). TODO: remove */
-    SAM_ONLY LONG(0);
-    ROM_ONLY LONG(0);
     /* Kernel in-rom size */
     SAM_ONLY LONG(0);
     ROM_ONLY   LONG(SIZEOF(.vectors) + SIZEOF(.init) +
     ROM_ONLY        SIZEOF(.ram_text) + SIZEOF(.data) + SIZEOF(.text));
+    /* Write address */
+    SAM_ONLY LONG(RAM_BASE + SAMBA_RESERVED_SIZE);
+    ROM_ONLY LONG(ROM_BASE);
     /* Bootup address */
     SAM_ONLY LONG(ADDR(.samba_boot) + SAMBA_RESERVED_SIZE);
     ROM_ONLY LONG(0x100000);

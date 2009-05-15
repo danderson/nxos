@@ -60,7 +60,7 @@ class Firmware(object):
         header = fw_and_header[-self.HEADER_SIZE:]
         self.firmware = fw_and_header[:-self.HEADER_SIZE]
 
-        (magic, self.ramsize, self.ramwaste, self.romsize,
+        (magic, self.ramsize, self.romsize, self.writeaddr,
          self.loadaddr, self.samba) = struct.unpack(self.HEADER_DEF, header)
         self.samba = bool(self.samba)
         if magic != 0xDEADBEEF:
@@ -75,7 +75,7 @@ def upload_and_boot(firmware):
         raise BrickNotFound()
 
     if firmware.samba:
-        s.write_buffer(0x202000, firmware.firmware)
+        s.write_buffer(firmware.writeaddr, firmware.firmware)
     else:
         f = nxt.flash.FlashController(s)
         f.flash(firmware.firmware)
