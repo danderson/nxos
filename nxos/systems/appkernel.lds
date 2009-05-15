@@ -27,9 +27,6 @@
  * Memory definitions.
  */
 
-RAM_KERNEL_RAM = @RAM_KSIZE@;
-ROM_KERNEL_RAM = @ROM_KSIZE@;
-
 MEMORY {
 ROM_ONLY rom : ORIGIN = 1M, LENGTH =256k
 vector_ram   : ORIGIN = 2M, LENGTH = 64
@@ -42,15 +39,12 @@ RAM_BASE = 2M;
 RAM_SIZE = 64k;
 
 SECTIONS {
-  .reserved : {
-    SAMBA_ONLY . = (64k - RAM_KERNEL_RAM - 64);
-    ROM_ONLY . = (64k - ROM_KERNEL_RAM - 64);
-  } > ram
+  SAMBA_ONLY .reserved : {
+  SAMBA_ONLY   . = 8k - 64;
+  SAMBA_ONLY } > ram
 
-  __userspace_start__ = ADDR(.reserved);
-  __userspace_end__   = (ADDR(.reserved) + SIZEOF(.reserved));
   SAMBA_ONLY __boot_from_samba__ = 1;
-  PROVIDE(__boot_from_samba__ = 0);
+  ROM_ONLY __boot_from_samba__ = 0;
 
   /*
    * Interrupt vectors. These are loaded to the bottom of memory at
@@ -181,6 +175,10 @@ SECTIONS {
    * Variables defined to inform the kernel of how much RAM remains
    * behind the loaded kernel.
    */
+  /* TODO: fix these values. */
+  __userspace_start__ = __stack_end__;
+  __userspace_end__   = (RAM_BASE + RAM_SIZE);
+
   __free_ram_start__ = __stack_end__ ;
   __free_ram_end__ = (RAM_BASE + RAM_SIZE);
 
@@ -197,15 +195,15 @@ SECTIONS {
       SAMBA_ONLY + SIZEOF(.text)
       ;
     LONG(__kernel_in_ram_size__);
-    /* Wasted ram space (after the kernel) */
-    SAMBA_ONLY LONG(RAM_KERNEL_RAM - __kernel_in_ram_size__);
-    ROM_ONLY LONG(ROM_KERNEL_RAM - __kernel_in_ram_size__);
+    /* Wasted ram space (after the kernel). TODO: remove */
+    SAMBA_ONLY LONG(0);
+    ROM_ONLY LONG(0);
     /* Kernel in-rom size */
     SAMBA_ONLY LONG(0);
     ROM_ONLY   LONG(SIZEOF(.vectors) + SIZEOF(.init) +
     ROM_ONLY        SIZEOF(.ram_text) + SIZEOF(.data) + SIZEOF(.text));
     /* Bootup address */
-    SAMBA_ONLY LONG(__userspace_end__);
+    SAMBA_ONLY LONG(0x202000);
     ROM_ONLY LONG(0x100000);
     /* SAM-BA kernel? */
     SAMBA_ONLY BYTE(1);
