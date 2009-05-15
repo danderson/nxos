@@ -16,7 +16,7 @@
 #include "marvin/semaphore.h"
 #include "marvin/time.h"
 
-mv_sem_t *beep_res;
+static mv_sem_t *beep_res;
 
 static void beep_consumer(void) {
   while(1) {
