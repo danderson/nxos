@@ -137,11 +137,10 @@ SECTIONS {
     /* Magic identifier */
     LONG(0xDEADBEEF);
     /* Kernel in-ram size */
-    __kernel_in_ram_size__ =  SIZEOF(.vectors) + SIZEOF(.ram_text) +
-                              SIZEOF(.data) + SIZEOF(.bss) + SIZEOF(.stack)
-    SAM_ONLY                  + SIZEOF(.text);
-    ROM_ONLY                  ;
-    LONG(__kernel_in_ram_size__);
+    LONG(SIZEOF(.vectors) + SIZEOF(.ram_text) +
+         SIZEOF(.data) + SIZEOF(.bss) + SIZEOF(.stack)
+    SAM_ONLY + SIZEOF(.text));
+    ROM_ONLY );
     /* Kernel in-rom size */
     SAM_ONLY LONG(0);
     ROM_ONLY LONG(SIZEOF(.vectors) + SIZEOF(.ram_text) +
@@ -201,6 +200,5 @@ SECTIONS {
   __ram_userspace_start__ = __stack_end__;
   __ram_userspace_end__ = (RAM_BASE + RAM_SIZE);
 
-  SAM_ONLY __kernel_ram_load_size__ = SIZEOF(.vectors) + SIZEOF(.ram_text) +
-  SAM_ONLY                            SIZEOF(.data) + SIZEOF(.text);
+  SAM_ONLY __kernel_ram_load_size__ = __text_end__ - __vectors_ram_start__;
 }
