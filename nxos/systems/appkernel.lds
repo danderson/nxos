@@ -29,8 +29,8 @@
 
 MEMORY {
 ROM_ONLY rom : ORIGIN = 1M, LENGTH =256k
-vector_ram   : ORIGIN = 2M, LENGTH = 64
-ram          : ORIGIN = 2M + 64, LENGTH = 64K - 64 + 21
+vector_ram : ORIGIN = 2M, LENGTH = 64
+ram : ORIGIN = 2M + 64, LENGTH = 64K - 64 + 21
 }
 
 ROM_BASE = 1M;
@@ -59,9 +59,9 @@ SECTIONS {
    */
   .ram_text : {
     . = ALIGN(4);
-    *.oram(*.text *.text.* *.glue*) /* TODO: align? */
+    *.oram (*.text *.text.* *.glue*)
     . = ALIGN(4);
-    *.oram(*.rodata *.rodata.*)
+    *.oram (*.rodata *.rodata.*)
   } > ram
   ROM_ONLY AT> rom
 
@@ -98,9 +98,8 @@ SECTIONS {
    * properly.
    */
   .bss : {
-    * (*.bss *.bss.*)
     . = ALIGN(4);
-    __bss_end__ = . ;
+    * (*.bss *.bss.*)
   } > ram
 
 
@@ -128,7 +127,7 @@ SECTIONS {
 
   /* SAMBA stage 0.5 */
   SAM_ONLY .samba_boot ADDR(.bss) : {
-  SAM_ONLY   KEEP(base/samba_init.o(.samba_init));
+  SAM_ONLY   KEEP(base/samba_init.o (.samba_init));
   SAM_ONLY }
 
 
@@ -142,8 +141,8 @@ SECTIONS {
     /* Kernel in-ram size */
     __kernel_in_ram_size__ =  SIZEOF(.vectors) + SIZEOF(.ram_text) +
                               SIZEOF(.data) + SIZEOF(.bss) + SIZEOF(.stack)
-      SAM_ONLY                + SIZEOF(.text)
-      ;
+    SAM_ONLY                  + SIZEOF(.text);
+    ROM_ONLY                  ;
     LONG(__kernel_in_ram_size__);
     /* Kernel in-rom size */
     SAM_ONLY LONG(0);
@@ -154,7 +153,7 @@ SECTIONS {
     ROM_ONLY LONG(ROM_BASE);
     /* Bootup address */
     SAM_ONLY LONG(ADDR(.samba_boot) + SAMBA_RESERVED_SIZE);
-    ROM_ONLY LONG(0x100000);
+    ROM_ONLY LONG(ROM_BASE);
     /* SAM-BA kernel? */
     SAM_ONLY BYTE(1);
     ROM_ONLY BYTE(0);
@@ -205,5 +204,5 @@ SECTIONS {
   __ram_userspace_end__ = (RAM_BASE + RAM_SIZE);
 
   SAM_ONLY __kernel_ram_load_size__ = SIZEOF(.vectors) + SIZEOF(.ram_text) +
-  SAM_ONLY                            SIZEOF(.text) +  SIZEOF(.data);
+  SAM_ONLY                            SIZEOF(.data) + SIZEOF(.text);
 }
