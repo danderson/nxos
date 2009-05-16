@@ -33,8 +33,8 @@ vector_ram   : ORIGIN = 2M, LENGTH = 64
 ram          : ORIGIN = 2M + 64, LENGTH = 64K - 64 + 21
 }
 
-ROM_ONLY ROM_BASE = 1M;
-ROM_ONLY ROM_SIZE = 256k;
+ROM_BASE = 1M;
+ROM_SIZE = 256k;
 RAM_BASE = 2M;
 RAM_SIZE = 64k;
 SAMBA_RESERVED_SIZE = 8k;
@@ -199,9 +199,10 @@ SECTIONS {
 
   ROM_ONLY __rom_userspace_start__ = ADDR(.text) + SIZEOF(.text);
   SAM_ONLY __rom_userspace_start__ = 0;
+  __rom_userspace_end__ = (ROM_BASE + ROM_SIZE);
 
-  __userspace_start__ = __stack_end__;
-  __userspace_end__   = (RAM_BASE + RAM_SIZE);
+  __ram_userspace_start__ = __stack_end__;
+  __ram_userspace_end__ = (RAM_BASE + RAM_SIZE);
 
   SAM_ONLY __kernel_ram_load_size__ = SIZEOF(.vectors) + SIZEOF(.ram_text) +
   SAM_ONLY                            SIZEOF(.text) +  SIZEOF(.data);
