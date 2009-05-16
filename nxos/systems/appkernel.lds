@@ -40,9 +40,6 @@ RAM_SIZE = 64k;
 SAMBA_RESERVED_SIZE = 8k;
 
 SECTIONS {
-  SAM_ONLY __boot_from_samba__ = 1;
-  ROM_ONLY __boot_from_samba__ = 0;
-
   /*
    * Interrupt vectors. These are loaded to the bottom of memory at
    * boot time.
@@ -51,11 +48,6 @@ SECTIONS {
     KEEP(base/vectors.o (*.text *.text.*))
   } > vector_ram
   ROM_ONLY AT> rom
-
-  __vectors_ram_start__  = ADDR(.vectors);
-  __vectors_ram_end__    = (ADDR(.vectors) + SIZEOF(.vectors));
-  __vectors_load_start__ = LOADADDR(.vectors);
-  __vectors_load_end__   = (LOADADDR(.vectors) + SIZEOF(.vectors));
 
 
   /*
@@ -73,11 +65,6 @@ SECTIONS {
   } > ram
   ROM_ONLY AT> rom
 
-  __ramtext_ram_start__ = ADDR(.ram_text);
-  __ramtext_ram_end__   = ADDR(.ram_text) + SIZEOF(.ram_text);
-  __ramtext_load_start__ = LOADADDR(.ram_text);
-  __ramtext_load_end__ = __ramtext_load_start__ + SIZEOF(.ram_text) ;
-
 
   /*
    * Read/Write initialized data. Runs from RAM, gets copied there
@@ -88,11 +75,6 @@ SECTIONS {
     * (*.data *.data.*)
   } > ram
   ROM_ONLY AT> rom
-
-  __data_ram_start__ = ADDR(.data);
-  __data_ram_end__   = ADDR(.data) + SIZEOF(.data);
-  __data_load_start__ = LOADADDR(.data);
-  __data_load_end__ = __data_load_start__ + SIZEOF(.data) ;
 
 
   /*
@@ -108,11 +90,6 @@ SECTIONS {
   ROM_ONLY > rom
   SAM_ONLY > ram
 
-  ROM_ONLY __rom_userspace_start__ = ADDR(.text) + SIZEOF(.text);
-  SAM_ONLY __rom_userspace_start__ = 0;
-
-  __text_start__ = ADDR(.text);
-  __text_end__ = ADDR(.text) + SIZEOF(.text);
 
   /*
    * The BSS section is zero-initialized data. The section does not
@@ -125,9 +102,6 @@ SECTIONS {
     . = ALIGN(4);
     __bss_end__ = . ;
   } > ram
-
-  __bss_start__ = ADDR(.bss);
-  __bss_end__   = (ADDR(.bss) + SIZEOF(.bss));
 
 
   /*
@@ -151,24 +125,12 @@ SECTIONS {
     __supervisor_stack_top__ = . ;
   } > ram
 
-  __stack_start__ = ADDR(.stack);
-  __stack_end__ = (ADDR(.stack) + SIZEOF(.stack));
-
-  SAM_ONLY __kernel_ram_load_size__ = SIZEOF(.vectors) + SIZEOF(.ram_text) +
-  SAM_ONLY                            SIZEOF(.text) +  SIZEOF(.data);
 
   /* SAMBA stage 0.5 */
   SAM_ONLY .samba_boot ADDR(.bss) : {
   SAM_ONLY   KEEP(base/samba_init.o(.samba_init));
   SAM_ONLY }
 
-  /*
-   * Variables defined to inform the kernel of how much RAM remains
-   * behind the loaded kernel.
-   */
-  /* TODO: fix these values. */
-  __userspace_start__ = __stack_end__;
-  __userspace_end__   = (RAM_BASE + RAM_SIZE);
 
   /*
    * The magic metadata struct is tacked onto the start of the kernel binary.
@@ -204,4 +166,43 @@ SECTIONS {
   /DISCARD/ : {
     * (*);
   }
+
+  /*
+   * Symbol definitions for the use of the kernel code.
+   */
+  SAM_ONLY __boot_from_samba__ = 1;
+  ROM_ONLY __boot_from_samba__ = 0;
+
+  __vectors_ram_start__  = ADDR(.vectors);
+  __vectors_ram_end__    = (ADDR(.vectors) + SIZEOF(.vectors));
+  __vectors_load_start__ = LOADADDR(.vectors);
+  __vectors_load_end__   = (LOADADDR(.vectors) + SIZEOF(.vectors));
+
+  __ramtext_ram_start__ = ADDR(.ram_text);
+  __ramtext_ram_end__   = ADDR(.ram_text) + SIZEOF(.ram_text);
+  __ramtext_load_start__ = LOADADDR(.ram_text);
+  __ramtext_load_end__ = __ramtext_load_start__ + SIZEOF(.ram_text) ;
+
+  __data_ram_start__ = ADDR(.data);
+  __data_ram_end__   = ADDR(.data) + SIZEOF(.data);
+  __data_load_start__ = LOADADDR(.data);
+  __data_load_end__ = __data_load_start__ + SIZEOF(.data) ;
+
+  ROM_ONLY __rom_userspace_start__ = ADDR(.text) + SIZEOF(.text);
+  SAM_ONLY __rom_userspace_start__ = 0;
+
+  __text_start__ = ADDR(.text);
+  __text_end__ = ADDR(.text) + SIZEOF(.text);
+
+  __bss_start__ = ADDR(.bss);
+  __bss_end__   = (ADDR(.bss) + SIZEOF(.bss));
+
+  __stack_start__ = ADDR(.stack);
+  __stack_end__ = (ADDR(.stack) + SIZEOF(.stack));
+
+  SAM_ONLY __kernel_ram_load_size__ = SIZEOF(.vectors) + SIZEOF(.ram_text) +
+  SAM_ONLY                            SIZEOF(.text) +  SIZEOF(.data);
+
+  __userspace_start__ = __stack_end__;
+  __userspace_end__   = (RAM_BASE + RAM_SIZE);
 }
