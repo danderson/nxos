@@ -170,9 +170,6 @@ SECTIONS {
   /*
    * Symbol definitions for the use of the kernel code.
    */
-  SAM_ONLY __boot_from_samba__ = 1;
-  ROM_ONLY __boot_from_samba__ = 0;
-
   __vectors_ram_start__  = ADDR(.vectors);
   __vectors_ram_end__    = (ADDR(.vectors) + SIZEOF(.vectors));
   __vectors_load_start__ = LOADADDR(.vectors);
@@ -188,9 +185,6 @@ SECTIONS {
   __data_load_start__ = LOADADDR(.data);
   __data_load_end__ = __data_load_start__ + SIZEOF(.data) ;
 
-  ROM_ONLY __rom_userspace_start__ = ADDR(.text) + SIZEOF(.text);
-  SAM_ONLY __rom_userspace_start__ = 0;
-
   __text_start__ = ADDR(.text);
   __text_end__ = ADDR(.text) + SIZEOF(.text);
 
@@ -200,9 +194,15 @@ SECTIONS {
   __stack_start__ = ADDR(.stack);
   __stack_end__ = (ADDR(.stack) + SIZEOF(.stack));
 
-  SAM_ONLY __kernel_ram_load_size__ = SIZEOF(.vectors) + SIZEOF(.ram_text) +
-  SAM_ONLY                            SIZEOF(.text) +  SIZEOF(.data);
+  SAM_ONLY __boot_from_samba__ = 1;
+  ROM_ONLY __boot_from_samba__ = 0;
+
+  ROM_ONLY __rom_userspace_start__ = ADDR(.text) + SIZEOF(.text);
+  SAM_ONLY __rom_userspace_start__ = 0;
 
   __userspace_start__ = __stack_end__;
   __userspace_end__   = (RAM_BASE + RAM_SIZE);
+
+  SAM_ONLY __kernel_ram_load_size__ = SIZEOF(.vectors) + SIZEOF(.ram_text) +
+  SAM_ONLY                            SIZEOF(.text) +  SIZEOF(.data);
 }
