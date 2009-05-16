@@ -19,8 +19,6 @@
  *     misaligned.
  *  2) The stack should be 8-byte aligned for the APCS. That's because
  *     STRD and LDRD assume that they are on 8-byte boundaries.
- *  3) Align 16 is a good idea for any copied or initialised sections
- *     because this allows the fatser LDM/STM code to run instead.
  */
 
 /*
