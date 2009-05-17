@@ -15,7 +15,7 @@ SRCDIR=$ROOT/src
 BUILDDIR=$ROOT/build
 PREFIX=$ROOT/install
 
-GCC_URL=ftp://ftp.irisa.fr/pub/mirrors/gcc.gnu.org/gcc/releases/gcc-4.2.2/gcc-core-4.2.2.tar.bz2
+GCC_URL=http://ftp.gnu.org/pub/gnu/gcc/gcc-4.2.2/gcc-core-4.2.2.tar.bz2
 GCC_VERSION=4.2.2
 GCC_DIR=gcc-$GCC_VERSION
 
@@ -27,11 +27,20 @@ NEWLIB_URL=ftp://sources.redhat.com/pub/newlib/newlib-1.15.0.tar.gz
 NEWLIB_VERSION=1.15.0
 NEWLIB_DIR=newlib-$NEWLIB_VERSION
 
+GDB_URL=ftp://ftp.gnu.org/gnu/gdb/gdb-6.8.tar.bz2
+GDB_VERSION=6.8
+GDB_DIR=gdb-$GDB_VERSION
+
 echo "I will build an arm-elf cross-compiler:
 
   Prefix: $PREFIX
   Sources: $SRCDIR
   Build files: $BUILDDIR
+
+  Software: Binutils $BINUTILS_VERSION
+            Gcc $GCC_VERSION
+            Newlib $NEWLIB_VERSION
+            Gdb $GDB_VERSION
 
 Press ^C now if you do NOT want to do this."
 read IGNORE
@@ -45,7 +54,7 @@ ensure_source()
     FILE=$(basename $1)
 
     if [ ! -e $FILE ]; then
-	curl -L -O$FILE $URL
+        curl -L -O$FILE $URL
     fi
 }
 
@@ -75,11 +84,14 @@ cd $SRCDIR
 ensure_source $GCC_URL
 ensure_source $BINUTILS_URL
 ensure_source $NEWLIB_URL
+#rboissat: Adding GNU gdb
+ensure_source $GDB_URL
 
 # ... And unpack the sources.
 unpack_source $(basename $GCC_URL)
 unpack_source $(basename $BINUTILS_URL)
 unpack_source $(basename $NEWLIB_URL)
+unpack_source $(basename $GDB_URL)
 )
 
 # Set the PATH to include the binaries we're going to build.
@@ -114,7 +126,7 @@ mkdir -p $BUILDDIR/$BINUTILS_DIR
 cd $BUILDDIR/$BINUTILS_DIR
 
 $SRCDIR/$BINUTILS_DIR/configure --target=arm-elf --prefix=$PREFIX \
-    --enable-interwork --enable-multilib --with-float=soft \
+    --disable-werror --enable-interwork --enable-multilib --with-float=soft \
     && make all install
 ) || exit 1
 
@@ -179,6 +191,18 @@ $SRCDIR/$NEWLIB_DIR/configure --target=arm-elf --prefix=$PREFIX \
 cd $BUILDDIR/$GCC_DIR
 
 make all install
+) || exit 1
+
+#
+# Stage 5: Build and install GDB
+#
+(
+mkdir -p $BUILDDIR/$GDB_DIR
+cd $BUILDDIR/$GDB_DIR
+
+$SRCDIR/$GDB_DIR/configure --target=arm-elf --prefix=$PREFIX \
+    --disable-werror --enable-interwork --enable-multilib --with-float=soft \
+    && make all install
 ) || exit 1
 
 export PATH=$OLD_PATH
