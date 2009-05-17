@@ -15,16 +15,16 @@ SRCDIR=$ROOT/src
 BUILDDIR=$ROOT/build
 PREFIX=$ROOT/install
 
-GCC_URL=http://ftp.gnu.org/pub/gnu/gcc/gcc-4.2.2/gcc-core-4.2.2.tar.bz2
-GCC_VERSION=4.2.2
+GCC_URL=http://ftp.gnu.org/pub/gnu/gcc/gcc-4.4.0/gcc-core-4.4.0.tar.bz2
+GCC_VERSION=4.4.0
 GCC_DIR=gcc-$GCC_VERSION
 
-BINUTILS_URL=http://ftp.gnu.org/gnu/binutils/binutils-2.18.tar.bz2
-BINUTILS_VERSION=2.18
+BINUTILS_URL=http://ftp.gnu.org/gnu/binutils/binutils-2.19.1.tar.bz2
+BINUTILS_VERSION=2.19.1
 BINUTILS_DIR=binutils-$BINUTILS_VERSION
 
-NEWLIB_URL=ftp://sources.redhat.com/pub/newlib/newlib-1.15.0.tar.gz
-NEWLIB_VERSION=1.15.0
+NEWLIB_URL=ftp://sources.redhat.com/pub/newlib/newlib-1.17.0.tar.gz
+NEWLIB_VERSION=1.17.0
 NEWLIB_DIR=newlib-$NEWLIB_VERSION
 
 GDB_URL=ftp://ftp.gnu.org/gnu/gdb/gdb-6.8.tar.bz2
@@ -102,26 +102,6 @@ export PATH=$PREFIX/bin:$PATH
 # Stage 1: Build binutils
 #
 (
-(
-# First we need to patch binutils, because makeinfo 4.11 fails the
-# autoconf check.
-cd $SRCDIR/$BINUTILS_DIR
-patch -p0 <<"EOF"
---- configure~ 2007-10-10 22:14:56.000000000 +1300
-+++ configure 2007-10-10 22:14:56.000000000 +1300
-@@ -3680,7 +3680,7 @@
-     # For an installed makeinfo, we require it to be from texinfo 4.4 or
-     # higher, else we use the "missing" dummy.
-     if ${MAKEINFO} --version \
--       | egrep 'texinfo[^0-9]*([1-3][0-9]|4\.[4-9]|[5-9])' >/dev/null 2>&1; then
-+       | egrep 'texinfo[^0-9]*([1-3][0-9]|4\.([4-9]|[1-9][0-9])|[5-9])' >/dev/null 2>&1; then
-       :
-     else
-       MAKEINFO="$MISSING makeinfo"
-EOF
-) || exit 1
-
-# Now, build it.
 mkdir -p $BUILDDIR/$BINUTILS_DIR
 cd $BUILDDIR/$BINUTILS_DIR
 
@@ -157,24 +137,6 @@ $SRCDIR/$GCC_DIR/configure --target=arm-elf --prefix=$PREFIX \
 # Stage 3: Build and install newlib
 #
 (
-(
-# Same issue, we have to patch to support makeinfo >= 4.11.
-cd $SRCDIR/$NEWLIB_DIR
-patch -p0 <<"EOF"
---- configure~ 2007-10-10 22:14:56.000000000 +1300
-+++ configure 2007-10-10 22:14:56.000000000 +1300
-@@ -3680,7 +3680,7 @@
-     # For an installed makeinfo, we require it to be from texinfo 4.4 or
-     # higher, else we use the "missing" dummy.
-     if ${MAKEINFO} --version \
--       | egrep 'texinfo[^0-9]*([1-3][0-9]|4\.[4-9]|[5-9])' >/dev/null 2>&1; then
-+       | egrep 'texinfo[^0-9]*([1-3][0-9]|4\.([4-9]|[1-9][0-9])|[5-9])' >/dev/null 2>&1; then
-       :
-     else
-       MAKEINFO="$MISSING makeinfo"
-EOF
-) || exit 1
-
 # And now we can build it.
 mkdir -p $BUILDDIR/$NEWLIB_DIR
 cd $BUILDDIR/$NEWLIB_DIR
@@ -207,7 +169,14 @@ $SRCDIR/$GDB_DIR/configure --target=arm-elf --prefix=$PREFIX \
 
 export PATH=$OLD_PATH
 
+echo "export PATH=$PREFIX/bin:\$PATH">$ROOT/env.sh
+
 echo "
-Build complete! Add $PREFIX/bin to your PATH to make arm-elf-gcc and friends
-accessible directly.
+Build complete! To use your new toolchain:
+
+  - Source the $ROOT/env.sh script in your shell. In bash:
+      source $ROOT/env.sh
+
+  - Or, just add $PREFIX/bin to your PATH manually.
+
 "
