@@ -123,7 +123,7 @@ def appkernel_tool(env):
     def AppKernel(self, kernel_name, sources, kernelsize='50k',
                   romkernelsize=None, kernelisbuilt=False):
         romkernelsize = romkernelsize or kernelsize
-        env = self.Copy()
+        env = self.Clone()
         env.Append(CPPPATH=['#systems'])
 
         # Build a .a with all the application kernel code.
@@ -157,8 +157,8 @@ for root, dirs, files in os.walk('systems'):
     if 'SConscript' in files:
         buildable_systems.append(root.split('/', 1)[1])
 
-opts = Options('build_flags.py')
-opts.Add(ListOption('appkernels',
+opts = Variables('build_flags.py')
+opts.Add(ListVariable('appkernels',
                     'List of application kernels to build '
                     '(by default, only the tests kernel is compiled', 'tests',
                     buildable_systems))
