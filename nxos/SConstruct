@@ -70,13 +70,16 @@ def CheckLibGcc(context, gccname):
         context.Result("Could not determine gcc version")
         return False
     gcc_install_dir = os.path.split(os.path.normpath(toolpath))[0]
-    libgcc_path = os.path.join(gcc_install_dir, 'lib', 'gcc',
+    for libdir in ['interwork', 'thumb', '']:
+        libgcc_path = os.path.join(gcc_install_dir, 'lib', 'gcc',
                                context.env['CROSS_COMPILE_HOST'],
-                               gcc_version, 'interwork', 'libgcc.a')
+                               gcc_version, libdir, 'libgcc.a')
+        if os.path.isfile(libgcc_path):
+            break
     if not os.path.isfile(libgcc_path):
-        context.Result("Not found")
+        context.Result("libgcc.a not found")
         return False
-    context.Result("ok")
+    context.Result("ok - " + libgcc_path)
     context.env.Append(NXOS_LIBGCC=libgcc_path)
     return True
 
@@ -209,15 +212,22 @@ if not env.GetOption('clean'):
     conf.CheckDoxygen()
     env = conf.Finish()
 
-env.Replace(CCFLAGS= ['-mcpu=arm7tdmi', '-Os', '-Wextra', '-Wall', '-Werror',
+mycflags = ['-mcpu=arm7tdmi', '-Os', '-Wextra', '-Wall', '-Werror',
                       '-Wno-div-by-zero', '-Wfloat-equal', '-Wshadow',
                       '-Wpointer-arith', '-Wbad-function-cast',
                       '-Wmissing-prototypes', '-ffreestanding',
                       '-fsigned-char', '-ffunction-sections', '-std=gnu99',
-                      '-fdata-sections', '-fomit-frame-pointer',
-                      '-msoft-float', '-mthumb-interwork', '-mthumb'],
-            ASFLAGS = ['-Wall', '-Werror', '-Os',
-                       '-Wa,-mcpu=arm7tdmi,-mfpu=softfpa,-mthumb-interwork'])
+                      '-fdata-sections', '-fomit-frame-pointer', '-msoft-float']
+myasflags = ['-Wall', '-Werror', '-Os'];
+if str(env['NXOS_LIBGCC']).find('interwork') != -1:
+    mycflags.append('-mthumb-interwork')
+    myasflags.append('-Wa,-mcpu=arm7tdmi,-mfpu=softfpa,-mthumb-interwork')
+elif str(env['NXOS_LIBGCC']).find('thumb') != -1:
+    mycflags.append('-mthumb')
+    myasflags.append('-Wa,-mcpu=arm7tdmi,-mfpu=softfpa,-mthumb')
+else:
+    myasflags.append('-Wa,-mcpu=arm7tdmi,-mfpu=softfpa')
+env.Replace(CCFLAGS = mycflags, ASFLAGS = myasflags )
 
 # Build the baseplate, and all selected application kernels.
 if env.GetOption('clean'):
