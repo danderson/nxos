@@ -30,7 +30,7 @@ def determine_gcc_version(gcc_binary):
     for token in gcc_output:
         if grab_next:
             return token
-        elif token == '(GCC)':
+        elif token[-1] == ')':
             grab_next = True
     return None
 
